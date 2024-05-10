@@ -1,0 +1,119 @@
+<!-- views/profile.ejs -->
+<%- include('../partials/header') %>
+<div id="panelRes" class="alert"></div>
+<form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
+</form>
+<div class="content-block dark-blue proceed">
+    <button type="submit" form="dataForm">Proceed to consequences</button>
+</div>
+<script>
+
+const data = {};
+data.stakeholders = [];
+let stakeholder = {};
+stakeholder.stakeholder = "";
+stakeholder.type = "";
+data.stakeholders.push(stakeholder);
+
+$('#dataForm').html("");
+$('#result').html("");
+$('form').show();
+
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("dataForm");
+    const projectId = form.dataset.projectId;
+
+    if (projectId) {
+        fetch(`/project/${projectId}`, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(projectData => {
+            renderForm(projectData);
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+        });
+    } else {
+        renderForm(data);
+    }
+});
+
+function renderForm(data) {
+    // Fetch the schema from "schemas/project.json"
+    fetch('/schemas/project.json')
+        .then(response => response.json())
+        .then(schema => {
+            $('#dataForm').jsonForm({
+                schema: schema.schema,
+                form: schema.form,
+                value: data,
+                onSubmit: function (errors, values) {
+                    if (errors) {
+                        $('#panelRes').html('<p>Please correct the errors in your form</p>');
+                    } else {
+                        var inputObject = values;
+                        sendDataToServer(inputObject);
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error("Error fetching schema:", error);
+        });
+}
+
+async function sendDataToServer(inputObject) {
+  let url;
+  let method;
+  const form = document.getElementById("dataForm");
+  const projectId = form.dataset.projectId;
+
+  if (projectId) {
+    // If _id is set, use PUT to update existing data
+    url = `/project/${projectId}`;
+    method = "PUT";
+  } else {
+    // If _id is not set, use POST to create new data
+    url = `/project/`;
+    method = "POST";
+  }
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(inputObject),
+    });
+
+    if (response.ok) {
+      // Request was successful, parse the response to get the ID
+      const responseData = await response.json();
+      const newID = responseData._id; // Replace with the actual field name from the response
+
+      // Populate the hidden _id element in the form with the newTrainID
+      const hiddenIDElement = document.getElementsByName("_id")[0];
+      if (hiddenIDElement) {
+        hiddenIDElement.value = newID;
+      }
+      $('#panelRes').html('<p>'+responseData.message+'</p>');
+      $('form').hide();
+    } else {
+      console.error("Request failed with status:", response.status);
+    }
+  } catch (error) {
+    console.error("An error occurred:", error);
+  }
+}
+
+</script>
+<%- include('../partials/footer') %>

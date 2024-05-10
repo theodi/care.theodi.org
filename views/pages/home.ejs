@@ -1,0 +1,67 @@
+<!-- views/pages/auth.ejs -->
+<%- include('../partials/header') %>
+<section class="content-block dark-blue">
+    <div class="grid-two-by-two">
+        <div style="font-size: 1.1em;">
+        <p>
+          Consequence Scanning is a way for organisations to think about the potential impact of their product or service on people and society. With Consequence Scanning, organisations will be able to anticipate and address concerns they might have early on in the development cycle, before the final product is shipped.
+        </p>
+        <p>
+          Through Consequence Scanning, you consider the potential consequences of what you&rsquo;re building and document the potential outcomes in order to provide you with the opportunity to mitigate or address potential harms or disasters before they happen.&nbsp;
+        </p>
+        <p>This interactive tool provides a framework to carry out a Consequence Scanning activity and generate a risk register that can be downloaded and incorporated into your project planning and governance.</p>
+      </div>
+      <div style="text-align: center;">
+        <!-- ifrmae -->
+        <div class="video-container -mr-16 pt-4">
+          <iframe
+            title="vimeo-player"
+            width="560"
+            height="315"
+            src="https://player.vimeo.com/video/880160624?h=9a9582c2ca&amp;badge=0&amp;autopause=0&amp;quality_selector=1&amp;player_id=0&amp;app_id=58479"
+            frameborder="0"
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen></iframe>
+        </div>
+      </div>
+    </div>
+</section>
+<section class="content-block light-blue">
+    <h2>How to use the tool</h2>
+    <p>There are two routes through the tool:</p>
+    <div class="grid-two-by-two">
+        <div>
+            <h3>Select from example case studies:</h3>
+            <p> Learn how to conduct a Consequence Scan by working through one of our example case studies and identify consequences, determine risk and plan actions.</p>
+        </div>
+        <div>
+            <h3>Start a new project:</h3>
+            <p>Follow the steps in the interactive tool to carry out a review of your own project and generate  a project overview and accompanying risk register.</p>
+        </div>
+    </div>
+</section>
+<section class="content-block dark-blue">
+  <h2>Supported by AI</h2>
+  <p>The tool uses a ChatGPT plugin to assist you in the process of Consequence Scanning. Throughout the tool you will have the option to generate suggestions and ideas for your project in order to help you identify consequences and plan risk mitigation.</p>
+  <b>The tool will:</b>
+    <ul>
+        <li><strong>Analyse data:</strong> The AI reads and analyses the content you input, including project descriptions, data details, and stakeholder information.</li>
+        <li><strong>Suggest consequences:</strong> Based on this analysis, the AI suggests potential consequences, both positive and negative, that might arise from your data project.</li>
+        <li><strong>Assess risk:</strong> The tool will assess the impact and likelihood of these consequences to help you prioritise and manage risks effectively.</li>
+        <li><strong>Create actions:</strong> The AI will generate specific actions to mitigate and manage identified consequences.</li>
+        <li><strong>Recommend KPIs: </strong>&nbsp;The tool will also recommend Key Performance Indicators (KPIs) for your actions in order to track the effectiveness of your risk mitigation actions.</li>
+    </ul>
+
+    <!-- add disclaimer -->
+    <p>Please note: Suggestions from the AI assistant are provided for consideration and should be taken as presented.</p>
+    <button>Begin</button>
+</section>
+
+<style>
+    .grid-two-by-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-gap: 1rem;
+    }
+</style>
+<%- include('../partials/footer') %>

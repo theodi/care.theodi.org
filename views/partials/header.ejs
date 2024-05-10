@@ -1,0 +1,49 @@
+<!-- views/partials/header.ejs -->
+<!DOCTYPE html>
+<html prefix="dct: http://purl.org/dc/terms/
+              rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#
+              dcat: http://www.w3.org/ns/dcat#
+              odrs: http://schema.theodi.org/odrs#">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= pageTitle %></title>
+
+<script type="text/javascript" src="/lib/jquery-3.7.1.min.js"></script>
+<script type="text/javascript" src="/lib/underscore.js"></script>
+<script type="text/javascript" src="/lib/jquery-ui.js"></script>
+<script type="text/javascript" src="/lib/jsv.js"></script>
+<script type="text/javascript" src="/lib/jsonform.js"></script>
+
+<link href="/css/water.css" rel="stylesheet">
+<link href="/css/glyphicon.css" rel="stylesheet">
+<link href="/css/style.css" rel="stylesheet">
+<link rel="shortcut icon" href="/images/odifavicon32.ico">
+
+</head>
+<body>
+	<div class="sidebar">
+		<img class="odi-logo" src="/images/odi-logo.png">
+		<ul class="main-menu">
+		  <li><a href="/" class="toggle-link">Homepage</a></li>
+		  <% if(user) { %>
+			<li><a href="/profile">Profile</a></li>
+			<li><a href="/scan" class="toggle-link">Start new project</a></li>
+		    <li><a href="/projects" class="toggle-link">Load existing project</a></li>
+		    <li><a href="/view" class="toggle-link">View completed risk evaluations</a></li>
+			<li><a href="/glossary" class="toggle-link">Glossary</a></li>
+			<li>
+				<form style="display: inline-flex;" id="logout_form" action="/logout" method="post">
+					<a href="javascript:;" onclick="document.getElementById('logout_form').submit();">Logout</a>
+				</form>
+			</li>
+		  <% } else { %>
+			<li><a href="/auth/django">Login</a></li>
+			<li><a href="/disclaimer" class="toggle-link">Disclaimer</a></li>
+		  <% } %>
+		</ul>
+	  </div>
+	  <div class="main-content">
+		<section class="page-title dark-blue">
+			<h1><%= pageTitle %></h1>
+		</section>

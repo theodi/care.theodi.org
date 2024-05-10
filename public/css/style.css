@@ -1,0 +1,200 @@
+:root {
+  --button-base: #0bf6;
+  --button-hover: #9b9b9b;
+}
+input:not([type="checkbox"]):not([type="radio"]), input[type="range"], select, button, textarea {
+  -webkit-appearance: auto;
+}
+* {
+  font-family: 'helvetica nue', sans-serif;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  -webkit-tap-highlight-color: transparent;
+  /* For some Androids */
+}
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin: 0px;
+  min-width: 100%;
+  padding-left: 0px;
+}
+.content-block {
+  padding: 1em;
+}
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 270px;
+    height: 100%;
+    background-color: #f4f4f4;
+    overflow-y: auto; /* Scrollable contents if sidebar is long */
+    z-index: 1000; /* Ensures sidebar is above other content */
+}
+.odi-logo {
+  height: 40px;
+  margin-top: 20px;
+  margin-left: 50px;
+}
+li {
+  margin-bottom: 0.5rem;
+}
+.sidebar li {
+  margin: 0;
+  padding: 4px 0 6px 21px;
+  list-style: none;
+  background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 32 32"%3E%3Cg id="KNn5AD.tif"%3E%3Cpath d="m19.3,15.95c-.09-.08-.18-.14-.26-.22-3.47-3.45-6.94-6.9-10.41-10.35-.75-.74-.81-1.88-.17-2.66.73-.88,2.04-.96,2.86-.16,1.01.99,2.01,1.99,3.01,2.98,3,2.98,5.99,5.96,8.99,8.93.39.39.64.84.67,1.39.03.6-.19,1.1-.61,1.53-.85.85-1.7,1.71-2.54,2.56-3.11,3.14-6.23,6.28-9.34,9.42-.74.74-1.83.84-2.62.23-.94-.72-1.03-2.08-.19-2.94,1.42-1.44,2.85-2.88,4.28-4.32,2.07-2.08,4.14-4.17,6.2-6.25.04-.04.07-.08.14-.15Z" style="stroke-width:0px;" fill="%23efc151"/%3E%3C/g%3E%3C/svg%3E');
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 25px;
+}
+
+form .inputText {
+  width: 100%;
+  padding-inline: 10px;
+  font-size: 16px;
+  box-shadow: #64646f33 0 7px 29px;
+  color: gray;
+  background-color: white;
+  border-radius: 0px;
+}
+form .inputSelect {
+  width: 100%;
+  padding-inline: 10px;
+  font-size: 16px;
+  box-shadow: #64646f33 0 7px 29px;
+  color: gray;
+  background-color: white;
+  border-radius: 0px;
+}
+.sidebar ul li a {
+  display: block;
+  padding: 10px;
+  color: #333;
+  text-decoration: none;
+}
+
+.page-title {
+  padding: 1em 10px 2em 10px;
+}
+.white {
+  background-color: rgb(255 255 255);
+  color: rgb(30 64 175);
+}
+.white h1, .white h2, .white h3 {
+  color: rgb(30 64 175);
+}
+.dark-blue {
+  background-color: rgb(30 64 175);
+}
+.light-blue {
+  background-color: rgb(191 219 254);
+  color: black;
+}
+.light-blue h1, .light-blue h2, .light-blue h3 {
+  color: rgb(30 64 175);
+}
+.yellow {
+  background-color: rgb(255 237 213);
+  color: black;
+}
+.yellow h1, .yellow h2, .yellow h3 {
+  color: rgb(30 64 175);
+}
+.light-yellow {
+  background-color: rgba(255,237,213,0.4);
+}
+.infobox {
+  padding: 2rem;
+  color: black;
+  background-color: rgba(255,255,255,0.4);
+}
+.content-block {
+  padding: 10px 3rem 2rem 3rem;
+}
+.page-title h1 {
+  font-family: Inter,system-ui,Avenir,Helvetica,Arial,sans-serif;
+  text-align: center;
+  font-weight: 700;
+  font-size: 3rem;
+}
+
+ul {
+  padding-inline: 18px;
+}
+._jsonform-array-ul {
+  padding-inline: 0px;
+}
+._jsonform-array-ul li {
+  border-bottom: 2px solid rgb(30 64 175);
+}
+li .draggable {
+  display: none;
+}
+.ui-sortable h3 {
+  cursor: pointer;
+}
+/* Adjust content margin to account for the sidebar */
+section {
+  margin-left: 0px; /* Same as sidebar width */
+}
+
+.hidden {
+   display: none;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 600px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+  }
+
+  .sidebar ul li a {
+    float: left;
+    padding: 15px;
+  }
+
+  body {
+    margin-left: 0;
+  }
+}
+
+.main-content {
+  margin-left: 270px; /* Same as the width of the sidebar */
+  transition: margin-left 0.3s; /* Smooth transition for any size adjustments */
+}
+
+._jsonform-array-deletelast {
+  display: none;
+}
+
+@media screen and (max-width: 600px) {
+  .sidebar ul li a {
+    float: none;
+  }
+
+  .sidebar,
+  .main-content {
+    width: 100%;
+    margin-left: 0; /* Sidebar and main content take full width on smaller screens */
+  }
+}
+.banner {
+  position: absolute;
+  top: 3em;
+  right: -7em;
+  margin: 1em;
+  background: white;
+  width: 365px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  color: black;
+  text-align: center;
+  -webkit-transform: rotate(45deg);
+  -moz-transform: rotate(45deg);
+    transform: rotate(45deg);
+    filter: progid:DXImageTransform.Microsoft.Matrix(M11='0.7071067811865476', M12='-0.7071067811865475', M21='0.7071067811865475', M22='0.7071067811865476', sizingMethod='auto expand');
+}
