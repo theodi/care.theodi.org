@@ -1,0 +1,22 @@
+
+{
+    "unintendedConsequences": {
+        "type": "array",
+        "title": "Unintended Consequences",
+        "items": {
+            "type": "object",
+            "title": "Unintended Consequence",
+            "properties": {
+                "consequence": {
+                    "type": "string",
+                    "title": "Description"
+                },
+                "outcome": {
+                    "title": "Outcome",
+                    "type": "string",
+                    "enum": ["Positive", "Negative"]
+                }
+            }
+        }
+    }
+}

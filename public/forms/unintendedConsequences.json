@@ -1,0 +1,32 @@
+{
+    "type": "fieldset",
+    "title": "Unintended Consequences",
+    "htmlClass": "unintended-consequences",
+    "items": [
+      {
+        "key": "unintendedConsequences",
+        "prepend": "<h2>Unintended Consequences</h2><div class='infobox'><p>To ensure a comprehensive risk assessment for your data project, you should try to identify any potential unintended consequences that may occur. These unintended consequences can have both positive and negative impacts. Consider the following:</p><ul><li>Positive Unintended Consequences: Think about unexpected benefits or positive outcomes that might result from your project. For example, improved processes, increased efficiency, or unforeseen uses or users of the product or service.</li><li>Negative Unintended Consequences: Consider any adverse effects or unexpected problems that might occur. This could involve privacy breaches, data misuse, or potential bias in the data.</li><li>Secondary Effects: Think about ripple effects that your project might have on other processes, systems, or stakeholders, even if they are not directly involved.</li><li>External Factors: Take into account external factors or events that your project might interact with or influence. These could include changes in regulations, market conditions, or technological advancements.</li></ul><p>Add a brief description of the unintended consequence that may occur during your data project and indicate whether the outcome is positive or negative.</p></div>",
+        "notitle": true,
+        "htmlClass": "content-block light-blue",
+        "type": "array",
+        "items": {
+          "type": "section",
+          "items": [
+            {
+              "key": "unintendedConsequences[].consequence",
+              "fieldHtmlClass": "inputText",
+              "placeholder": "Unintended consequence",
+              "prepend": "<h3>Unintended consequence</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].outcome",
+              "fieldHtmlClass": "inputSelect",
+              "prepend": "<h3>Outcome</h3>",
+              "notitle": true
+            }
+          ]
+        }
+      }
+    ]
+}

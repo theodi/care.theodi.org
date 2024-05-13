@@ -29,6 +29,50 @@ const projectSchema = new mongoose.Schema({
             type: String
         },
         type: {
+            type: String,
+            enum: ['Internal', 'External'],
+            default: '' // Default value is an empty string
+        }
+    }],
+    intendedConsequences: [{
+        consequence: {
+            type: String,
+            required: true
+        }
+    }],
+    unintendedConsequences: [{
+        consequence: {
+            type: String,
+            required: true
+        },
+        outcome: {
+            type: String,
+            enum: ['Positive', 'Negative']
+        },
+        impact: {
+            type: String,
+            enum: ['High', 'Medium', 'Low']
+        },
+        likelihood: {
+            type: String,
+            enum: ['High', 'Medium', 'Low']
+        },
+        role: {
+            type: String,
+            enum: ['Act', 'Influence', 'Monitor']
+        },
+        action: {
+            description: {
+                type: String
+            },
+            date: {
+                type: Date
+            },
+            stakeholder: {
+                type: String
+            }
+        },
+        KPI: {
             type: String
         }
     }]

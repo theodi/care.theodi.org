@@ -7,7 +7,6 @@
     <button type="submit" form="dataForm">Proceed to consequences</button>
 </div>
 <script>
-
 const data = {};
 data.stakeholders = [];
 let stakeholder = {};
@@ -23,6 +22,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("dataForm");
     const projectId = form.dataset.projectId;
 
+    // Get the form name from the URL
+    const urlParts = window.location.pathname.split('/');
+    const formName = urlParts.length >= 4 && urlParts[3] !== undefined ? urlParts[3] : 'projectDetails';
+
     if (projectId) {
         fetch(`/project/${projectId}`, {
             headers: {
@@ -36,34 +39,43 @@ document.addEventListener("DOMContentLoaded", function () {
             return response.json();
         })
         .then(projectData => {
-            renderForm(projectData);
+            renderForm(projectData, formName);
         })
         .catch(error => {
             console.error('There was a problem with the fetch operation:', error);
         });
     } else {
-        renderForm(data);
+        renderForm(data, formName);
     }
 });
 
-function renderForm(data) {
+function renderForm(data, formName) {
     // Fetch the schema from "schemas/project.json"
-    fetch('/schemas/project.json')
+    fetch(`/schemas/partials/${formName}.json`)
         .then(response => response.json())
         .then(schema => {
-            $('#dataForm').jsonForm({
-                schema: schema.schema,
-                form: schema.form,
-                value: data,
-                onSubmit: function (errors, values) {
-                    if (errors) {
-                        $('#panelRes').html('<p>Please correct the errors in your form</p>');
-                    } else {
-                        var inputObject = values;
-                        sendDataToServer(inputObject);
-                    }
-                }
-            });
+            // Fetch the form from the corresponding JSON file
+            fetch(`/forms/${formName}.json`)
+                .then(response => response.json())
+                .then(form => {
+                    $('#dataForm').jsonForm({
+                        schema: schema,
+                        form: form,
+                        value: data,
+                        onSubmit: function (errors, values) {
+                            if (errors) {
+                                $('#panelRes').html('<p>Please correct the errors in your form</p>');
+                            } else {
+                                const inputObject = Object.assign({}, data, values);
+                                console.log(inputObject);
+                                sendDataToServer(inputObject);
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error("Error fetching form:", error);
+                });
         })
         .catch(error => {
             console.error("Error fetching schema:", error);
@@ -75,6 +87,7 @@ async function sendDataToServer(inputObject) {
   let method;
   const form = document.getElementById("dataForm");
   const projectId = form.dataset.projectId;
+
 
   if (projectId) {
     // If _id is set, use PUT to update existing data
@@ -97,15 +110,17 @@ async function sendDataToServer(inputObject) {
 
     if (response.ok) {
       // Request was successful, parse the response to get the ID
-      const responseData = await response.json();
-      const newID = responseData._id; // Replace with the actual field name from the response
+      if (method == "POST") {
+        const responseData = await response.json();
+        const newID = responseData._id; // Replace with the actual field name from the response
 
-      // Populate the hidden _id element in the form with the newTrainID
-      const hiddenIDElement = document.getElementsByName("_id")[0];
-      if (hiddenIDElement) {
-        hiddenIDElement.value = newID;
+        // Populate the hidden _id element in the form with the newTrainID
+        const hiddenIDElement = document.getElementsByName("_id")[0];
+        if (hiddenIDElement) {
+          hiddenIDElement.value = newID;
+        }
       }
-      $('#panelRes').html('<p>'+responseData.message+'</p>');
+      $('#panelRes').html('<p>Project updated</p>');
       $('form').hide();
     } else {
       console.error("Request failed with status:", response.status);

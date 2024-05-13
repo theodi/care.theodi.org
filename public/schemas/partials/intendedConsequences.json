@@ -1,0 +1,16 @@
+{
+    "intendedConsequences": {
+        "type": "array",
+        "title": "Intended Consequences",
+        "items": {
+            "type": "object",
+            "title": "Consequence",
+            "properties": {
+                "consequence": {
+                    "type": "string",
+                    "title": "Consequence"
+                }
+            }
+        }
+    }
+}

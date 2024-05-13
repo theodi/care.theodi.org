@@ -75,7 +75,7 @@ async function checkProjectOwner(req, res, next) {
 }
 
 // GET route to retrieve a project by ID
-router.get('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
+router.get('/:id/:anything?', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
     const id = req.params.id;
     try {
         const userId = req.session.passport.user.id;

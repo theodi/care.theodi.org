@@ -1,0 +1,21 @@
+[
+    {
+        "key": "intendedConsequences",
+        "prepend": "<h2>Intended Consequences</h2><div class='infobox'><p>Start by creating a clear list of intended consequences. These consequences enable your project to remain focused on its objectives and desired outcomes.Intended consequences serve as a guide for project evaluation and success measurement.</p><p>Intended consequences are the positive impacts and benefits you expect to create with your data project. This could include improved decision-making, increased efficiency, cost savings, enhanced customer satisfaction, or any other favourable results.</p></div><h2>Do you want AI to suggest intended consequences?</h2><p>The AI will review the details of the project and make suggestions for what the possible intended and unintended consequences might be. The generated consequences should be treated as a guide that supports your project planning.</p><p>Click here to see what data the AI will be using.</p>",
+        "notitle": true,
+        "htmlClass": "content-block light-blue",
+        "type": "array",
+        "items": {
+            "type": "section",
+            "items": [
+            {
+                "key": "intendedConsequences[].consequence",
+                "fieldHtmlClass": "inputText",
+                "placeholder": "Intended conseuqnce",
+                "prepend": "<h3>Intended conseuqnce</h3>",
+                "notitle": true
+            }
+            ]
+        }
+    }
+]
