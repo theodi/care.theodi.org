@@ -124,6 +124,39 @@ app.get('/examples', ensureAuthenticated, function(req, res) {
   res.render('pages/examples');
 });
 
+app.get('/glossary', ensureAuthenticated, function(req, res) {
+    // Check the Accept header
+    const acceptHeader = req.get('Accept');
+
+    // If accept header is application/json, send the glossary.json file
+    if (acceptHeader === 'application/json') {
+        // Read the glossary.json file
+        fs.readFile('glossary.json', 'utf8', (err, data) => {
+            if (err) {
+                res.status(500).json({ error: 'Internal Server Error' });
+            } else {
+                const glossaryData = JSON.parse(data);
+                res.json(glossaryData);
+            }
+        });
+    } else {
+        // Otherwise, render the EJS page for glossary and pass the glossary data
+        fs.readFile('glossary.json', 'utf8', (err, data) => {
+            if (err) {
+                res.status(500).send('Internal Server Error');
+            } else {
+                const glossaryData = JSON.parse(data);
+                const page = {
+                  title: "Glossary",
+                  link: "/glossary"
+                };
+                res.locals.page = page;
+                res.render('pages/glossary', { data: glossaryData });
+            }
+        });
+    }
+});
+
 app.post("/openai-completion", async (req, res) => {
   // Check if the authorization header with bearer token exists
   const authHeader = req.headers['authorization'];
