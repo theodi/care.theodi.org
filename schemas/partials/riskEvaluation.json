@@ -23,6 +23,33 @@
                     "title": "Likelihood",
                     "type": "string",
                     "enum": ["High", "Medium", "Low"]
+                },
+                "role": {
+                  "title": "Role",
+                  "type": "string",
+                  "enum": ["Act", "Influence", "Monitor"]
+                },
+                "action": {
+                  "type": "object",
+                  "title": "Action",
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                      "title": "Description"
+                    },
+                    "date": {
+                      "type": "date",
+                      "title": "Date"
+                    },
+                    "stakeholder": {
+                      "type": "string",
+                      "title": "Stakeholder"
+                    }
+                  }
+                },
+                "KPI": {
+                  "type": "string",
+                  "title": "KPI"
                 }
             }
         }

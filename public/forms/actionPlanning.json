@@ -63,5 +63,12 @@
         }
       ]
     }
+  },
+  {
+        "type": "submit",
+        "title": "View risk regisiter",
+        "htmlClass": "submitButton",
+        "next": "riskRegister"
   }
+
 ]

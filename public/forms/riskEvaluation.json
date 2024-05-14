@@ -34,8 +34,30 @@
           "fieldHtmlClass": "inputSelect",
           "prepend": "<h3>Likelihood</h3>",
           "notitle": true
+        },
+        {
+          "key": "unintendedConsequences[].role",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.description",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.stakeholder",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.date",
+          "type": "hidden"
         }
       ]
     }
+  },
+  {
+        "type": "submit",
+        "title": "Proceed to action planning",
+        "htmlClass": "submitButton",
+        "next": "actionPlanning"
   }
 ]

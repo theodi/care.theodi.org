@@ -66,7 +66,7 @@ const projectSchema = new mongoose.Schema({
                 type: String
             },
             date: {
-                type: Date
+                type: String
             },
             stakeholder: {
                 type: String

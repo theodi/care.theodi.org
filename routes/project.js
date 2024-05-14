@@ -74,8 +74,31 @@ async function checkProjectOwner(req, res, next) {
     }
 }
 
+const pages = [
+    {
+        link: "projectDetails",
+        title: "Project details"
+    },
+    {
+        link: "intendedConsequences",
+        title: "Intended consequences"
+    },
+    {
+        link: "unintendedConsequences",
+        title: "Unintended consequences"
+    },
+    {
+        link: "riskEvaluation",
+        title: "Risk evaluation"
+    },
+    {
+        link: "actionPlanning",
+        title: "Action planning"
+    }
+];
+
 // GET route to retrieve a project by ID
-router.get('/:id/:anything?', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
+router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
     const id = req.params.id;
     try {
         const userId = req.session.passport.user.id;
@@ -103,7 +126,30 @@ router.get('/:id/:anything?', ensureAuthenticated, checkProjectAccess, async (re
             return res.json(project);
         } else {
             // Respond with HTML (rendering scan.ejs)
-            res.locals.pageTitle = "Project details";
+            let page = {
+                link: "projectDetails",
+                title: "Project details"
+            };
+            // Check if the page parameter is provided
+            const pageParam = req.params.page;
+            if (pageParam) {
+                // Find the corresponding title in the pages array
+                const lookup = pages.find(p => p.link === pageParam);
+                if (lookup) {
+                    page = lookup;
+                }
+            }
+
+            // Fetch completion state for each page
+            const updatedPages = await Promise.all(pages.map(async (page) => {
+                const schemaPath = `../schemas/partials/${page.link}.json`;
+                const schema = require(schemaPath);
+                const completionState = await projectController.getCompletionState(id, schema); // Assuming the project ID is passed to the completion state function
+                return { ...page, completionState };
+            }));
+
+            res.locals.pages = updatedPages;
+            res.locals.page = page;
             res.render('pages/scan', { project: project });
         }
     } catch (error) {

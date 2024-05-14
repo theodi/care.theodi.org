@@ -7,7 +7,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><%= pageTitle %></title>
+<title><%= page.title %></title>
 
 <script type="text/javascript" src="/lib/jquery-3.7.1.min.js"></script>
 <script type="text/javascript" src="/lib/underscore.js"></script>
@@ -25,25 +25,37 @@
 	<div class="sidebar">
 		<img class="odi-logo" src="/images/odi-logo.png">
 		<ul class="main-menu">
-		  <li><a href="/" class="toggle-link">Homepage</a></li>
-		  <% if(user) { %>
-			<li><a href="/profile">Profile</a></li>
-			<li><a href="/scan" class="toggle-link">Start new project</a></li>
-		    <li><a href="/projects" class="toggle-link">Load existing project</a></li>
-		    <li><a href="/view" class="toggle-link">View completed risk evaluations</a></li>
-			<li><a href="/glossary" class="toggle-link">Glossary</a></li>
-			<li>
-				<form style="display: inline-flex;" id="logout_form" action="/logout" method="post">
-					<a href="javascript:;" onclick="document.getElementById('logout_form').submit();">Logout</a>
-				</form>
-			</li>
-		  <% } else { %>
-			<li><a href="/auth/django">Login</a></li>
-			<li><a href="/disclaimer" class="toggle-link">Disclaimer</a></li>
-		  <% } %>
+			<li><a href="/" class="toggle-link <% if (page.link === '/') { %>selected<% } %>">Homepage</a></li>
+			<% if(user) { %>
+				<li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">My evaluations</a></li>
+				<li><a href="/glossary" class="toggle-link <% if (page.link === '/glossary') { %>selected<% } %>">Glossary</a></li>
+				<li>
+					<form style="display: inline-flex;" id="logout_form" action="/logout" method="post">
+						<a href="javascript:;" onclick="document.getElementById('logout_form').submit();">Logout</a>
+					</form>
+				</li>
+			<% } else { %>
+				<li><a href="/auth/django" class="toggle-link">Login</a></li>
+				<li><a href="/disclaimer" class="toggle-link">Disclaimer</a></li>
+			<% } %>
 		</ul>
-	  </div>
+		<% if (typeof project !== 'undefined') { %>
+			<nav class="projectProgress">
+				<h1>Current evaluation</h1>
+				<div class="projectTitle"><%= project.title %></div>
+				<ul class="project-menu">
+					<% pages.forEach(item => { %>
+						<li class="<%= item.completionState %>">
+							<a href="/project/<%= project._id %>/<%= item.link %>" class="<%= item.link === page.link ? 'selected' : '' %>">
+								<%= item.title %>
+							</a>
+						</li>
+					<% }); %>
+				</ul>
+			</nav>
+		<% } %>
+	</div>
 	  <div class="main-content">
 		<section class="page-title dark-blue">
-			<h1><%= pageTitle %></h1>
+			<h1><%= page.title %></h1>
 		</section>

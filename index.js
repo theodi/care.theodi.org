@@ -1,3 +1,6 @@
+const path = require('path');
+const fs = require('fs');
+
 // Load environment variables securely
 require("dotenv").config({ path: "./config.env" });
 
@@ -75,7 +78,10 @@ function ensureAuthenticated(req, res, next) {
 }
 
 function unauthorised(res) {
-  res.locals.pageTitle = "Error";
+  const page = {
+    title: "Error"
+  };
+  res.locals.page = page;
   const error = new Error("Unauthorized access");
   error.status = 401;
   throw error;
@@ -92,13 +98,30 @@ app.use('/auth', authRoutes);
 app.use('/project', projectRoutes);
 
 app.get('/', function(req, res) {
-  res.locals.pageTitle ="Consequence and Risk Evaluation (CARE)";
+  const page = {
+    title: "Consequence and Risk Evaluation (CARE)",
+    link: "/"
+  };
+  res.locals.page = page;
   res.render('pages/home');
 });
 
-app.get('/scan', ensureAuthenticated, function(req, res) {
-  res.locals.pageTitle ="Project details";
+app.get('/new', ensureAuthenticated, function(req, res) {
+  const page = {
+    title: "Project details",
+    link: "projectDetails"
+  };
+  res.locals.page = page;
   res.render('pages/scan', { project: '' });
+});
+
+app.get('/examples', ensureAuthenticated, function(req, res) {
+  const page = {
+    title: "Example case studies",
+    link: "/new"
+  };
+  res.locals.page = page;
+  res.render('pages/examples');
 });
 
 app.post("/openai-completion", async (req, res) => {
@@ -129,7 +152,11 @@ app.post("/openai-completion", async (req, res) => {
 });
 
 app.get('/profile', ensureAuthenticated, function(req, res) {
-  res.locals.pageTitle ="Profile page";
+  const page = {
+    title: "Profile page",
+    link: "/profile"
+  };
+  res.locals.page = page;
   res.render('pages/profile');
 });
 
@@ -146,8 +173,11 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
             const userProjects = await projectController.getUserProjects(userId);
             res.json(userProjects);
         } else {
-            // Render HTML page for projects
-            res.locals.pageTitle = "Projects";
+            const page = {
+              title: "Evaluations",
+              link: "/projects"
+            };
+            res.locals.page = page;
             res.render('pages/projects');
         }
     } catch (error) {
@@ -155,11 +185,29 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
     }
 });
 
+app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
+  try {
+      const schemaPath = req.params.schema;
+      const fullPath = path.join(__dirname, 'schemas', schemaPath);
+      if (fs.existsSync(fullPath)) {
+          const schema = require(fullPath);
+          return res.json(schema);
+      } else {
+          return res.status(404).json({ error: 'Schema not found' });
+      }
+  } catch (error) {
+      next(error);
+  }
+});
+
 // Error handling
 app.get('/error', (req, res) => res.send("error logging in"));
 
 app.get('*', function(req, res, next){
-  res.locals.pageTitle = "404 Not Found";
+  const page = {
+    title: "404 Not Found"
+  };
+  res.locals.page = page;
   const error = new Error("Not Found");
   error.status = 404;
   next(error);

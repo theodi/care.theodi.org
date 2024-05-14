@@ -1,0 +1,23 @@
+<!-- views/pages/auth.ejs -->
+<%- include('../partials/header') %>
+<section class="content-block light-blue">
+    <h2>Pick your case study</h2>
+    <div class="infobox" style="padding: 2rem; background-color: rgba(255,237,213,0.6);">
+      <p>Choose one of our example case studies. For each case study, there is a comprehensive overview of the project, as well as several identified consequences and potential mitigative actions.</p>
+      <h3>Your task:</h3>
+      <ol>
+        <li>Review the case study and its consequences,</li>
+        <li>Identify any additional consequences within the project,</li>
+        <li>Determine the risk and impact of the consequences, and</li>
+        <li>Decide on the actions that will mitigate the risk.</li>
+      </ol>
+      <p><em>Note:</em> The example case study will not save to your evaluations until you have read the project details and proceeded to the consequences page. You can then resume the evaluation by clicking the edit link in "my evaluations" on the <a href="/projects">evaluations page</a>.</p>
+    </div>
+    <br/><br/>
+    <div style="text-align: center; width: 100%;">
+      <button class="transparent" onclick="window.location.href='/new?template=example1'">A charitable transformation</button>
+      <button class="transparent" onclick="window.location.href='/new?template=example2'">The supply and demand of taxi services</button>
+      <button class="transparent" onclick="window.location.href='/new?template=example3'">The AI (Artificial Interviewer)</button>
+  </div>
+</section>
+<%- include('../partials/footer') %>

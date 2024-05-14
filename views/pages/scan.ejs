@@ -3,8 +3,8 @@
 <div id="panelRes" class="alert"></div>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
 </form>
-<div class="content-block dark-blue proceed">
-    <button type="submit" form="dataForm">Proceed to consequences</button>
+<div id="submitButtonContainer" class="content-block dark-blue proceed">
+
 </div>
 <script>
 const data = {};
@@ -23,11 +23,23 @@ document.addEventListener("DOMContentLoaded", function () {
     const projectId = form.dataset.projectId;
 
     // Get the form name from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const templateParam = urlParams.get('template');
     const urlParts = window.location.pathname.split('/');
     const formName = urlParts.length >= 4 && urlParts[3] !== undefined ? urlParts[3] : 'projectDetails';
 
+    let fetchURL;
+
     if (projectId) {
-        fetch(`/project/${projectId}`, {
+        fetchURL = `/project/${projectId}`;
+    } else if (templateParam) {
+        fetchURL = `/examples/${templateParam}.json`;
+    } else {
+        fetchURL = null; // No need to fetch data
+    }
+
+    if (fetchURL) {
+        fetch(fetchURL, {
             headers: {
                 'Accept': 'application/json'
             }
@@ -49,7 +61,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 
-function renderForm(data, formName) {
+async function renderForm(data, formName) {
+  console.log(data);
     // Fetch the schema from "schemas/project.json"
     fetch(`/schemas/partials/${formName}.json`)
         .then(response => response.json())
@@ -67,11 +80,11 @@ function renderForm(data, formName) {
                                 $('#panelRes').html('<p>Please correct the errors in your form</p>');
                             } else {
                                 const inputObject = Object.assign({}, data, values);
-                                console.log(inputObject);
                                 sendDataToServer(inputObject);
                             }
                         }
                     });
+                    moveSubmitButton();
                 })
                 .catch(error => {
                     console.error("Error fetching form:", error);
@@ -82,12 +95,22 @@ function renderForm(data, formName) {
         });
 }
 
+function moveSubmitButton() {
+    const submitButtonContainer = $('#submitButtonContainer');
+    const submitButton = $('.submitButton');
+    if (submitButtonContainer.length && submitButton.length) {
+        submitButtonContainer.append(submitButton);
+        $('#dataForm').append(submitButtonContainer); // Move container inside #dataForm
+    } else {
+        console.error("submitButtonContainer or submitButton not found.");
+    }
+}
+
 async function sendDataToServer(inputObject) {
   let url;
   let method;
   const form = document.getElementById("dataForm");
-  const projectId = form.dataset.projectId;
-
+  var projectId = form.dataset.projectId;
 
   if (projectId) {
     // If _id is set, use PUT to update existing data
@@ -112,16 +135,16 @@ async function sendDataToServer(inputObject) {
       // Request was successful, parse the response to get the ID
       if (method == "POST") {
         const responseData = await response.json();
-        const newID = responseData._id; // Replace with the actual field name from the response
-
-        // Populate the hidden _id element in the form with the newTrainID
-        const hiddenIDElement = document.getElementsByName("_id")[0];
-        if (hiddenIDElement) {
-          hiddenIDElement.value = newID;
-        }
+        projectId = responseData._id; // Replace with the actual field name from the response
       }
-      $('#panelRes').html('<p>Project updated</p>');
-      $('form').hide();
+      const nextAttributeValue = $('.submitButton').attr('next');
+
+      // Redirect the user to /project/<projectId>/<nextAttributeValue>
+      if (projectId && nextAttributeValue) {
+          window.location.href = `/project/${projectId}/${nextAttributeValue}`;
+      } else {
+          console.error("Unable to redirect: projectId or nextAttributeValue is missing.");
+      }
     } else {
       console.error("Request failed with status:", response.status);
     }

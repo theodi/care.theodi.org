@@ -17,5 +17,11 @@
             }
             ]
         }
+    },
+    {
+        "type": "submit",
+        "title": "Proceed to unintenended consequences",
+        "htmlClass": "submitButton",
+        "next": "unintendedConsequences"
     }
 ]

@@ -8,13 +8,23 @@
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.13.5/css/buttons.dataTables.min.css">
 
-<h1>My projects</h1>
-<div id="res" class="alert"></div>
+<div class="content-block light-blue">
+    <div style="text-align: center; width: 100%;">
+        <br/>
+        <button class="transparent" onclick="window.location.href='/new'">Start a new evaluation</button>
+        <button class="transparent" onclick="window.location.href='/examples'">Select from example case studies</button>
+    </div>
+</div>
+<div class="content-block white">
+    <h2>My evaluations</h2>
+    <div id="res" class="alert"></div>
 
-<table id="myProjectsTable" class="display" style="width:100%"></table>
-
-<h1>Projects shared with me</h1>
-<table id="sharedProjectsTable" class="display" style="width:100%"></table>
+    <table id="myProjectsTable" class="display" style="width:100%"></table>
+</div>
+<div class="content-block light-blue">
+    <h2>Evaluations shared with me</h2>
+    <table id="sharedProjectsTable" class="display" style="width:100%"></table>
+</div>
 
 <script>
     $(document).ready(function () {
@@ -50,7 +60,7 @@
             order: [[0, 'asc']], // Sort by title ascending by default
             dom: 'Bfrtip', // Show buttons for export
             buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
+                //'copy', 'csv', 'excel', 'pdf', 'print'
             ]
         });
 
@@ -122,7 +132,7 @@
             order: [[0, 'asc']], // Sort by title ascending by default
             dom: 'Bfrtip', // Show buttons for export
             buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
+                //'copy', 'csv', 'excel', 'pdf', 'print'
             ]
         });
 

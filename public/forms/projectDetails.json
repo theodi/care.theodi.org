@@ -47,5 +47,11 @@
                 }
             ]
         }
+    },
+    {
+        "type": "submit",
+        "title": "Proceed to consequences",
+        "htmlClass": "submitButton",
+        "next": "intendedConsequences"
     }
 ]

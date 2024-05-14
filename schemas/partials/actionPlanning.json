@@ -24,6 +24,11 @@
                     "type": "string",
                     "enum": ["High", "Medium", "Low"]
                 },
+                "role": {
+                  "title": "Role",
+                  "type": "string",
+                  "enum": ["Act", "Influence", "Monitor"]
+                },
                 "action": {
                   "type": "object",
                   "title": "Action",
