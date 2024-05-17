@@ -4,7 +4,7 @@
         "prepend": "<h2>Project Title:</h2>",
         "notitle": true,
         "htmlClass": "content-block light-blue",
-        "fieldHtmlClass": "inputText",
+        "fieldHtmlClass": "input inputText",
         "placeholder": "Project title"
     },
     {
@@ -13,7 +13,7 @@
         "notitle": true,
         "placeholder": "Enter objectives...",
         "htmlClass": "content-block white",
-        "fieldHtmlClass": "inputText"
+        "fieldHtmlClass": "input inputText"
     },
     {
         "key": "dataUsed",
@@ -21,37 +21,13 @@
         "notitle": true,
         "placeholder": "Description of data",
         "htmlClass": "content-block light-blue",
-        "fieldHtmlClass": "inputText"
-    },
-    {
-        "key": "stakeholders",
-        "prepend": "<h2>Who are the stakeholders?</h2><div class='infobox'><p>Please list the names or titles of individuals, teams, or organisations that are involved in your data project. Include anyone who may be affected by or can affect the project's outcome.</p><p>For each stakeholder, indicate whether they are an \"internal\" stakeholder (part of your organisation or project team) or an \"external\" stakeholder (outside the organisation or project team).</p></div><br/>",
-        "notitle": true,
-        "htmlClass": "content-block yellow stakeholders",
-        "type": "array",
-        "items": {
-            "type": "section",
-            "items": [
-                {
-                    "key": "stakeholders[].stakeholder",
-                    "fieldHtmlClass": "inputText",
-                    "placeholder": "Enter a stakeholder here",
-                    "prepend": "<h3>Stakeholder</h3>",
-                    "notitle": true
-                },
-                {
-                    "key": "stakeholders[].type",
-                    "fieldHtmlClass": "inputSelect",
-                    "placeholder": "internal/external",
-                    "notitle": true
-                }
-            ]
-        }
+        "fieldHtmlClass": "input inputText"
     },
     {
         "type": "submit",
         "title": "Proceed to consequences",
         "htmlClass": "submitButton",
-        "next": "intendedConsequences"
+        "next": "completeAssessment"
     }
+
 ]

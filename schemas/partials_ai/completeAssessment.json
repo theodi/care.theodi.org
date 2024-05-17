@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "intendedConsequences": {
+      "type": "array",
+      "title": "Intended Consequences",
+      "items": {
+        "type": "object",
+        "title": "Consequence",
+        "properties": {
+          "consequence": {
+            "type": "string",
+            "title": "Consequence"
+          }
+        },
+        "required": ["consequence"]
+      }
+    },
+    "unintendedConsequences": {
+      "type": "array",
+      "title": "Unintended Consequences",
+      "items": {
+        "type": "object",
+        "title": "Unintended Consequence",
+        "properties": {
+          "consequence": {
+            "type": "string",
+            "title": "Description"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome",
+            "enum": ["Positive", "Negative"]
+          },
+          "impact": {
+            "type": "string",
+            "enum": ["High", "Medium", "Low"]
+          },
+          "likelihood": {
+            "type": "string",
+            "title": "Likelihood",
+            "enum": ["High", "Medium", "Low"]
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "enum": ["Act", "Influence", "Monitor"]
+          },
+          "action": {
+            "type": "object",
+            "title": "Action",
+            "properties": {
+              "description": {
+                "type": "string",
+                "title": "Description"
+              },
+              "date": {
+                "type": "string",
+                "format": "date",
+                "title": "Date"
+              },
+              "stakeholder": {
+                "type": "string",
+                "title": "Stakeholder"
+              }
+            },
+            "required": ["description", "date", "stakeholder"]
+          },
+          "KPI": {
+            "type": "string",
+            "title": "KPI"
+          }
+        },
+        "required": ["consequence", "outcome", "impact", "likelihood", "role", "action", "KPI"]
+      }
+    },
+    "stakeholders": {
+      "type": "array",
+      "title": "Stakeholders",
+      "items": {
+        "type": "object",
+        "title": "Stakeholder",
+        "properties": {
+          "stakeholder": {
+            "type": "string",
+            "title": "Stakeholder"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["", "Internal", "External"],
+            "title": "Type"
+          }
+        },
+        "required": ["stakeholder", "type"]
+      }
+    }
+  },
+  "required": ["intendedConsequences", "unintendedConsequences", "stakeholders"]
+}

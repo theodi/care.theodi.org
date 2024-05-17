@@ -46,7 +46,7 @@
 				<ul class="project-menu">
 					<% pages.forEach(item => { %>
 						<li class="<%= item.completionState %>">
-							<a href="/project/<%= project._id %>/<%= item.link %>" class="<%= item.link === page.link ? 'selected' : '' %>">
+							<a href="<%= pages.find(pageItem => pageItem.link === page.link) ? '#' : `/project/${project._id}/${item.link}` %>" id="<%= item.link %>" class="<%= item.link === page.link ? 'selected' : '' %>" <% if (pages.find(pageItem => pageItem.link === page.link)) { %> onClick="quickNav('<%= item.link %>')" <% } %> >
 								<%= item.title %>
 							</a>
 						</li>
@@ -58,4 +58,5 @@
 	  <div class="main-content">
 		<section class="page-title dark-blue">
 			<h1><%= page.title %></h1>
+			<input type="hidden" value="<%= page.link %>" id="pageId"/>
 		</section>

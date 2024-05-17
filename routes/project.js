@@ -14,109 +14,31 @@ async function ensureAuthenticated(req, res, next) {
     res.redirect('/login'); // Redirect to login page if not authenticated
 }
 
-// Middleware to check project access
-async function checkProjectAccess(req, res, next) {
-    try {
-        const projectId = req.params.id;
-        const userId = req.session.passport.user.id;
-
-        // Find the project by ID
-        const project = await Project.findById(projectId);
-
-        // Check if the project exists
-        if (!project) {
-            return res.status(404).json({ message: "Project not found" });
-        }
-
-        // Check if the user is the owner of the project
-        if (project.owner.equals(userId)) {
-            return next(); // User is the owner, allow access
-        }
-
-        // Check if the project is shared with the user
-        const sharedWithUser = project.sharedWith.find(user => user.equals(userId));
-        if (sharedWithUser) {
-            return next(); // Project is shared with the user, allow access
-        }
-
-        // If neither the owner nor shared with the user, deny access
-        return res.status(403).json({ message: "Unauthorized access" });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
-
-// Middleware to check if the user is the owner of the project
-async function checkProjectOwner(req, res, next) {
-    try {
-        const projectId = req.params.id;
-        const userId = req.session.passport.user.id;
-
-        // Find the project by ID
-        const project = await Project.findById(projectId);
-
-        // Check if the project exists
-        if (!project) {
-            return res.status(404).json({ message: "Project not found" });
-        }
-
-        // Check if the user is the owner of the project
-        if (project.owner.equals(userId)) {
-            return next(); // User is the owner, allow access
-        }
-
-        // If the user is not the owner, deny access
-        return res.status(403).json({ message: "Unauthorized access" });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
-
-const pages = [
-    {
-        link: "projectDetails",
-        title: "Project details"
-    },
-    {
-        link: "intendedConsequences",
-        title: "Intended consequences"
-    },
-    {
-        link: "unintendedConsequences",
-        title: "Unintended consequences"
-    },
-    {
-        link: "riskEvaluation",
-        title: "Risk evaluation"
-    },
-    {
-        link: "actionPlanning",
-        title: "Action planning"
-    }
-];
+const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
 
 // GET route to retrieve a project by ID
-router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
-    const id = req.params.id;
+router.get('/:id/completeAssessment', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
     try {
-        const userId = req.session.passport.user.id;
-
         // Find the project by ID
-        const project = await Project.findById(id);
+        const project = res.locals.project;
 
-        // If the project is not found, throw a 404 error
-        if (!project) {
-            const error = new Error("Project not found");
-            error.status = 404;
-            throw error;
-        }
+        let page = {
+            link: "completeAssessment",
+            title: "Use AI Assistant?"
+        };
 
-        // If the user is not the owner, remove the sharedWith property
-        if (!project.owner.equals(userId)) {
-            project.sharedWith = undefined;
-        }
+        res.locals.page = page;
+        res.render('pages/completeAssessment', { project: project });
+    } catch (error) {
+        next(error); // Pass error to error handling middleware
+    }
+});
+
+// GET route to retrieve a project by ID
+router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
+    try {
+        // Find the project by ID
+        const project = res.locals.project;
 
         // Content negotiation based on request Accept header
         const acceptHeader = req.get('Accept');
@@ -131,6 +53,7 @@ router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, async (req, r
                 title: "Project details"
             };
             // Check if the page parameter is provided
+            const pages = require('../pages.json');
             const pageParam = req.params.page;
             if (pageParam) {
                 // Find the corresponding title in the pages array
@@ -140,15 +63,6 @@ router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, async (req, r
                 }
             }
 
-            // Fetch completion state for each page
-            const updatedPages = await Promise.all(pages.map(async (page) => {
-                const schemaPath = `../schemas/partials/${page.link}.json`;
-                const schema = require(schemaPath);
-                const completionState = await projectController.getCompletionState(id, schema); // Assuming the project ID is passed to the completion state function
-                return { ...page, completionState };
-            }));
-
-            res.locals.pages = updatedPages;
             res.locals.page = page;
             res.render('pages/scan', { project: project });
         }

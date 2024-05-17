@@ -874,7 +874,7 @@ jsonform.elementTypes = {
   'array': {
     'template': '<div id="<%= id %>"><ul class="_jsonform-array-ul" style="list-style-type:none;"><%= children %></ul>' +
       '<span class="_jsonform-array-buttons">' +
-        '<a href="#" class="btn btn-default _jsonform-array-addmore"><i class="glyphicon glyphicon-plus-sign" title="Add new"></i></a> ' +
+        '<a href="#" class="btn btn-default _jsonform-array-addmore"><i class="glyphicon glyphicon-plus-sign" title="Add new"></i>Add new</a> ' +
         '<a href="#" class="btn btn-default _jsonform-array-deletelast"><i class="glyphicon glyphicon-minus-sign" title="Delete last"></i></a>' +
       '</span>' +
       '</div>',
@@ -887,17 +887,17 @@ jsonform.elementTypes = {
         return '<li data-idx="<%= node.childPos %>">' +
           // only allow drag of children if enabled
           (enableDrag ? '<span class="draggable line"><i class="glyphicon glyphicon-list" title="Move item"></i></span>' : '') +
-          inner +
           '<span class="_jsonform-array-buttons">' +
-            '<a href="#" class="btn btn-default _jsonform-array-deletecurrent"><i class="glyphicon glyphicon-minus-sign" title="Delete current"></i></a>' +
+            '<a href="#" class="btn btn-default _jsonform-array-deletecurrent"><i class="glyphicon glyphicon-minus-sign" title="Delete current"></i>Remove</a>' +
           '</span>' +
+          inner +
           '</li>';
       }
       else {
         return '<li data-idx="<%= node.childPos %>">' +
           inner +
           '<span class="_jsonform-array-buttons">' +
-            '<a href="#" class="btn btn-default _jsonform-array-deletecurrent"><i class="glyphicon glyphicon-minus-sign" title="Delete current"></i></a>' +
+            '<a href="#" class="btn btn-default _jsonform-array-deletecurrent"><i class="glyphicon glyphicon-minus-sign" title="Delete current"></i>Remove</a>' +
           '</span>' +
           '</li>';
       }
@@ -1273,7 +1273,7 @@ jsonform.elementTypes = {
     }
   },
   'submit':{
-    'template':'<input type="submit" <% if (id) { %> id="<%= id %>" <% } %> <% if (elt.next) { %> next="<%= elt.next %>" <% } %> class="btn btn-primary <%= elt.htmlClass?elt.htmlClass:"" %>" value="<%= value || node.title %>"<%= (node.disabled? " disabled" : "")%>/>'
+    'template':'<input type="submit" <% if (id) { %> id="<%= id %>" <% } %> <% if (elt.next) { %> next="<%= elt.next %>" <% } %> <% if (elt.quickNav) { %> quickNav="<%= elt.quickNav %>" <% } %> class="btn btn-primary <%= elt.htmlClass?elt.htmlClass:"" %>" value="<%= value || node.title %>"<%= (node.disabled? " disabled" : "")%>/>'
   },
   'button':{
     'template':' <button type="button" <% if (id) { %> id="<%= id %>" <% } %> class="btn btn-default <%= elt.htmlClass?elt.htmlClass:"" %>"><%= node.title %></button> '

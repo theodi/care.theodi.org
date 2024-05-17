@@ -29,6 +29,8 @@ const session = require('express-session');
 const passport = require('./passport'); // Require the passport module
 const authRoutes = require('./routes/auth'); // Require the authentication routes module
 const projectRoutes = require('./routes/project'); // Require the project routes module
+const assistantRoutes = require('./routes/assistant'); // Require the project routes module
+const { loadProject } = require('./middleware/project');
 const app = express();
 const port = process.env.PORT || 3080;
 app.set('view engine', 'ejs');
@@ -94,8 +96,11 @@ app.use(express.static(__dirname + '/public')); // Public directory
 // Use authentication routes
 app.use('/auth', authRoutes);
 
-// Use authentication routes
+app.use(loadProject);
+
 app.use('/project', projectRoutes);
+
+app.use('/assistant', assistantRoutes);
 
 app.get('/', function(req, res) {
   const page = {
@@ -157,33 +162,6 @@ app.get('/glossary', ensureAuthenticated, function(req, res) {
     }
 });
 
-app.post("/openai-completion", async (req, res) => {
-  // Check if the authorization header with bearer token exists
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: Bearer token missing' });
-  }
-
-  // Extract the token from the authorization header
-  const token = authHeader.split(' ')[1];
-  try {
-    // Verify the token's validity
-    const isValidToken = await verifyToken(token);
-    if (!isValidToken) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-    }
-
-    // Proceed to chat with OpenAI
-    const response = await openai.chat.completions.create({
-      ...req.body,
-    });
-    res.status(200).send(response.data || response);
-  } catch (error) {
-    console.error("Error in /openai-completion route:", error);
-    res.status(error.status || 500).json({ error: error.message });
-  }
-});
-
 app.get('/profile', ensureAuthenticated, function(req, res) {
   const page = {
     title: "Profile page",
@@ -223,7 +201,23 @@ app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
       const schemaPath = req.params.schema;
       const fullPath = path.join(__dirname, 'schemas', schemaPath);
       if (fs.existsSync(fullPath)) {
-          const schema = require(fullPath);
+          var schema = require(fullPath);
+
+          /*
+           * Hack to update the schema with defined data
+           */
+          if (schemaPath === "partials/actionPlanning.json" && res.locals.project && res.locals.project.stakeholders) {
+            const stakeholders = res.locals.project.stakeholders.map(stakeholder => stakeholder.stakeholder);
+            // Update the enum for action.stakeholder in the schema
+            if (schema.unintendedConsequences && schema.unintendedConsequences.items) {
+                const actionSchema = schema.unintendedConsequences.items.properties.action;
+                if (actionSchema && actionSchema.properties && actionSchema.properties.stakeholder) {
+                    actionSchema.properties.stakeholder.enum = stakeholders;
+                }
+            }
+          }
+
+
           return res.json(schema);
       } else {
           return res.status(404).json({ error: 'Schema not found' });

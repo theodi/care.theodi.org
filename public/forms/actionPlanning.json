@@ -1,7 +1,8 @@
 [
   {
     "key": "unintendedConsequences",
-    "prepend": "<h2>Assign Actions to Consequences</h2><div class='infobox'><p>For each unintended consequence, you will now assign specific actions to mitigate or manage the risk and add a Key Performance Indicator (KPI) to track the effectiveness of each action. You should:</p><ul><li><b>Create the mitigation Action</b>: Describe the specific action(s) that need to be taken to mitigate or manage the consequence effectively. Be as detailed as possible, specifying what needs to be done and who is responsible.</li><li><b>Define the Key Performance Indicator (KPI)</b>: Define a KPI that will help measure the success or progress of the mitigation action. The KPI should be a measurable metric that indicates the desired outcome. It could be related to time, cost, performance, or any other relevant measure.</li><li>For each action, you should also assign an estimated timescale (3 months, 6 months, 1 year, etc).</li></ul><p>When creating your actions, you have the option of using the AI to generate a possible action and associated KPI. These should be reviewed and updated accordingly.</p></div>",
+    "prepend": "<h2>Assign Actions to Consequences</h2><p>For each unintended consequence, you will now assign specific actions to mitigate or manage the risk and add a Key Performance Indicator (KPI) to track the effectiveness of each action. You should:</p><ul><li><b>Create the mitigation Action</b>: Describe the specific action(s) that need to be taken to mitigate or manage the consequence effectively. Be as detailed as possible, specifying what needs to be done and who is responsible.</li><li><b>Define the Key Performance Indicator (KPI)</b>: Define a KPI that will help measure the success or progress of the mitigation action. The KPI should be a measurable metric that indicates the desired outcome. It could be related to time, cost, performance, or any other relevant measure.</li><li>For each action, you should also assign an estimated timescale (3 months, 6 months, 1 year, etc).</li></ul></div><h1>Action planning</h1><br/><div class='infobox'>",
+    "append": "</div>",
     "notitle": true,
     "htmlClass": "content-block light-blue",
     "type": "array",
@@ -10,56 +11,68 @@
       "items": [
         {
           "key": "unintendedConsequences[].consequence",
-          "fieldHtmlClass": "inputText",
+          "fieldHtmlClass": "input inputText",
           "placeholder": "Unintended consequence",
-          "prepend": "<h3>Unintended consequence</h3>",
+          "prepend": "<h2 class='draggable'>Unintended consequence</h2>",
           "notitle": true,
           "disabled": true
         },
         {
           "key": "unintendedConsequences[].outcome",
-          "fieldHtmlClass": "inputSelect",
+          "fieldHtmlClass": "input",
           "prepend": "<h3>Outcome</h3>",
           "notitle": true,
           "disabled": true
         },
         {
-          "key": "unintendedConsequences[].impact",
-          "fieldHtmlClass": "inputSelect",
-          "prepend": "<h3>Impact</h3>",
-          "notitle": true,
-          "disabled": true
-        },
-        {
-          "key": "unintendedConsequences[].likelihood",
-          "fieldHtmlClass": "inputSelect",
-          "prepend": "<h3>Likelihood</h3>",
-          "notitle": true,
-          "disabled": true
-        },
-        {
-          "key": "unintendedConsequences[].role",
-          "fieldHtmlClass": "inputSelect",
-          "prepend": "<h3>Our role</h3>",
-          "notitle": true
+          "type": "fieldset",
+          "title": "Risk evaluation",
+          "items": [
+            {
+              "key": "unintendedConsequences[].impact",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Impact</h3>",
+              "notitle": true,
+              "disabled": true
+            },
+            {
+              "key": "unintendedConsequences[].likelihood",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Likelihood</h3>",
+              "notitle": true,
+              "disabled": true
+            }
+          ]
         },
         {
           "key": "unintendedConsequences[].action.description",
-          "fieldHtmlClass": "inputText",
+          "fieldHtmlClass": "input inputText",
           "prepend": "<h3>Action</h3>",
           "notitle": true
         },
         {
-          "key": "unintendedConsequences[].action.stakeholder",
-          "fieldHtmlClass": "inputText",
-          "prepend": "<h3>Action owner</h3>",
-          "notitle": true
-        },
-        {
-          "key": "unintendedConsequences[].action.date",
-          "fieldHtmlClass": "inputText",
-          "prepend": "<h3>Action due date</h3>",
-          "notitle": true
+          "type": "fieldset",
+          "title": "Risk evaluation",
+          "items": [
+            {
+              "key": "unintendedConsequences[].role",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Our role</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.stakeholder",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Action owner</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.date",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Action due date</h3>",
+              "notitle": true
+            }
+          ]
         }
       ]
     }
@@ -68,7 +81,8 @@
         "type": "submit",
         "title": "View risk regisiter",
         "htmlClass": "submitButton",
-        "next": "riskRegister"
+        "next": "riskRegister",
+        "quickNav": "true"
   }
 
 ]

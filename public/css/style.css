@@ -2,7 +2,7 @@
   --button-base: rgb(30 64 175);
   --button-hover: #9b9b9b;
   --background: rgb(30 64 175);
-  --background-body: rgb(30 64 175);
+  --background-body: rgb(219 234 254);
   --links: rgb(30 64 175);
 }
 input:not([type="checkbox"]):not([type="radio"]), input[type="range"], select, button, textarea {
@@ -23,7 +23,7 @@ body {
   min-width: 100%;
   padding-left: 0px;
 }
-button {
+.btn, button, .submitButton {
   border-radius: 0px;
   font-weight: 500;
   font-size: 1.125rem;
@@ -32,17 +32,26 @@ button {
   padding-bottom: .5rem;
   padding-left: 2rem;
   padding-right: 2rem;
+}
+ul._jsonform-array-ul li {
+  padding-bottom: 2rem;
+}
+ul._jsonform-array-ul ._jsonform-array-buttons {
+  float: right;
+  position: relative;
+}
+._jsonform-array-buttons .btn {
+  padding: 0.5rem;
+  border: 2px solid;
+}
+.glyphicon {
+  top: 7px;
+  padding-right: 10px;
+}
+button {
   border: 2px solid white;
 }
 .submitButton {
-  border-radius: 0px;
-  font-weight: 600;
-  font-size: 1.125rem;
-  line-height: 1.75rem;
-  padding-top: .5rem;
-  padding-bottom: .5rem;
-  padding-left: 2rem;
-  padding-right: 2rem;
   background-color: transparent;
   border: 2px solid white;
 }
@@ -83,8 +92,7 @@ li {
   background-size: 36px;
 
 }
-form .inputText {
-  width: 100%;
+form .input {
   padding-inline: 10px;
   font-size: 16px;
   box-shadow: #64646f33 0 7px 29px;
@@ -92,14 +100,9 @@ form .inputText {
   background-color: white;
   border-radius: 0px;
 }
-form .inputSelect {
-  width: 100%;
-  padding-inline: 10px;
-  font-size: 16px;
-  box-shadow: #64646f33 0 7px 29px;
-  color: gray;
-  background-color: white;
-  border-radius: 0px;
+form .inputText {
+  width: 80%;
+  line-height: 1.5rem;
 }
 .sidebar ul li a {
   display: block;
@@ -145,7 +148,7 @@ form .inputSelect {
   background-color: rgb(219 234 254);
   color: black;
 }
-.light-blue h1, .light-blue h2, .light-blue h3 {
+.light-blue h1, .light-blue h2, .light-blue h3, .light-blue h4 {
   color: rgba(30 64 175);
 }
 .yellow {
@@ -186,8 +189,23 @@ ul {
 ._jsonform-array-ul li {
   border-bottom: 2px solid rgb(30 64 175);
 }
-li .draggable {
+fieldSet {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+fieldset legend {
   display: none;
+}
+fieldset .form-group {
+  display: inline-flex;
+  padding-right: 1rem;
+}
+li .line {
+  display: none;
+}
+li .draggable {
+  cursor: pointer;
 }
 .ui-sortable h3 {
   cursor: pointer;
@@ -201,6 +219,32 @@ section {
    display: none;
 }
 
+.ai-message-container {
+  border: 2px solid var(--background);
+  padding: 10px;
+  margin-bottom: 20px;
+}
+.expandButton {
+  background: none;
+  border: none;
+  font-size: 60px;
+  cursor: pointer;
+  float: right;
+  padding: 6px;
+  margin-top: -12px;
+  color: rgb(30 64 175);
+}
+.aiRunning {
+  text-align: center;
+  display: none;
+}
+.aiMessage {
+  font-size: 0.9rem;
+  display: none;
+}
+.postAI {
+  display: none;
+}
 /* Responsive adjustments */
 @media screen and (max-width: 600px) {
   .sidebar {

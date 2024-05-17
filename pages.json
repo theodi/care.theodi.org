@@ -1,0 +1,26 @@
+[
+    {
+        "link": "projectDetails",
+        "title": "Project details"
+    },
+    {
+        "link": "intendedConsequences",
+        "title": "Intended consequences"
+    },
+    {
+        "link": "unintendedConsequences",
+        "title": "Unintended consequences"
+    },
+    {
+        "link": "riskEvaluation",
+        "title": "Risk evaluation"
+    },
+    {
+        "link": "stakeholders",
+        "title": "Stakeholders"
+    },
+    {
+        "link": "actionPlanning",
+        "title": "Action planning"
+    }
+]

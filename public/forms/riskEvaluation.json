@@ -1,7 +1,8 @@
 [
   {
     "key": "unintendedConsequences",
-    "prepend": "<h2>Evaluate Risks of Unintended Consequences</h2><div class='infobox'><p>To evaluate the risks associated with your data project, we are going to further examine the unintended consequences. </p><p>For each unintended consequence, please assess both its impact and likelihood on a scale of low, medium, and high. This evaluation will help prioritise and manage risks effectively.</p><p>Would you like the AI to assess the consequences for the potential impact and likelihood? The AI will provide a low, medium or high score for each consequence. You can review and update these before continuing.</p></div>",
+    "prepend": "<h2>Evaluate Risks of Unintended Consequences</h2><p>To evaluate the risks associated with your data project, we are going to further examine the unintended consequences. </p><p>For each unintended consequence, please assess both its impact and likelihood on a scale of low, medium, and high. This evaluation will help prioritise and manage risks effectively.</p><h1>Risk evaluation</h1><br/><div class='infobox'>",
+    "append": "</div>",
     "notitle": true,
     "htmlClass": "content-block light-blue",
     "type": "array",
@@ -10,30 +11,36 @@
       "items": [
         {
           "key": "unintendedConsequences[].consequence",
-          "fieldHtmlClass": "inputText",
+          "fieldHtmlClass": "input inputText",
           "placeholder": "Unintended consequence",
-          "prepend": "<h3>Unintended consequence</h3>",
+          "prepend": "<h2 class='draggable'>Unintended consequence</h2>",
           "notitle": true,
           "disabled": true
         },
         {
           "key": "unintendedConsequences[].outcome",
-          "fieldHtmlClass": "inputSelect",
+          "fieldHtmlClass": "input",
           "prepend": "<h3>Outcome</h3>",
           "notitle": true,
           "disabled": true
         },
         {
-          "key": "unintendedConsequences[].impact",
-          "fieldHtmlClass": "inputSelect",
-          "prepend": "<h3>Impact</h3>",
-          "notitle": true
-        },
-        {
-          "key": "unintendedConsequences[].likelihood",
-          "fieldHtmlClass": "inputSelect",
-          "prepend": "<h3>Likelihood</h3>",
-          "notitle": true
+          "type": "fieldset",
+          "title": "Risk evaluation",
+          "items": [
+            {
+              "key": "unintendedConsequences[].impact",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Impact</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].likelihood",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Likelihood</h3>",
+              "notitle": true
+            }
+          ]
         },
         {
           "key": "unintendedConsequences[].role",
@@ -56,8 +63,9 @@
   },
   {
         "type": "submit",
-        "title": "Proceed to action planning",
+        "title": "Proceed to defining stakeholders",
         "htmlClass": "submitButton",
-        "next": "actionPlanning"
+        "next": "stakeholders",
+        "quickNav": "true"
   }
 ]

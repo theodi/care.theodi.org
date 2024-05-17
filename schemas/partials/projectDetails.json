@@ -15,25 +15,5 @@
   "dataUsed": {
     "type": "textarea",
     "title": "Data used"
-  },
-  "stakeholders": {
-      "type": "array",
-      "title": "Stakeholders",
-      "items": {
-        "type": "object",
-        "title": "Stakeholder",
-        "properties": {
-          "stakeholder": {
-              "type": "string",
-              "title": "Stakeholder"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["", "Internal", "External"],
-            "title": "Type",
-            "placeholder": "internal/external"
-          }
-        }
-      }
   }
 }

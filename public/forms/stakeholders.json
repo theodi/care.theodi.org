@@ -1,0 +1,36 @@
+[
+    {
+        "key": "stakeholders",
+        "prepend": "<h2>Who are the stakeholders?</h2><p>Please list the names or titles of individuals, teams, or organisations that are <b>involved in</b>, or <b>impacted by</b> your project.</p><p>For each stakeholder, indicate whether they are an \"internal\" stakeholder (part of your organisation or project team) or an \"external\" stakeholder (outside the organisation or project team).</p><div class='infobox'><div class='aiContainer'><div class='preAI'><h2>Do you want AI to suggest stakeholders?</h2><p>The AI will review the details of the project and make suggestions for stakeholders. This will be done by reviewing all your consequences.</p><div id='aiMessageContainer' class='ai-message-container'><div class='ai-message-header'><button class='expandButton'>+</button><h3 class='expandToggle'>Click here to view the query and data sent to the AI</h3></div><div id='aiMessage' class='aiMessage'></div></div><input type='submit' class='btn btn-primary' id='runAI' value='Use AI to suggest stakeholders'></input></div></div></div><h1>Stakeholders</h1><br/><div class='infobox'>",
+        "append": "</div>",
+        "notitle": true,
+        "htmlClass": "content-block light-blue stakeholders",
+        "type": "array",
+        "items": {
+            "type": "section",
+            "items": [
+                {
+                    "key": "stakeholders[].stakeholder",
+                    "fieldHtmlClass": "input inputText",
+                    "placeholder": "Enter a stakeholder here",
+                    "prepend": "<h2 class='draggable'>Stakeholder</h2>",
+                    "notitle": true
+                },
+                {
+                    "key": "stakeholders[].type",
+                    "fieldHtmlClass": "input inputSelect",
+                    "placeholder": "internal/external",
+                    "prepend": "<h4>Type</h4>",
+                    "notitle": true
+                }
+            ]
+        }
+    },
+    {
+        "type": "submit",
+        "title": "Proceed to action planning",
+        "htmlClass": "submitButton",
+        "next": "actionPlanning",
+        "quickNav": "true"
+    }
+]

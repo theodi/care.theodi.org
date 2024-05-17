@@ -1,0 +1,122 @@
+<%- include('../partials/header') %>
+<script src="/js/aiAssistant.js"></script>
+<style>
+    .mergeOverwrite {
+        display: none;
+        text-align: center;
+    }
+    table {
+        width: auto;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    table th {
+        background-color: var(--background);
+    }
+    table tr {
+        background-color: transparent;
+    }
+    table td {
+        background-color: transparent;
+        border: 1px solid gray;
+    }
+    tbody tr:nth-child(2n) {
+        background-color: transparent;
+    }
+</style>
+<section class="content-block light-blue">
+    <subsection class="preAI">
+        <h2>Do you want AI to run a complete risk assessment for your project?</h2>
+        <p>
+            The AI will review the details of the project and make suggestions for what the possible intended and unintended consequences might be. The generated consequences should be treated as a guide that supports your project planning.
+        </p>
+        <div id="aiMessageContainer" class="ai-message-container">
+            <div class="ai-message-header">
+                <button class="expandButton">+</button>
+                <h3 class="expandToggle">Click here to view the query and data sent to the AI</h3>
+            </div>
+            <div id="aiMessage" class="aiMessage">
+                <!-- Your AI message content goes here -->
+            </div>
+        </div>
+    </subsection>
+    <subsection class="aiRunning">
+        <h2>Running risk assessment, please wait...</h2>
+        <div class="loading_animation"></div>
+    </subsection>
+    <subsection class="mergeOverwrite">
+        <h2>Existing Data Detected</h2>
+        <p>Your project already contains some data. Do you want to merge the new AI data with the existing data, or overwrite it?</p>
+        <button class="btn btn-primary mergeButton" id="merge">Merge</button>
+        <button class="btn btn-primary mergeButton" id="overwrite">Overwrite</button>
+    </subsection>
+    <subsection class="postAI" style="text-align: center;">
+        <h2>Assessment <span id="assessmentStatus"></span></h2>
+        <p id="assessmentError"></p>
+        <h3>Summary</h3>
+        <table>
+            <tr>
+                <td>Intended Consequences:</td>
+                <td id="intendedConsequencesCount">0</td>
+            </tr>
+            <tr>
+                <td>Unintended Consequences:</td>
+                <td id="unintendedConsequencesCount">0</td>
+            </tr>
+            <tr>
+                <td>Stakeholders:</td>
+                <td id="stakeholdersCount">0</td>
+            </tr>
+        </table>
+    </subsection>
+</section>
+<form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
+    <div id="submitButtonContainer" class="content-block dark-blue proceed">
+        <div class="preAI">
+            <input type="submit" class="btn btn-primary submitButton" id="yes" value="Yes: Run AI Risk Assessment"></input>
+            <input type="submit" class="btn btn-primary submitButton proceedButton" value="No: Proceed to intended consequences"></input>
+        </div>
+        <div class="postAI">
+            <input type="submit" class="btn btn-primary submitButton proceedButton" value="Proceed to intended consequences"></input>
+        </div>
+    </div>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("dataForm");
+    const projectId = form.dataset.projectId;
+    loadAI();
+
+    const proceedButtons = document.querySelectorAll(".proceedButton");
+    proceedButtons.forEach(button => {
+        button.addEventListener("click", function(event) {
+            event.preventDefault(); // Prevent default form submission
+            if (projectId) {
+                window.location.href = `/project/${projectId}/intendedConsequences`;
+            }
+        });
+    });
+
+    // Add event listener to "Yes" button
+    const yesButton = document.getElementById("yes");
+    yesButton.addEventListener("click", function(event) {
+        event.preventDefault(); // Prevent default form submission
+        if (projectId) {
+            checkExistingData(projectId);
+        }
+    });
+
+    // Add event listeners to merge/overwrite buttons
+    document.getElementById("merge").addEventListener("click", function(event) {
+        event.preventDefault();
+        getCompleteAIResponse(projectId, true);
+    });
+
+    document.getElementById("overwrite").addEventListener("click", function(event) {
+        event.preventDefault();
+        getCompleteAIResponse(projectId, false);
+    });
+});
+</script>
+<%- include('../partials/footer') %>

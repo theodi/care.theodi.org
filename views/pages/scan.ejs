@@ -1,18 +1,15 @@
 <!-- views/profile.ejs -->
 <%- include('../partials/header') %>
+<script src="/js/aiAssistant.js"></script>
 <div id="panelRes" class="alert"></div>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
 </form>
-<div id="submitButtonContainer" class="content-block dark-blue proceed">
-
-</div>
 <script>
-const data = {};
-data.stakeholders = [];
-let stakeholder = {};
-stakeholder.stakeholder = "";
-stakeholder.type = "";
-data.stakeholders.push(stakeholder);
+
+let form = {};
+let schema = {};
+let projectData = {};
+let projectId = "";
 
 $('#dataForm').html("");
 $('#result').html("");
@@ -20,7 +17,7 @@ $('form').show();
 
 document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("dataForm");
-    const projectId = form.dataset.projectId;
+    projectId = form.dataset.projectId;
 
     // Get the form name from the URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -50,61 +47,197 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             return response.json();
         })
-        .then(projectData => {
-            renderForm(projectData, formName);
+        .then(data => {
+            loadPage(formName,data);
         })
         .catch(error => {
             console.error('There was a problem with the fetch operation:', error);
         });
     } else {
-        renderForm(data, formName);
+        loadPage(formName,data);
     }
+
 });
 
-async function renderForm(data, formName) {
-  console.log(data);
-    // Fetch the schema from "schemas/project.json"
-    fetch(`/schemas/partials/${formName}.json`)
-        .then(response => response.json())
-        .then(schema => {
-            // Fetch the form from the corresponding JSON file
-            fetch(`/forms/${formName}.json`)
-                .then(response => response.json())
-                .then(form => {
-                    $('#dataForm').jsonForm({
-                        schema: schema,
-                        form: form,
-                        value: data,
-                        onSubmit: function (errors, values) {
-                            if (errors) {
-                                $('#panelRes').html('<p>Please correct the errors in your form</p>');
-                            } else {
-                                const inputObject = Object.assign({}, data, values);
-                                sendDataToServer(inputObject);
-                            }
-                        }
-                    });
-                    moveSubmitButton();
-                })
-                .catch(error => {
-                    console.error("Error fetching form:", error);
-                });
-        })
-        .catch(error => {
-            console.error("Error fetching schema:", error);
+async function populateBlankArrays() {
+    try {
+        // Fetch the project schema
+        const response = await fetch('/schemas/project.json');
+        const projectSchema = await response.json();
+
+        // Iterate over each property in the schema
+        Object.keys(projectSchema).forEach(propertyName => {
+            const property = projectSchema[propertyName];
+            // Check if the property is an array
+            if (property.type === 'array') {
+                // Check if the property is not already defined in projectData
+                if (projectData[propertyName].length < 1) {
+
+                    // If the array items are objects with properties defined, populate with blank objects
+                    if (property.items && property.items.type === 'object' && property.items.properties) {
+                        const blankObject = {};
+                        // Populate the blank object with blank properties based on schema
+                        Object.keys(property.items.properties).forEach(prop => {
+                            blankObject[prop] = '';
+                        });
+                        projectData[propertyName].push(blankObject);
+                    }
+                }
+            }
         });
+    } catch (error) {
+        console.error('Error fetching or processing schema:', error);
+    }
+}
+
+async function loadPage(formName,data) {
+    projectData = data;
+    await populateBlankArrays();
+    await loadFormComponents(formName);
+    await renderForm(data);
+    extractDisabledFieldValues("dataForm");
+    loadAI();
+    moveSubmitButton();
+}
+
+async function reloadPage() {
+    await renderForm(projectData);
+    extractDisabledFieldValues("dataForm");
+    loadAI();
+    moveSubmitButton();
+}
+
+function updatePageTitle(pageLink) {
+    const pages = [
+        {
+            "link": "projectDetails",
+            "title": "Project details"
+        },
+        {
+            "link": "intendedConsequences",
+            "title": "Intended consequences"
+        },
+        {
+            "link": "unintendedConsequences",
+            "title": "Unintended consequences"
+        },
+        {
+            "link": "riskEvaluation",
+            "title": "Risk evaluation"
+        },
+        {
+            "link": "stakeholders",
+            "title": "Stakeholders"
+        },
+        {
+            "link": "actionPlanning",
+            "title": "Action planning"
+        }
+    ]
+    // Find the corresponding page object
+    const page = pages.find(item => item.link === pageLink);
+
+    // Update the page title within the HTML
+    const pageTitleElement = document.querySelector('.page-title h1');
+    if (pageTitleElement && page) {
+        pageTitleElement.textContent = page.title;
+    }
+
+    // Update the HTML <title> attribute
+    if (page) {
+        document.title = page.title;
+    }
+}
+
+async function quickNav(page) {
+    // Update the URL without reloading the page
+    history.pushState({}, '', `/project/${projectId}/${page}`);
+
+    // Update the selected state of sidebar items
+    const sidebarLinks = document.querySelectorAll('.project-menu li a');
+    sidebarLinks.forEach(link => {
+        if (link.getAttribute('id') === `${page}`) {
+            link.classList.add('selected');
+        } else {
+            link.classList.remove('selected');
+        }
+    });
+
+    // Load form components
+    await loadFormComponents(page);
+
+    // Reload the page if necessary
+    reloadPage(); // Assuming this function is needed for other purposes
+
+    updatePageTitle(page);
+}
+
+
+async function renderForm(data) {
+    document.getElementById('dataForm').innerHTML = "";
+    try {
+        // Fetch the schema from "schemas/project.json"
+
+        $('#dataForm').jsonForm({
+            schema: schema,
+            form: form,
+            value: populateMissingElements(schema, data),
+            onSubmit: function (errors, values) {
+                values = populateMissingElements(schema, values);
+                if (errors) {
+                    $('#panelRes').html('<p>Please correct the errors in your form</p>');
+                } else {
+                    for (const key in values) {
+                        data[key] = values[key];
+                    }
+                    sendDataToServer(data);
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Error rendering form:", error);
+    }
+}
+
+async function loadFormComponents(formName) {
+    const schemaResponse = await fetch(`/schemas/partials/${formName}.json`);
+    schema = await schemaResponse.json();
+
+    // Fetch the form from the corresponding JSON file
+    const formResponse = await fetch(`/forms/${formName}.json`);
+    form = await formResponse.json();
+}
+
+function populateMissingElements(schema,data) {
+    for (const key in schema) {
+        if (!(key in data) && key !== "_id") {
+            if (schema[key].type === "array") {
+                // Initialize missing array elements as empty arrays
+                data[key] = [];
+            } else {
+                // Initialize missing elements as empty strings
+                data[key] = "";
+            }
+        }
+    }
+    return data;
 }
 
 function moveSubmitButton() {
-    const submitButtonContainer = $('#submitButtonContainer');
-    const submitButton = $('.submitButton');
-    if (submitButtonContainer.length && submitButton.length) {
-        submitButtonContainer.append(submitButton);
-        $('#dataForm').append(submitButtonContainer); // Move container inside #dataForm
+    const submitButtonContainer = document.createElement('div');
+    submitButtonContainer.setAttribute('id', 'submitButtonContainer'); // Add quotes around the attribute name
+    submitButtonContainer.classList.add('content-block', 'dark-blue', 'proceed'); // Separate class names with commas
+
+    const submitButton = document.querySelector('.submitButton'); // Use vanilla JavaScript to select the submit button
+
+    if (submitButtonContainer && submitButton) { // Check if both elements exist
+        submitButtonContainer.appendChild(submitButton); // Use appendChild() to append the submit button
+        document.getElementById('dataForm').appendChild(submitButtonContainer); // Move container inside #dataForm
     } else {
         console.error("submitButtonContainer or submitButton not found.");
     }
 }
+
 
 async function sendDataToServer(inputObject) {
   let url;
@@ -138,12 +271,12 @@ async function sendDataToServer(inputObject) {
         projectId = responseData._id; // Replace with the actual field name from the response
       }
       const nextAttributeValue = $('.submitButton').attr('next');
+      const quickNavAttributeValue = $('.submitButton').attr('quickNav');
 
-      // Redirect the user to /project/<projectId>/<nextAttributeValue>
-      if (projectId && nextAttributeValue) {
+      if (quickNavAttributeValue === "true" && nextAttributeValue) {
+        quickNav(nextAttributeValue);
+      } else if (projectId && nextAttributeValue) {
           window.location.href = `/project/${projectId}/${nextAttributeValue}`;
-      } else {
-          console.error("Unable to redirect: projectId or nextAttributeValue is missing.");
       }
     } else {
       console.error("Request failed with status:", response.status);
@@ -152,6 +285,30 @@ async function sendDataToServer(inputObject) {
     console.error("An error occurred:", error);
   }
 }
+
+function extractDisabledFieldValues(formId) {
+    const form = document.getElementById(formId);
+
+    if (!form) {
+        console.error('Form not found.');
+        return;
+    }
+
+    const disabledFields = form.querySelectorAll('input[disabled], select[disabled], textarea[disabled]');
+
+    if (disabledFields.length === 0) {
+        return;
+    }
+
+    disabledFields.forEach(field => {
+        const fieldValue = field.value;
+        // Replace input field with a paragraph element containing the value
+        const paragraphElement = document.createElement('p');
+        paragraphElement.textContent = `${fieldValue}`;
+        field.replaceWith(paragraphElement);
+    });
+}
+
 
 </script>
 <%- include('../partials/footer') %>
