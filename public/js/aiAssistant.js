@@ -5,10 +5,14 @@ async function loadAI() {
     const form = document.getElementById("dataForm");
     const projectId = form.dataset.projectId;
     const messageId = document.getElementById("pageId").value;
-    const response = await fetch('/data/aiTemplates.json');
-    const messageData = await response.json();
-    const message = messageData.messages[messageId];
-    if (!message) {
+    let message;
+    try {
+        const response = await fetch('/data/messageTemplates/' + messageId + '.txt');
+        if (!response.ok) {
+            throw new Error('Failed to fetch message');
+        }
+        message = await response.text();
+    } catch (error) {
         return;
     }
     await addAIElements();
@@ -86,9 +90,7 @@ function renderMessageHTML(messageText) {
 
 async function renderMessage(projectData,message) {
     try {
-        if (aiMessage == "") {
-            aiMessage = await populateMessage(message, projectData);
-        }
+        aiMessage = await populateMessage(message, projectData);
         const messageHTML = renderMessageHTML(aiMessage);
         document.getElementById("aiMessage").innerHTML = messageHTML;
     } catch (error) {
@@ -98,7 +100,7 @@ async function renderMessage(projectData,message) {
 
 async function populateMessage(message, data) {
 
-    let populatedText = message.message;
+    let populatedText = message;
 
     // Replace placeholders with actual data
     for (const key in data) {
@@ -313,10 +315,29 @@ async function getCompleteAIResponse(projectId, merge) {
         // Populate assessment status
         document.getElementById('assessmentStatus').innerText = 'success';
 
-        // Populate summary table
-        document.getElementById('intendedConsequencesCount').innerText = responseData.intendedConsequencesCount;
-        document.getElementById('unintendedConsequencesCount').innerText = responseData.unintendedConsequencesCount;
-        document.getElementById('stakeholdersCount').innerText = responseData.stakeholdersCount;
+        const outcomesTable = document.getElementById('outcomesTable');
+        // Clear previous content
+        outcomesTable.innerHTML = '';
+
+        document.getElementById('addSelectedButton').style.display = 'none'
+
+        // Populate table with data
+        const outcomes = [
+            { type: 'Intended Consequences', count: responseData.intendedConsequencesCount },
+            { type: 'Unintended Consequences', count: responseData.unintendedConsequencesCount },
+            { type: 'Stakeholders', count: responseData.stakeholdersCount }
+        ];
+
+        outcomes.forEach(outcome => {
+            const row = document.createElement('tr');
+            const cell1 = document.createElement('td');
+            cell1.textContent = outcome.type;
+            const cell2 = document.createElement('td');
+            cell2.textContent = outcome.count;
+            row.appendChild(cell1);
+            row.appendChild(cell2);
+            outcomesTable.appendChild(row);
+        });
 
         // Show postAI elements
         document.querySelectorAll('.postAI').forEach(el => el.style.display = 'block');

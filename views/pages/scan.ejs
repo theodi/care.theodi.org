@@ -1,7 +1,8 @@
 <!-- views/profile.ejs -->
 <%- include('../partials/header') %>
+<script src="/js/scan.js"></script>
 <script src="/js/aiAssistant.js"></script>
-<div id="panelRes" class="alert"></div>
+<div id="panelRes" class="error"></div>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
 </form>
 <script>
@@ -16,58 +17,46 @@ $('#result').html("");
 $('form').show();
 
 document.addEventListener("DOMContentLoaded", function () {
+
+    // Get the project ID
     const form = document.getElementById("dataForm");
     projectId = form.dataset.projectId;
 
     // Get the form name from the URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const templateParam = urlParams.get('template');
     const urlParts = window.location.pathname.split('/');
     const formName = urlParts.length >= 4 && urlParts[3] !== undefined ? urlParts[3] : 'projectDetails';
 
-    let fetchURL;
-
-    if (projectId) {
-        fetchURL = `/project/${projectId}`;
-    } else if (templateParam) {
-        fetchURL = `/examples/${templateParam}.json`;
-    } else {
-        fetchURL = null; // No need to fetch data
-    }
-
-    if (fetchURL) {
-        fetch(fetchURL, {
-            headers: {
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            loadPage(formName,data);
-        })
-        .catch(error => {
-            console.error('There was a problem with the fetch operation:', error);
-        });
-    } else {
-        loadPage(formName,data);
-    }
-
+    // load the data
+    loadPage(formName,projectId);
 });
+
+async function loadPage(formName,projectId) {
+    projectData = await loadProject(projectId);
+    await populateBlankArrays();
+    await loadFormComponents(formName);
+    await renderForm(projectData);
+    extractDisabledFieldValues("dataForm");
+    loadAI();
+    moveSubmitButton();
+}
+
+async function reloadPage() {
+    await renderForm(projectData);
+    extractDisabledFieldValues("dataForm");
+    loadAI();
+    moveSubmitButton();
+}
 
 async function populateBlankArrays() {
     try {
         // Fetch the project schema
-        const response = await fetch('/schemas/project.json');
-        const projectSchema = await response.json();
+        const response = await fetch('/data/schemas/project.json');
+        const schema = await response.json();
+        const properties = schema.properties;
 
         // Iterate over each property in the schema
-        Object.keys(projectSchema).forEach(propertyName => {
-            const property = projectSchema[propertyName];
+        Object.keys(properties).forEach(propertyName => {
+            const property = properties[propertyName];
             // Check if the property is an array
             if (property.type === 'array') {
                 // Check if the property is not already defined in projectData
@@ -90,24 +79,7 @@ async function populateBlankArrays() {
     }
 }
 
-async function loadPage(formName,data) {
-    projectData = data;
-    await populateBlankArrays();
-    await loadFormComponents(formName);
-    await renderForm(data);
-    extractDisabledFieldValues("dataForm");
-    loadAI();
-    moveSubmitButton();
-}
-
-async function reloadPage() {
-    await renderForm(projectData);
-    extractDisabledFieldValues("dataForm");
-    loadAI();
-    moveSubmitButton();
-}
-
-function updatePageTitle(pageLink) {
+async function updatePageTitle(pageLink) {
     const pages = [
         {
             "link": "projectDetails",
@@ -136,6 +108,7 @@ function updatePageTitle(pageLink) {
     ]
     // Find the corresponding page object
     const page = pages.find(item => item.link === pageLink);
+    document.getElementById("pageId").value = page.link;
 
     // Update the page title within the HTML
     const pageTitleElement = document.querySelector('.page-title h1');
@@ -147,6 +120,7 @@ function updatePageTitle(pageLink) {
     if (page) {
         document.title = page.title;
     }
+
 }
 
 async function quickNav(page) {
@@ -166,12 +140,11 @@ async function quickNav(page) {
     // Load form components
     await loadFormComponents(page);
 
+    await updatePageTitle(page);
+
     // Reload the page if necessary
     reloadPage(); // Assuming this function is needed for other purposes
-
-    updatePageTitle(page);
 }
-
 
 async function renderForm(data) {
     document.getElementById('dataForm').innerHTML = "";
@@ -200,11 +173,12 @@ async function renderForm(data) {
 }
 
 async function loadFormComponents(formName) {
-    const schemaResponse = await fetch(`/schemas/partials/${formName}.json`);
-    schema = await schemaResponse.json();
+    const schemaResponse = await fetch(`/data/schemas/partials/${formName}.json`);
+    const fullSchema = await schemaResponse.json();
+    schema = fullSchema.properties;
 
     // Fetch the form from the corresponding JSON file
-    const formResponse = await fetch(`/forms/${formName}.json`);
+    const formResponse = await fetch(`/data/forms/${formName}.json`);
     form = await formResponse.json();
 }
 
@@ -237,7 +211,6 @@ function moveSubmitButton() {
         console.error("submitButtonContainer or submitButton not found.");
     }
 }
-
 
 async function sendDataToServer(inputObject) {
   let url;

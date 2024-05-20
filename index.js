@@ -136,7 +136,7 @@ app.get('/glossary', ensureAuthenticated, function(req, res) {
     // If accept header is application/json, send the glossary.json file
     if (acceptHeader === 'application/json') {
         // Read the glossary.json file
-        fs.readFile('glossary.json', 'utf8', (err, data) => {
+        fs.readFile('public/data/glossary.json', 'utf8', (err, data) => {
             if (err) {
                 res.status(500).json({ error: 'Internal Server Error' });
             } else {
@@ -146,7 +146,7 @@ app.get('/glossary', ensureAuthenticated, function(req, res) {
         });
     } else {
         // Otherwise, render the EJS page for glossary and pass the glossary data
-        fs.readFile('glossary.json', 'utf8', (err, data) => {
+        fs.readFile('public/data/glossary.json', 'utf8', (err, data) => {
             if (err) {
                 res.status(500).send('Internal Server Error');
             } else {
@@ -199,7 +199,7 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
 app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
   try {
       const schemaPath = req.params.schema;
-      const fullPath = path.join(__dirname, 'schemas', schemaPath);
+      const fullPath = path.join(__dirname, 'public/data/schemas', schemaPath);
       if (fs.existsSync(fullPath)) {
           var schema = require(fullPath);
 

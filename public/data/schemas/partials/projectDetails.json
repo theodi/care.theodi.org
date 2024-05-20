@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Name (required)",
+      "required": true
+    },
+    "objectives": {
+      "type": "string",
+      "title": "Objectives"
+    },
+    "dataUsed": {
+      "type": "string",
+      "title": "Data used"
+    }
+  }
+}

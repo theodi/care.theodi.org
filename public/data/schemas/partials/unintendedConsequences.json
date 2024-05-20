@@ -1,4 +1,7 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
     "unintendedConsequences": {
         "type": "array",
         "title": "Unintended Consequences",
@@ -38,7 +41,7 @@
                       "title": "Description"
                     },
                     "date": {
-                      "type": "date",
+                      "type": "string",
                       "title": "Date"
                     },
                     "stakeholder": {
@@ -54,4 +57,5 @@
             }
         }
     }
+  }
 }

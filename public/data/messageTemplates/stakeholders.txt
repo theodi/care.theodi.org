@@ -1,0 +1,29 @@
+You are helping a user to carry out a risk assessment on a project idea involving data.
+
+Here is the description of the project:
+
+{{title}}.
+
+{{objectives}}
+
+and the data used:
+
+{{dataUsed}}
+
+We have also defined the following intended consequences of the project:
+
+{{intendedConsequences}}
+
+ and potential unintended consequences:
+
+ {{unintendedConsequences}}
+
+ Using this context suggest some stakeholders (e.g. roles, teams or organisations) that are involved in, or impacted by the project.
+
+ For each stakeholder, indicate whether they are an internal stakeholder (part of the organisation or project team) or an external stakeholder (outside the organisation or project team).
+
+ Your response should be in the format of undeclared JSON conforming to the following schema:
+
+ {{schema}}
+
+ Return just the data, not the schema.

@@ -43,7 +43,7 @@ router.get('/google/callback',
     req.session.authMethod = 'google';
     // Successful authentication, redirect to profile page or wherever needed
     await processLogin(req);
-    res.redirect('/profile');
+    res.redirect('/projects');
   }
 );
 
@@ -53,7 +53,7 @@ router.get('/django/callback',
   async (req, res) => {
     req.session.authMethod = 'django';
     await processLogin(req);
-    res.redirect('/profile');
+    res.redirect('/projects');
   }
 );
 

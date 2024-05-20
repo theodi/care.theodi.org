@@ -7,6 +7,7 @@
             "title": "Stakeholders",
             "items": {
                 "type": "object",
+                "title": "Stakeholder",
                 "properties": {
                     "stakeholder": {
                         "type": "string",
@@ -15,12 +16,11 @@
                     "type": {
                         "type": "string",
                         "enum": ["", "Internal", "External"],
-                        "title": "Type"
+                        "title": "Type",
+                        "placeholder": "internal/external"
                     }
-                },
-                "required": ["stakeholder"]
+                }
             }
         }
-    },
-    "required": ["stakeholders"]
+    }
 }

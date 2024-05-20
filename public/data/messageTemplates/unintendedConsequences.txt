@@ -1,0 +1,23 @@
+You are helping a user to carry out a risk assessment on a project idea involving data.
+
+Here is the description of the project:
+
+{{title}}
+
+{{objectives}}
+
+and the data used:
+
+{{dataUsed}}
+
+Using this context suggest some unintended consequnences for the project. These unintended consequences can have both positive and negative impacts. Consider the following:
+    - Positive Unintended Consequences: Think about unexpected benefits or positive outcomes that might result from the project. For example, improved processes, increased efficiency, or unforeseen uses or users of the product or service.
+    - Negative Unintended Consequences: Consider any adverse effects or unexpected problems that might occur. This could involve privacy breaches, data misuse, or potential bias in the data.
+    - Secondary Effects: Think about ripple effects that the project might have on other processes, systems, or stakeholders, even if they are not directly involved.
+    - External Factors: Take into account external factors or events that the project might interact with or influence. These could include changes in regulations, market conditions, or technological advancements.
+
+Your response should be in the format of undeclared JSON conforming to the following schema:
+
+{{schema}}
+
+Return just the data, not the schema.

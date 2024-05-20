@@ -1,9 +1,9 @@
-// Open AI
+const fs = require('fs').promises;
+const path = require('path');
 
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/project');
-const messageData = require('../public/data/aiTemplates.json');
 
 const OpenAI = require("openai");
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -24,18 +24,23 @@ router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProje
     try {
         const projectData = res.locals.project;
         const messageId = req.params.messageId;
-        const schema = require('../schemas/partials_ai/'+messageId+'.json');
+        // Get the merge query parameter from the URL
+        const merge = req.query.merge === 'true'; // Convert to boolean
+        const schema = require('../public/data/schemas/partials/'+messageId+'.json');
         projectData.schema = JSON.stringify(schema);
         const message = await populateMessage(messageId, projectData);;
         const response = await getAIReponse(message);
+        console.log(response);
 
         // Parse the AI response JSON string
         const parsedResponse = JSON.parse(response);
+        console.log(parsedResponse);
 
         // Check if the messageId is "completeAssessment"
         if (messageId === "completeAssessment") {
             // Call the completeAssessment function
-            await completeAssessment(parsedResponse, projectData);
+            const summary = await completeAssessment(parsedResponse, projectData, merge);
+            res.json(summary)
         } else {
             // If it's not completeAssessment, send the parsedResponse back to the client
             res.json(parsedResponse);
@@ -86,13 +91,14 @@ async function completeAssessment(parsedResponse, projectData, merge = true) {
 }
 
 async function populateMessage(messageId, data) {
-    const message = messageData.messages[messageId];
+    const filePath = path.join(__dirname, '../public/data/messageTemplates/', messageId + '.txt');
+    const message = await fs.readFile(filePath, 'utf8');
     if (!message) {
       console.error(`Message with ID '${messageId}' not found.`);
       return null;
     }
 
-    let populatedText = message.message;
+    let populatedText = message;
 
     // Convert Mongoose object to plain JavaScript object
     const plainData = data.toObject();

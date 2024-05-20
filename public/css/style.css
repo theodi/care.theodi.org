@@ -15,6 +15,9 @@ input:not([type="checkbox"]):not([type="radio"]), input[type="range"], select, b
   -webkit-tap-highlight-color: transparent;
   /* For some Androids */
 }
+/*
+ * Sections, body etc
+ */
 body {
   min-height: 100vh;
   display: flex;
@@ -23,117 +26,54 @@ body {
   min-width: 100%;
   padding-left: 0px;
 }
-.btn, button, .submitButton {
-  border-radius: 0px;
-  font-weight: 500;
-  font-size: 1.125rem;
-  line-height: 1.75rem;
-  padding-top: .5rem;
-  padding-bottom: .5rem;
-  padding-left: 2rem;
-  padding-right: 2rem;
+section {
+  margin-left: 0px; /* Same as sidebar width */
 }
-ul._jsonform-array-ul li {
-  padding-bottom: 2rem;
+.hidden {
+   display: none;
 }
-ul._jsonform-array-ul ._jsonform-array-buttons {
-  float: right;
-  position: relative;
+.main-content {
+  margin-left: 270px; /* Same as the width of the sidebar */
+  transition: margin-left 0.3s; /* Smooth transition for any size adjustments */
 }
-._jsonform-array-buttons .btn {
-  padding: 0.5rem;
-  border: 2px solid;
-}
-.glyphicon {
-  top: 7px;
-  padding-right: 10px;
-}
-button {
-  border: 2px solid white;
-}
-.submitButton {
-  background-color: transparent;
-  border: 2px solid white;
+.infobox {
+  padding: 2rem;
+  color: black;
+  background-color: rgba(255,255,255,0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .content-block {
-  padding: 1em;
-}
-.sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 270px;
-    height: 100%;
-    background-color: #f4f4f4;
-    overflow-y: auto; /* Scrollable contents if sidebar is long */
-    z-index: 1000; /* Ensures sidebar is above other content */
+  padding: 1rem 3rem 2rem 3rem;
 }
 .odi-logo {
   height: 40px;
   margin-top: 20px;
   margin-left: 50px;
 }
+/*
+ * Header
+ */
+ .page-title {
+  padding: 1em 10px 2em 10px;
+}
+.page-title h1 {
+  font-family: Inter,system-ui,Avenir,Helvetica,Arial,sans-serif;
+  text-align: center;
+  font-weight: 700;
+  font-size: 3rem;
+}
+/*
+ * Lists
+ */
+ul {
+  padding-inline: 18px;
+}
 li {
   margin-bottom: 0.5rem;
 }
-.sidebar li {
-  margin: 0;
-  padding: 4px 0 6px 21px;
-  list-style: none;
-  background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 32 32"%3E%3Cg id="KNn5AD.tif"%3E%3Cpath d="m19.3,15.95c-.09-.08-.18-.14-.26-.22-3.47-3.45-6.94-6.9-10.41-10.35-.75-.74-.81-1.88-.17-2.66.73-.88,2.04-.96,2.86-.16,1.01.99,2.01,1.99,3.01,2.98,3,2.98,5.99,5.96,8.99,8.93.39.39.64.84.67,1.39.03.6-.19,1.1-.61,1.53-.85.85-1.7,1.71-2.54,2.56-3.11,3.14-6.23,6.28-9.34,9.42-.74.74-1.83.84-2.62.23-.94-.72-1.03-2.08-.19-2.94,1.42-1.44,2.85-2.88,4.28-4.32,2.07-2.08,4.14-4.17,6.2-6.25.04-.04.07-.08.14-.15Z" style="stroke-width:0px;" fill="%23efc151"/%3E%3C/g%3E%3C/svg%3E');
-  background-repeat: no-repeat;
-  background-position: left center;
-  background-size: 25px;
-}
-.projectProgress .inProgress {
-  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAACXBIWXMAAAsTAAALEwEAmpwYAAABlklEQVR4nO2Wu0pDQRCGv0JSGO00aIyFGojvIj6AWGkXI1iYh4nWgrdoJQHtVFQkVgZMHkOjiBqDsjDFspzLnPUELPLDKc7s5dvZnZ1ZGOofagIYsf6vgTegDTSAClBIGzoLfAD7DvjH+XrALpBPCzwGnANbjj0LlIAV4AD4lAV0gWVf2DqwJ5NrNQ/UBd4HNn3AdeAbmPMYuy1j+z6ej3pCbbjx/AWY1gzIy5mmoROB78R1nATegYuUwAsScD1gJqpjBjgMiF6tcsAtcGnZjsTrDc85VdCWQO4t+6rYzgYBNUf0KACTyaastpLYO1ET3EhG8vW0Jf+2xq2kEioDvQppuwMenInjoGpwlJoOQAO1t7qNp1yQBqoOroyEf0UB10Dt61SOi86uVKIw5WTbmwpoUZtAkA5ppcxT8baWZFBWs8oIVQX67NxrVVnseVaoqlUWl5IOXgOOpTxqVbS2tx8RpIm2vRFQPEwsLMqVMYv8srY3sadBKshjz7yr4h57taRnqnnemntug1+BJ0kO5T8G41AMRL9cR3tn3mEBjQAAAABJRU5ErkJggg==');
-  background-repeat: no-repeat;
-  background-position: left center;
-  background-size: 36px;
-
-}
-form .input {
-  padding-inline: 10px;
-  font-size: 16px;
-  box-shadow: #64646f33 0 7px 29px;
-  color: gray;
-  background-color: white;
-  border-radius: 0px;
-}
-form .inputText {
-  width: 80%;
-  line-height: 1.5rem;
-}
-.sidebar ul li a {
-  display: block;
-  padding: 10px;
-  color: #333;
-  text-decoration: none;
-}
-.sidebar .selected {
-  font-weight: bold;
-}
-.projectProgress {
-  background-color: rgb(30 64 175);
-  padding-left: 1rem;
-  padding-right: 0.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-
-}
-.projectProgress h1 {
-  font-size: 1.5em;
-}
-.projectProgress .projectTitle {
-  font-size: 1.3em;
-}
-.projectProgress ul li a {
-  color: inherit;
-  padding-left: 20px;
-}
-.page-title {
-  padding: 1em 10px 2em 10px;
-}
+/*
+ * General colours
+ */
 .white {
   background-color: rgb(255 255 255);
   color: rgb(30 64 175);
@@ -161,33 +101,72 @@ form .inputText {
 .light-yellow {
   background-color: rgba(255,237,213,0.4);
 }
-.infobox {
-  padding: 2rem;
-  color: black;
-  background-color: rgba(255,255,255,0.4);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-.content-block {
-  padding: 1rem 3rem 2rem 3rem;
+/*
+ * Buttons
+*/
+.btn, button, .submitButton {
+  border-radius: 0px;
+  font-weight: 500;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  padding-top: .5rem;
+  padding-bottom: .5rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
 }
 .content-block .submitButton {
   margin-top: 1rem;
 }
-.page-title h1 {
-  font-family: Inter,system-ui,Avenir,Helvetica,Arial,sans-serif;
-  text-align: center;
-  font-weight: 700;
-  font-size: 3rem;
+button {
+  border: 2px solid white;
 }
-
-ul {
-  padding-inline: 18px;
+.submitButton {
+  background-color: transparent;
+  border: 2px solid white;
+}
+/*
+ * jsonForm elements
+ */
+form .input {
+  padding-inline: 10px;
+  font-size: 16px;
+  box-shadow: #64646f33 0 7px 29px;
+  color: gray;
+  background-color: white;
+  border-radius: 0px;
+}
+form .inputText {
+  width: 80%;
+  line-height: 1.5rem;
+}
+li .line {
+  display: none;
+}
+li .draggable {
+  cursor: pointer;
+}
+.ui-sortable h3 {
+  cursor: pointer;
+}
+ul._jsonform-array-ul li {
+  padding-bottom: 2rem;
+}
+ul._jsonform-array-ul ._jsonform-array-buttons {
+  float: right;
+  position: relative;
+}
+._jsonform-array-buttons .btn {
+  padding: 0.5rem;
+  border: 2px solid;
 }
 ._jsonform-array-ul {
   padding-inline: 0px;
 }
 ._jsonform-array-ul li {
   border-bottom: 2px solid rgb(30 64 175);
+}
+._jsonform-array-deletelast {
+  display: none;
 }
 fieldSet {
   border: none;
@@ -201,24 +180,84 @@ fieldset .form-group {
   display: inline-flex;
   padding-right: 1rem;
 }
-li .line {
-  display: none;
+.glyphicon {
+  top: 7px;
+  padding-right: 10px;
 }
-li .draggable {
-  cursor: pointer;
+/*
+ * error banner
+ */
+.error {
+  width: 100%;
+  background: red;
+  text-align: center;
 }
-.ui-sortable h3 {
-  cursor: pointer;
+.error p {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  font-size: 1.5rem;
+  color: white;
 }
-/* Adjust content margin to account for the sidebar */
-section {
-  margin-left: 0px; /* Same as sidebar width */
+/*
+ * Navigation and project progress bar
+ */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 270px;
+  height: 100%;
+  background-color: #f4f4f4;
+  overflow-y: auto; /* Scrollable contents if sidebar is long */
+  z-index: 1000; /* Ensures sidebar is above other content */
+}
+.sidebar li {
+  margin: 0;
+  padding: 4px 0 6px 21px;
+  list-style: none;
+  background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 32 32"%3E%3Cg id="KNn5AD.tif"%3E%3Cpath d="m19.3,15.95c-.09-.08-.18-.14-.26-.22-3.47-3.45-6.94-6.9-10.41-10.35-.75-.74-.81-1.88-.17-2.66.73-.88,2.04-.96,2.86-.16,1.01.99,2.01,1.99,3.01,2.98,3,2.98,5.99,5.96,8.99,8.93.39.39.64.84.67,1.39.03.6-.19,1.1-.61,1.53-.85.85-1.7,1.71-2.54,2.56-3.11,3.14-6.23,6.28-9.34,9.42-.74.74-1.83.84-2.62.23-.94-.72-1.03-2.08-.19-2.94,1.42-1.44,2.85-2.88,4.28-4.32,2.07-2.08,4.14-4.17,6.2-6.25.04-.04.07-.08.14-.15Z" style="stroke-width:0px;" fill="%23efc151"/%3E%3C/g%3E%3C/svg%3E');
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 25px;
+}
+.sidebar ul li a {
+  display: block;
+  padding: 10px;
+  color: #333;
+  text-decoration: none;
+}
+.sidebar .selected {
+  font-weight: bold;
+}
+.projectProgress {
+  background-color: rgb(30 64 175);
+  padding-left: 1rem;
+  padding-right: 0.5rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.projectProgress h1 {
+  font-size: 1.5em;
+}
+.projectProgress .projectTitle {
+  font-size: 1.3em;
+}
+.projectProgress ul li a {
+  color: inherit;
+  padding-left: 20px;
+}
+.projectProgress .inProgress {
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAACXBIWXMAAAsTAAALEwEAmpwYAAABlklEQVR4nO2Wu0pDQRCGv0JSGO00aIyFGojvIj6AWGkXI1iYh4nWgrdoJQHtVFQkVgZMHkOjiBqDsjDFspzLnPUELPLDKc7s5dvZnZ1ZGOofagIYsf6vgTegDTSAClBIGzoLfAD7DvjH+XrALpBPCzwGnANbjj0LlIAV4AD4lAV0gWVf2DqwJ5NrNQ/UBd4HNn3AdeAbmPMYuy1j+z6ej3pCbbjx/AWY1gzIy5mmoROB78R1nATegYuUwAsScD1gJqpjBjgMiF6tcsAtcGnZjsTrDc85VdCWQO4t+6rYzgYBNUf0KACTyaastpLYO1ET3EhG8vW0Jf+2xq2kEioDvQppuwMenInjoGpwlJoOQAO1t7qNp1yQBqoOroyEf0UB10Dt61SOi86uVKIw5WTbmwpoUZtAkA5ppcxT8baWZFBWs8oIVQX67NxrVVnseVaoqlUWl5IOXgOOpTxqVbS2tx8RpIm2vRFQPEwsLMqVMYv8srY3sadBKshjz7yr4h57taRnqnnemntug1+BJ0kO5T8G41AMRL9cR3tn3mEBjQAAAABJRU5ErkJggg==');
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 36px;
 }
 
-.hidden {
-   display: none;
-}
-
+/*
+ * AI Sections
+ */
 .ai-message-container {
   border: 2px solid var(--background);
   padding: 10px;
@@ -262,16 +301,6 @@ section {
     margin-left: 0;
   }
 }
-
-.main-content {
-  margin-left: 270px; /* Same as the width of the sidebar */
-  transition: margin-left 0.3s; /* Smooth transition for any size adjustments */
-}
-
-._jsonform-array-deletelast {
-  display: none;
-}
-
 @media screen and (max-width: 600px) {
   .sidebar ul li a {
     float: none;
@@ -282,20 +311,4 @@ section {
     width: 100%;
     margin-left: 0; /* Sidebar and main content take full width on smaller screens */
   }
-}
-.banner {
-  position: absolute;
-  top: 3em;
-  right: -7em;
-  margin: 1em;
-  background: white;
-  width: 365px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-  color: black;
-  text-align: center;
-  -webkit-transform: rotate(45deg);
-  -moz-transform: rotate(45deg);
-    transform: rotate(45deg);
-    filter: progid:DXImageTransform.Microsoft.Matrix(M11='0.7071067811865476', M12='-0.7071067811865475', M21='0.7071067811865475', M22='0.7071067811865476', sizingMethod='auto expand');
 }

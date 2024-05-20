@@ -68,6 +68,7 @@
             },
             {
               "key": "unintendedConsequences[].action.date",
+              "type": "date",
               "fieldHtmlClass": "input",
               "prepend": "<h3>Action due date</h3>",
               "notitle": true

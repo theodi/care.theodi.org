@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "maxLength": 128,
+      "title": "Name (required)",
+      "required": [ "true" ]
+    },
+    "objectives": {
+      "type": "string",
+      "title": "Objectives"
+    },
+    "dataUsed": {
+      "type": "string",
+      "title": "Data used"
+    },
+    "intendedConsequences": {
+      "type": "array",
+      "title": "Intended Consequences",
+      "items": {
+        "type": "object",
+        "title": "Consequence",
+        "properties": {
+          "consequence": {
+              "type": "string",
+              "title": "Consequence"
+          }
+        }
+      }
+    },
+    "unintendedConsequences": {
+      "type": "array",
+      "title": "Unintended Consequences",
+      "items": {
+        "type": "object",
+        "title": "Unintended Consequence",
+        "properties": {
+          "consequence": {
+            "type": "string",
+            "title": "Description"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string",
+            "enum": ["Positive", "Negative"]
+          },
+          "impact": {
+            "type": "string",
+            "enum": ["High", "Medium", "Low"]
+          },
+          "likelihood": {
+            "title": "Likelihood",
+            "type": "string",
+            "enum": ["High", "Medium", "Low"]
+          },
+          "role": {
+            "title": "Role",
+            "type": "string",
+            "enum": ["Act", "Influence", "Monitor"]
+          },
+          "action": {
+            "type": "object",
+            "title": "Action",
+            "properties": {
+              "description": {
+                "type": "string",
+                "title": "Description"
+              },
+              "date": {
+                "type": "string",
+                "title": "Date"
+              },
+              "stakeholder": {
+                "type": "string",
+                "title": "Stakeholder"
+              }
+            }
+          },
+          "KPI": {
+            "type": "string",
+            "title": "KPI"
+          }
+        }
+      }
+    },
+    "stakeholders": {
+      "type": "array",
+      "title": "Stakeholders",
+      "items": {
+        "type": "object",
+        "title": "Stakeholder",
+        "properties": {
+          "stakeholder": {
+              "type": "string",
+              "title": "Stakeholder"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["", "Internal", "External"],
+            "title": "Type",
+            "placeholder": "internal/external"
+          }
+        }
+      }
+    }
+  }
+}
