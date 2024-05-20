@@ -22,6 +22,7 @@
 
 </head>
 <body>
+	<p class="version"><a href="<%= software.versionLink %>" target="_blank">v<%= software.version %></a></p>
 	<div class="sidebar">
 		<img class="odi-logo" src="/images/odi-logo.png">
 		<ul class="main-menu">
@@ -39,6 +40,7 @@
 				<li><a href="/disclaimer" class="toggle-link">Disclaimer</a></li>
 			<% } %>
 		</ul>
+
 		<% if (typeof project !== 'undefined') { %>
 			<nav class="projectProgress">
 				<h1>Current evaluation</h1>

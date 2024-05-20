@@ -4,6 +4,7 @@ const projectController = require('../controllers/project');
 const pages = require('../pages.json');
 
 const loadProject = async (req, res, next) => {
+    res.locals.pages = pages;
     if (req.params.id) {
         if (req.params.id !== req.session.projectId) {
             req.session.projectId = req.params.id;

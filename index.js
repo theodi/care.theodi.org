@@ -63,6 +63,30 @@ app.use(function(req, res, next) {
   next();
 });
 
+app.use((req, res, next) => {
+  // Read package.json file
+  fs.readFile(path.join(__dirname, 'package.json'), 'utf8', (err, data) => {
+      if (err) {
+          console.error('Error reading package.json:', err);
+          return next();
+      }
+
+      try {
+          const packageJson = JSON.parse(data);
+          // Extract version from package.json
+          var software = {};
+          software.version = packageJson.version;
+          software.homepage = packageJson.homepage;
+          software.versionLink = packageJson.homepage + "/releases/tag/v" + packageJson.version;
+          res.locals.software = software;
+      } catch (error) {
+          console.error('Error parsing package.json:', error);
+      }
+
+      next();
+  });
+});
+
 // Logout route
 app.post('/logout', function(req, res, next){
   req.logout(function(err) {
