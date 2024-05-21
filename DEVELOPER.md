@@ -93,7 +93,7 @@ Quesiton pages are defined as a a combination of two things:
  1. A json schema (public/data/schemas/partials/)
  2. A form (public/data/forms/)
 
-These two things when combined are parsed by the [https://github.com/jsonform/jsonform](jsonforms) library which renders the form, provides validation and a submit function.
+These two things when combined are parsed by the [jsonform](https://github.com/jsonform/jsonform) library which renders the form, provides validation and a submit function.
 
 The question pages are listed in pages.json and this controls the project progress and navigation elements, so all must match.
 
