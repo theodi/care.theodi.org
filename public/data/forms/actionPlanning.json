@@ -86,10 +86,9 @@
   },
   {
         "type": "submit",
-        "title": "View risk regisiter",
+        "title": "View risk register",
         "htmlClass": "submitButton",
         "next": "riskRegister",
         "quickNav": "true"
   }
-
 ]
