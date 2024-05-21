@@ -39,6 +39,23 @@
             columns: [
                 { data: 'title', title: 'Title', defaultContent: '' },
                 {
+                    data: 'status',
+                    title: 'Status',
+                    width: '12%',
+                    render: function(data, type, row) {
+                        if (data == "done") {
+                            return "Complete";
+                        }
+                        if (data == "inProgress") {
+                            return "In Progress";
+                        }
+                        if (data == "todo") {
+                            return "To do";
+                        }
+                        return "Unknown"
+                    }
+                },
+                {
                     data: 'lastModified',
                     title: 'Last Modified',
                     width: '12%',
@@ -77,9 +94,6 @@
                     url: '/project/' + id,
                     type: 'DELETE',
                     success: function (result) {
-                        // Remove row from table
-                        //table.row($(this).parents('tr')).remove().draw();
-                        // Show success message
                         $('#res').html('<p>Project deleted successfully.</p>');
                         myProjectsTable.ajax.reload();
                         // Clear message after 5 seconds
