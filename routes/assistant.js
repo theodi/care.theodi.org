@@ -30,11 +30,8 @@ router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProje
         projectData.schema = JSON.stringify(schema);
         const message = await populateMessage(messageId, projectData);;
         const response = await getAIReponse(message);
-        console.log(response);
-
         // Parse the AI response JSON string
         const parsedResponse = JSON.parse(response);
-        console.log(parsedResponse);
 
         // Check if the messageId is "completeAssessment"
         if (messageId === "completeAssessment") {

@@ -173,7 +173,7 @@ async function renderForm(data) {
 }
 
 async function loadFormComponents(formName) {
-    const schemaResponse = await fetch(`/data/schemas/partials/${formName}.json`);
+    const schemaResponse = await fetch(`/schemas/partials/${formName}.json`);
     const fullSchema = await schemaResponse.json();
     schema = fullSchema.properties;
 

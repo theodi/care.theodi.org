@@ -233,8 +233,9 @@ app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
           if (schemaPath === "partials/actionPlanning.json" && res.locals.project && res.locals.project.stakeholders) {
             const stakeholders = res.locals.project.stakeholders.map(stakeholder => stakeholder.stakeholder);
             // Update the enum for action.stakeholder in the schema
-            if (schema.unintendedConsequences && schema.unintendedConsequences.items) {
-                const actionSchema = schema.unintendedConsequences.items.properties.action;
+            const properties = schema.properties;
+            if (properties.unintendedConsequences && properties.unintendedConsequences.items) {
+                const actionSchema = properties.unintendedConsequences.items.properties.action;
                 if (actionSchema && actionSchema.properties && actionSchema.properties.stakeholder) {
                     actionSchema.properties.stakeholder.enum = stakeholders;
                 }
