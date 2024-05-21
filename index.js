@@ -31,6 +31,7 @@ const authRoutes = require('./routes/auth'); // Require the authentication route
 const projectRoutes = require('./routes/project'); // Require the project routes module
 const assistantRoutes = require('./routes/assistant'); // Require the project routes module
 const { loadProject } = require('./middleware/project');
+const { deleteUser } = require('./controllers/user'); // Import necessary functions from controllers
 const app = express();
 const port = process.env.PORT || 3080;
 app.set('view engine', 'ejs');
@@ -153,6 +154,15 @@ app.get('/examples', ensureAuthenticated, function(req, res) {
   res.render('pages/examples');
 });
 
+app.get('/about', function(req, res) {
+  const page = {
+    title: "About",
+    link: "/about"
+  };
+  res.locals.page = page;
+  res.render('pages/about');
+});
+
 app.get('/glossary', ensureAuthenticated, function(req, res) {
     // Check the Accept header
     const acceptHeader = req.get('Accept');
@@ -194,6 +204,29 @@ app.get('/profile', ensureAuthenticated, function(req, res) {
   res.locals.page = page;
   res.render('pages/profile');
 });
+
+app.delete('/profile', ensureAuthenticated, async (req, res, next) => {
+  try {
+      // Get the user ID from the authenticated user
+      const userId = req.session.passport.user.id;
+
+      // Check if the user has any projects
+      const userProjects = await projectController.getUserProjects(userId);
+      const ownedProjects = userProjects.ownedProjects.projects;
+
+      if (ownedProjects.length === 0) {
+          // If the user has no projects, delete the user
+          await deleteUser(userId)
+          res.status(200).json({ message: "User deleted successfully." });
+      } else {
+          // If the user has projects, send a message indicating deletion is not allowed
+          res.status(403).json({ error: "User cannot be deleted because they have projects. Please delete all owned projects first." });
+      }
+  } catch (error) {
+      next(error);
+  }
+});
+
 
 const projectController = require('./controllers/project');
 

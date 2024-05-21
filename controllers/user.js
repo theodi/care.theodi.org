@@ -16,4 +16,14 @@ async function retrieveOrCreateUser(profile) {
     return user;
 }
 
-module.exports = { retrieveOrCreateUser };
+async function deleteUser(userId) {
+  try {
+      // Find the user by their ID and delete it
+      const deletedUser = await User.findByIdAndDelete(userId);
+      return deletedUser;
+  } catch (error) {
+      throw error; // Propagate the error to the caller
+  }
+}
+
+module.exports = { retrieveOrCreateUser, deleteUser };

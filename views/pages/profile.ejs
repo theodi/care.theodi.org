@@ -1,11 +1,57 @@
-<!-- views/profile.ejs -->
 <%- include('../partials/header') %>
-<section class="main-content">
+<section class="content-block light-blue">
   <h1>Profile Information</h1>
   <p>
-    <strong>Id</strong>: <%= user.id %><br>
-    <strong>Email</strong>: <%= user.email %><br>
-    <strong>Name</strong>: <%= user.displayName || (user.first_name + ' ' + user.last_name) %>
+    <b>Id</b>: <%= user.id %><br>
+    <b>Email</b>: <%= user.email %><br>
+    <b>Name</b>: <%= user.displayName || (user.first_name + ' ' + user.last_name) %>
   </p>
 </section>
+
+<section class="content-block white">
+  <h2>Delete Account</h2>
+  <form id="deleteForm" action="/profile" method="POST">
+    <button type="button" onclick="confirmDelete()">Delete Account</button>
+  </form>
+  <p id="errorMessage" style="color: red;"></p> <!-- Error message element -->
+</section>
+
 <%- include('../partials/footer') %>
+
+<script>
+  function confirmDelete() {
+    const confirmed = confirm('Are you sure you want to delete your account?');
+    if (confirmed) {
+      deleteUser();
+    }
+  }
+
+  function deleteUser() {
+    fetch('/profile', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        // Successful deletion, redirect to logout
+        window.location.href = '/auth/logout';
+      } else {
+        // Error handling
+        return response.json();
+      }
+    })
+    .then(data => {
+      const errorMessage = data.error || 'Failed to delete account';
+      console.error('Failed to delete account:', errorMessage);
+      // Display error message to the user
+      document.getElementById('errorMessage').innerText = errorMessage;
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      // Display error message to the user
+      document.getElementById('errorMessage').innerText = 'Failed to delete account <br/>' + error;
+    });
+  }
+</script>

@@ -30,6 +30,7 @@
 			<% if(user) { %>
 				<li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">My evaluations</a></li>
 				<li><a href="/glossary" class="toggle-link <% if (page.link === '/glossary') { %>selected<% } %>">Glossary</a></li>
+				<li><a href="/about" class="toggle-link <% if (page.link === '/about') { %>selected<% } %>">About</a></li>
 				<li>
 					<form style="display: inline-flex;" id="logout_form" action="/logout" method="post">
 						<a href="javascript:;" onclick="document.getElementById('logout_form').submit();">Logout</a>
@@ -37,7 +38,7 @@
 				</li>
 			<% } else { %>
 				<li><a href="/auth/django" class="toggle-link">Login</a></li>
-				<li><a href="/disclaimer" class="toggle-link">Disclaimer</a></li>
+				<li><a href="/about" class="toggle-link <% if (page.link === '/about') { %>selected<% } %>">About</a></li>
 			<% } %>
 		</ul>
 
