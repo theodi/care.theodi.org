@@ -63,16 +63,16 @@
               "stakeholder": {
                 "type": "string",
                 "title": "Stakeholder"
+              },
+              "KPI": {
+                "type": "string",
+                "title": "KPI"
               }
             },
-            "required": ["description", "date", "stakeholder"]
-          },
-          "KPI": {
-            "type": "string",
-            "title": "KPI"
+            "required": ["description", "date", "stakeholder","KPI"]
           }
         },
-        "required": ["consequence", "outcome", "impact", "likelihood", "role", "action", "KPI"]
+        "required": ["consequence", "outcome", "impact", "likelihood", "role", "action"]
       }
     },
     "stakeholders": {

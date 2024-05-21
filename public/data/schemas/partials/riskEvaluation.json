@@ -47,12 +47,12 @@
                     "stakeholder": {
                       "type": "string",
                       "title": "Stakeholder"
+                    },
+                    "KPI": {
+                      "type": "string",
+                      "title": "KPI"
                     }
                   }
-                },
-                "KPI": {
-                  "type": "string",
-                  "title": "KPI"
                 }
             }
         }

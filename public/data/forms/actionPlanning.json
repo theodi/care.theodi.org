@@ -74,6 +74,12 @@
               "notitle": true
             }
           ]
+        },
+        {
+          "key": "unintendedConsequences[].action.KPI",
+          "fieldHtmlClass": "input inputText",
+          "prepend": "<h3>Action key performance indicator</h3>",
+          "notitle": true
         }
       ]
     }

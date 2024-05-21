@@ -7,7 +7,7 @@ async function loadProject(projectId) {
     if (projectId) {
         fetchURL = `/project/${projectId}`;
     } else if (templateParam) {
-        fetchURL = `/examples/${templateParam}.json`;
+        fetchURL = `/data/examples/${templateParam}.json`;
     } else {
         return {}; // No need to fetch data, return an empty object
     }
