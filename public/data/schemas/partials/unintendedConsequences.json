@@ -16,21 +16,21 @@
                 "outcome": {
                     "title": "Outcome",
                     "type": "string",
-                    "enum": ["Positive", "Negative"]
+                    "enum": ["", "Positive", "Negative"]
                 },
                 "impact": {
                     "type": "string",
-                    "enum": ["High", "Medium", "Low"]
+                    "enum": ["", "High", "Medium", "Low"]
                 },
                 "likelihood": {
                     "title": "Likelihood",
                     "type": "string",
-                    "enum": ["High", "Medium", "Low"]
+                    "enum": ["", "High", "Medium", "Low"]
                 },
                 "role": {
                   "title": "Role",
                   "type": "string",
-                  "enum": ["Act", "Influence", "Monitor"]
+                  "enum": ["", "Act", "Influence", "Monitor"]
                 },
                 "action": {
                   "type": "object",
