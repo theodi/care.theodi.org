@@ -43,7 +43,7 @@ async function loadPage(formName,projectId) {
 async function reloadPage() {
     await renderForm(projectData);
     extractDisabledFieldValues("dataForm");
-    loadAI();
+    await loadAI();
     moveSubmitButton();
 }
 
