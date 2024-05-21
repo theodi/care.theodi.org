@@ -57,6 +57,9 @@ const projectSchema = new mongoose.Schema({
             type: String,
             enum: ['High', 'Medium', 'Low']
         },
+        riskScore: {
+            type: Number
+        },
         role: {
             type: String,
             enum: ['Act', 'Influence', 'Monitor']
@@ -70,12 +73,26 @@ const projectSchema = new mongoose.Schema({
             },
             stakeholder: {
                 type: String
+            },
+            KPI: {
+                type: String
             }
-        },
-        KPI: {
-            type: String
         }
-    }]
+    }],
+    riskCounts: {
+        unclassified: {
+            type: Number
+        },
+        high: {
+            type: Number
+        },
+        medium: {
+            type: Number
+        },
+        low: {
+            type: Number
+        }
+    }
 }, {
     collection: 'Projects' // Specify the collection name
 });

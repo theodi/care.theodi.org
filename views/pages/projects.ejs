@@ -5,6 +5,7 @@
 <script src="https://cdn.datatables.net/buttons/1.7.0/js/dataTables.buttons.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.html5.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.print.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.13.5/css/buttons.dataTables.min.css">
 
@@ -18,7 +19,54 @@
 <div class="content-block white">
     <h2>My evaluations</h2>
     <div id="res" class="alert"></div>
-
+    <section class="dashboard">
+        <subsection class="dashboard-box">
+            <div class="dashboard-header">
+                <h2>Risks</h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="riskChart" width="200" height="100"></canvas> <!-- Add canvas for the donut chart -->
+            </div>
+        </subsection>
+        <subsection class="dashboard-box">
+            <div class="dashboard-header">
+                <h2>Stats <span class="small">(average)</span></h2>
+            </div>
+            <div class="dashboard-chart">
+                <h3>Likelihood</h3>
+                <div class="progress-bar">
+                    <div id="likelihood-bar" class="bar"></div>
+                </div>
+                <h3>Impact</h3>
+                <div class="progress-bar">
+                    <div id="impact-bar" class="bar"></div>
+                </div>
+                <h3>Risk</h3>
+                <div class="progress-bar">
+                    <div id="risk-bar" class="bar"></div>
+                </div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box top-risks">
+            <div class="dashboard-header">
+                <h2>Priority <span class="small">(top 5)</span></h2>
+            </div>
+            <div class="dashboard-chart">
+                <table id="topRisksTable">
+                    <thead>
+                        <tr>
+                            <th>Risk</th>
+                            <th style="width: 60px;">Level</th>
+                            <th style="width: 50px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topRisksTableBody">
+                        <!-- Table rows will be dynamically added here -->
+                    </tbody>
+                </table>
+            </div>
+        </subsection>
+    </section>
     <table id="myProjectsTable" class="display" style="width:100%"></table>
 </div>
 <div class="content-block light-blue">
@@ -27,133 +75,261 @@
 </div>
 
 <script>
-    $(document).ready(function () {
-        const myProjectsTable = $('#myProjectsTable').DataTable({
-            ajax: {
-                url: '/projects',
-                dataSrc: 'ownedProjects',
-                headers: {
-                    Accept: 'application/json' // Set the Accept header to indicate JSON format
-                }
-            },
-            columns: [
-                { data: 'title', title: 'Title', defaultContent: '' },
-                {
-                    data: 'status',
-                    title: 'Status',
-                    width: '12%',
-                    render: function(data, type, row) {
-                        if (data == "done") {
-                            return "Complete";
-                        }
-                        if (data == "inProgress") {
-                            return "In Progress";
-                        }
-                        if (data == "todo") {
-                            return "To do";
-                        }
-                        return "Unknown"
-                    }
-                },
-                {
-                    data: 'lastModified',
-                    title: 'Last Modified',
-                    width: '12%',
-                    render: function(data, type, row) {
-                        // Parse the date string into a Date object
-                        var date = new Date(data);
-                        // Format the date nicely (e.g., "April 18, 2024 14:36:41")
-                        return date.toLocaleString();
-                    }
-                },
-                {
-                    title: 'Actions',
-                    render: function (data, type, row) {
-                        return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
-                               '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
-                    }
-                }
-            ],
-            order: [[0, 'asc']], // Sort by title ascending by default
-            dom: 'Bfrtip', // Show buttons for export
-            buttons: [
-                //'copy', 'csv', 'excel', 'pdf', 'print'
-            ]
-        });
 
-        $('#myProjectsTable').on('click', '.editBtn', function () {
-            var id = $(this).data('id');
-            window.location.href = '/project/' + id;
-        });
-
-        $('#myProjectsTable').on('click', '.deleteBtn', function () {
-            var id = $(this).data('id');
-            if (confirm('Are you sure you want to delete this project?')) {
-                $('#res').html('<p>Deleting, please wait.</p>');
-                $.ajax({
-                    url: '/project/' + id,
-                    type: 'DELETE',
-                    success: function (result) {
-                        $('#res').html('<p>Project deleted successfully.</p>');
-                        myProjectsTable.ajax.reload();
-                        // Clear message after 5 seconds
-                        setTimeout(function () {
-                            $('#res').html('');
-                        }, 5000);
-                    },
-                    error: function (xhr, status, error) {
-                        // Show error message
-                        $('#res').html('<p>Error deleting project: ' + error + '</p>');
-                        // Clear message after 5 seconds
-                        setTimeout(function () {
-                            $('#res').html('');
-                        }, 5000);
-                    }
-                });
-            }
-        });
-
-        const sharedProjectsTable = $('#sharedProjectsTable').DataTable({
-            ajax: {
-                url: '/projects',
-                dataSrc: 'sharedProjects',
-                headers: {
-                    Accept: 'application/json' // Set the Accept header to indicate JSON format
-                }
-            },
-            columns: [
-                { data: 'title', title: 'Title', defaultContent: '' },
-                { data: 'owner', title: 'Owner', defaultContent: '' },
-                {
-                    data: 'lastModified',
-                    title: 'Last Modified',
-                    width: '12%',
-                    render: function(data, type, row) {
-                        // Parse the date string into a Date object
-                        var date = new Date(data);
-                        // Format the date nicely (e.g., "April 18, 2024 14:36:41")
-                        return date.toLocaleString();
-                    }
-                },
-                {
-                    title: 'Actions',
-                    render: function (data, type, row) {
-                        return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
-                               '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
-                    }
-                }
-            ],
-            order: [[0, 'asc']], // Sort by title ascending by default
-            dom: 'Bfrtip', // Show buttons for export
-            buttons: [
-                //'copy', 'csv', 'excel', 'pdf', 'print'
-            ]
-        });
-
-        $('#sharedProjectsTable').on('click', '.editBtn', function () {
-            var id = $(this).data('id');
-            window.location.href = '/project/' + id;
-        });
+$(document).ready(function () {
+    // Fetch projects data from server
+    fetch('/projects', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        renderMyProjects(data.ownedProjects.projects);
+        renderSharedProjects(data.sharedProjects);
+        addRiskDonut(data.ownedProjects.riskCounts);
+        addAverages(data.ownedProjects.averages);
+        addTopRisks(data.ownedProjects.topRisks);
     });
+});
+
+function renderMyProjects(data) {
+    $('#myProjectsTable').DataTable({
+        data: data,
+        columns: [
+            { data: 'title', title: 'Title', defaultContent: '' },
+            {
+                data: 'status',
+                title: 'Status',
+                width: '12%',
+                render: function(data, type, row) {
+                    if (data == "done") {
+                        return "Complete";
+                    }
+                    if (data == "inProgress") {
+                        return "In Progress";
+                    }
+                    if (data == "todo") {
+                        return "To do";
+                    }
+                    return "Unknown"
+                }
+            },
+            {
+                data: 'riskCounts',
+                title: 'Risk counts',
+                width: '12%',
+                render: function(data, type, row) {
+                    return "High: " + data["high"] + "<br/>" + "Medium: " + data["medium"] + "<br/>" + "Low: " + data["low"] + "<br/>" + "Unclassified: " + data["unclassified"] + "<br/>"
+                }
+            },
+            {
+                data: 'lastModified',
+                title: 'Last Modified',
+                width: '12%',
+                render: function(data, type, row) {
+                    // Parse the date string into a Date object
+                    var date = new Date(data);
+                    // Format the date nicely (e.g., "April 18, 2024 14:36:41")
+                    return date.toLocaleString();
+                }
+            },
+            {
+                title: 'Actions',
+                render: function (data, type, row) {
+                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
+                        '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
+                }
+            }
+        ],
+        order: [[0, 'asc']], // Sort by title ascending by default
+        dom: 'Bfrtip', // Show buttons for export
+        buttons: [
+            //'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
+    });
+
+    $('#myProjectsTable').on('click', '.editBtn', function () {
+        var id = $(this).data('id');
+        window.location.href = '/project/' + id;
+    });
+
+    $('#myProjectsTable').on('click', '.deleteBtn', function () {
+        var id = $(this).data('id');
+        if (confirm('Are you sure you want to delete this project?')) {
+            $('#res').html('<p>Deleting, please wait.</p>');
+            $.ajax({
+                url: '/project/' + id,
+                type: 'DELETE',
+                success: function (result) {
+                    $('#res').html('<p>Project deleted successfully.</p>');
+                    myProjectsTable.ajax.reload();
+                    // Clear message after 5 seconds
+                    setTimeout(function () {
+                        $('#res').html('');
+                    }, 5000);
+                },
+                error: function (xhr, status, error) {
+                    // Show error message
+                    $('#res').html('<p>Error deleting project: ' + error + '</p>');
+                    // Clear message after 5 seconds
+                    setTimeout(function () {
+                        $('#res').html('');
+                    }, 5000);
+                }
+            });
+        }
+    });
+}
+
+function renderSharedProjects(data) {
+    $('#sharedProjectsTable').DataTable({
+        data: data,
+        columns: [
+            { data: 'title', title: 'Title', defaultContent: '' },
+            {
+                data: 'status',
+                title: 'Status',
+                width: '12%',
+                render: function(data, type, row) {
+                    if (data == "done") {
+                        return "Complete";
+                    }
+                    if (data == "inProgress") {
+                        return "In Progress";
+                    }
+                    if (data == "todo") {
+                        return "To do";
+                    }
+                    return "Unknown"
+                }
+            },
+            { data: 'owner', title: 'Owner', defaultContent: '' },
+            {
+                data: 'lastModified',
+                title: 'Last Modified',
+                width: '12%',
+                render: function(data, type, row) {
+                    // Parse the date string into a Date object
+                    var date = new Date(data);
+                    // Format the date nicely (e.g., "April 18, 2024 14:36:41")
+                    return date.toLocaleString();
+                }
+            },
+            {
+                title: 'Actions',
+                render: function (data, type, row) {
+                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
+                        '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
+                }
+            }
+        ],
+        order: [[0, 'asc']], // Sort by title ascending by default
+        dom: 'Bfrtip', // Show buttons for export
+        buttons: [
+            //'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
+    });
+
+    $('#sharedProjectsTable').on('click', '.editBtn', function () {
+        var id = $(this).data('id');
+        window.location.href = '/project/' + id;
+    });
+}
+
+function addRiskDonut(riskCounts) {
+    const ctx = document.getElementById('riskChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(riskCounts),
+            datasets: [{
+                label: 'Risk count',
+                data: Object.values(riskCounts),
+                backgroundColor: [
+                    'rgba(200, 200, 200, 0.5)',
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(255, 206, 86, 0.5)',
+                    'rgba(54, 162, 235, 0.5)'
+
+                ],
+                borderColor: [
+                    'rgba(200, 200, 200, 1)',
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(54, 162, 235, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            aspectRatio: 2,
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                title: {
+                    display: false,
+                    text: 'Risk Counts'
+                }
+            }
+        }
+    });
+}
+function addAverages(averageScores) {
+    const likelihoodBar = document.getElementById('likelihood-bar');
+    likelihoodBar.style.width = (averageScores.likelihood / 3 * 100) + '%';
+    likelihoodBar.innerText = averageScores.likelihood;
+    likelihoodBar.style.backgroundColor = getColorForScore(averageScores.likelihood);
+
+    const impactBar = document.getElementById('impact-bar');
+    impactBar.style.width = (averageScores.impact / 3 * 100) + '%';
+    impactBar.innerText = averageScores.impact;
+    impactBar.style.backgroundColor = getColorForScore(averageScores.impact);
+
+    const riskBar = document.getElementById('risk-bar');
+    riskBar.style.width = (averageScores.riskScore / 9 * 100) + '%';
+    riskBar.innerText = averageScores.riskScore;
+    riskBar.style.backgroundColor = getColorForScore(averageScores.riskScore / 3);
+}
+
+function addTopRisks(topRisks) {
+    const tableBody = document.getElementById('topRisksTableBody');
+    tableBody.innerHTML = ''; // Clear existing rows
+
+    topRisks.forEach(risk => {
+        const row = tableBody.insertRow();
+        const scoreText = getScoreText(risk.score/3);
+        const scoreColor = getColorForScore(risk.score/3);
+
+        row.innerHTML = `
+            <td>${risk.consequence}</td>
+            <td style="color: ${scoreColor}">${scoreText}</td>
+            <td><a href="/project/${risk.projectId}/actionPlanning">View</a></td>
+        `;
+    });
+}
+
+function getScoreText(score) {
+        if (score < 1) {
+            return 'Low';
+        } else if (score < 2) {
+            return 'Medium';
+        } else {
+            return 'High';
+        }
+    }
+
+function getColorForScore(score) {
+    if (score > 2) {
+        return 'rgba(255, 99, 132, 0.75)';
+    } else if (score >= 1 && score <= 2) {
+        return 'rgba(255, 206, 86, 0.75)';
+    } else {
+        return 'rgba(54, 162, 235, 0.75)';
+    }
+}
 </script>
 <%- include('../partials/footer') %>
