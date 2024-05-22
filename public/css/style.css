@@ -133,7 +133,10 @@ li {
   overflow-x: hidden;
   height: 175px;
 }
-.top-risks tbody tr:nth-child(2n) {
+.top-risks tr:nth-child(2n) {
+  color: white;
+}
+#unintendedConsequences tr:nth-child(2n) {
   color: white;
 }
 .top-risks tbody tr:nth-child(2n) a {
@@ -286,7 +289,10 @@ fieldset .form-group {
   overflow-y: auto; /* Scrollable contents if sidebar is long */
   z-index: 1000; /* Ensures sidebar is above other content */
 }
-.sidebar li {
+.result ul {
+  line-height: 2rem;
+}
+.sidebar li, .result li {
   margin: 0;
   padding: 4px 0 6px 21px;
   list-style: none;
@@ -294,6 +300,9 @@ fieldset .form-group {
   background-repeat: no-repeat;
   background-position: left center;
   background-size: 25px;
+}
+.result li {
+  padding-left: 2rem;
 }
 .sidebar ul li a {
   display: block;

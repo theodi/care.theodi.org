@@ -193,6 +193,7 @@ async function addRiskScoreToProject(project) {
             unintendedConsequence.riskScore = null;
         }
     }
+    return project;
 }
 
 
@@ -241,4 +242,4 @@ async function getCompletionState(projectId, schema) {
     }
 }
 
-module.exports = { getUserProjects, getCompletionState };
+module.exports = { getUserProjects, getCompletionState, getUserProjectMetrics, addRiskScoreToProject };

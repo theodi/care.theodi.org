@@ -1,0 +1,201 @@
+<%- include('../partials/header') %>
+<script src="/js/scan.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
+</form>
+<section class="content-block light-blue result">
+    <h1 id="title"></h1>
+    <h2>Objectives</h2>
+    <p id="objectives"></p>
+    <h2>Data used</h2>
+    <p id="dataUsed"></p>
+    <h2>Stakeholders</h2>
+    <ul id="stakeholdersList">
+    </ul>
+    <h2>Intended conseuqneces</h2>
+    <ul id="intendedConsequencesList">
+    </ul>
+    <h2>Risk dashboard</h2>
+    <section class="dashboard">
+        <subsection class="dashboard-box">
+            <div class="dashboard-header">
+                <h2>Risks</h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="riskChart" width="200" height="100"></canvas> <!-- Add canvas for the donut chart -->
+            </div>
+        </subsection>
+        <subsection class="dashboard-box">
+            <div class="dashboard-header">
+                <h2>Stats <span class="small">(average)</span></h2>
+            </div>
+            <div class="dashboard-chart">
+                <h3>Likelihood</h3>
+                <div class="progress-bar">
+                    <div id="likelihood-bar" class="bar"></div>
+                </div>
+                <h3>Impact</h3>
+                <div class="progress-bar">
+                    <div id="impact-bar" class="bar"></div>
+                </div>
+                <h3>Risk</h3>
+                <div class="progress-bar">
+                    <div id="risk-bar" class="bar"></div>
+                </div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box top-risks">
+            <div class="dashboard-header">
+                <h2>Priority <span class="small">(top 5)</span></h2>
+            </div>
+            <div class="dashboard-chart">
+                <table id="topRisksTable">
+                    <thead>
+                        <tr>
+                            <th>Risk</th>
+                            <th style="width: 60px;">Level</th>
+                            <th style="width: 50px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topRisksTableBody">
+                        <!-- Table rows will be dynamically added here -->
+                    </tbody>
+                </table>
+            </div>
+        </subsection>
+    </section>
+    <h2>Risk management table</h2>
+    <table id="unintendedConsequences">
+        <thead>
+            <th width="21%">Consequence</th>
+            <th width="6%">Risk category</th>
+            <th width="6%">Likelihood</th>
+            <th width="6%">Impact</th>
+            <th width="6%">Role</th>
+            <th width="21%">Action</th>
+            <th width="6%">Timescale</th>
+            <th width="6%">Assignee</th>
+            <th width="21%">KPI</th>
+        </thead>
+        <tbody id="unintendedConsequencesBody">
+        </tbody>
+    </table>
+</section>
+<div id="submitButtonContainer" class="content-block dark-blue proceed">
+    <button id="downloadButton" class="btn btn-primary submitButton">Download Project Data</button>
+</div>
+<script>
+
+    let projectData = {};
+    let projectId = "";
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        // Get the project ID
+        const form = document.getElementById("dataForm");
+        projectId = form.dataset.projectId;
+
+        // load the data
+        loadPage(projectId);
+        addButtonListeners(projectId);
+    });
+
+    function addButtonListeners(projectId) {
+        document.getElementById("downloadButton").addEventListener("click", async () => {
+            try {
+                const response = await fetch(`/project/${projectId}`, {
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                });
+                const jsonData = await response.json();
+                const jsonBlob = new Blob([JSON.stringify(jsonData,null,2)], { type: "application/json" });
+                const url = URL.createObjectURL(jsonBlob);
+
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = projectData.title.replace(/\s+/g, "_").trim() + ".json";
+                link.click();
+
+                // Cleanup
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Error downloading project data:", error);
+            }
+        });
+    }
+
+    async function loadPage(projectId) {
+        projectData = await loadProject(projectId);
+        projectData = await addRiskScoreToProject(projectData);
+
+        // Populate the page with project title, objectives, data used, intended consequences, and unintended consequences
+        document.getElementById("title").textContent = projectData.title;
+        document.getElementById("objectives").textContent = projectData.objectives || "No objectives provided.";
+        document.getElementById("dataUsed").textContent = projectData.dataUsed || "No data used provided.";
+
+        // Populate stakeholders
+        const stakeholdersList = document.getElementById("stakeholdersList");
+        if (projectData.stakeholders && projectData.stakeholders.length > 0) {
+            projectData.stakeholders.forEach(stakeholder => {
+                const listItem = document.createElement("li");
+                listItem.textContent = stakeholder.stakeholder;
+                stakeholdersList.appendChild(listItem);
+            });
+        } else {
+            stakeholdersList.innerHTML = "<li>No stakeholders provided.</li>";
+        }
+
+        // Populate intended consequences
+        const intendedConsequencesList = document.getElementById("intendedConsequencesList");
+        if (projectData.intendedConsequences && projectData.intendedConsequences.length > 0) {
+            projectData.intendedConsequences.forEach(consequence => {
+                const listItem = document.createElement("li");
+                listItem.textContent = consequence.consequence;
+                intendedConsequencesList.appendChild(listItem);
+            });
+        } else {
+            intendedConsequencesList.innerHTML = "<li>No intended consequences provided.</li>";
+        }
+
+        // Populate unintended consequences in risk management table
+        const unintendedConsequencesBody = document.getElementById("unintendedConsequencesBody");
+        if (projectData.unintendedConsequences && projectData.unintendedConsequences.length > 0) {
+            projectData.unintendedConsequences.forEach(consequence => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${consequence.consequence}</td>
+                    <td>${getScoreText(consequence.riskScore/3)}</td>
+                    <td>${consequence.likelihood}</td>
+                    <td>${consequence.impact}</td>
+                    <td>${consequence.role}</td>
+                    <td>${consequence.action.description}</td>
+                    <td>${consequence.action.date}</td>
+                    <td>${consequence.action.stakeholder}</td>
+                    <td>${consequence.action.KPI}</td>
+                `;
+                unintendedConsequencesBody.appendChild(row);
+            });
+        } else {
+            unintendedConsequencesBody.innerHTML = "<tr><td colspan='9'>No unintended consequences provided.</td></tr>";
+        }
+        fetchURL = `/project/${projectId}/riskSummary`;
+        const metrics = await fetch(fetchURL).then(response => response.json());
+        addRiskDonut(metrics.riskCounts);
+        addAverages(metrics.averages);
+        addTopRisks(metrics.topRisks);
+    }
+
+    // Function to determine risk category based on likelihood and impact
+    function getRiskCategory(score) {
+        if (likelihood === "High" && impact === "High") {
+            return "High";
+        } else if ((likelihood === "High" && impact === "Medium") || (likelihood === "Medium" && impact === "High")) {
+            return "Medium";
+        } else {
+            return "Low";
+        }
+    }
+</script>
+<%- include('../partials/footer') %>

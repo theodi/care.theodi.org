@@ -33,9 +33,25 @@ router.get('/:id/completeAssessment', ensureAuthenticated, checkProjectAccess, l
         next(error); // Pass error to error handling middleware
     }
 });
+// GET route to retrieve a project by ID
+router.get('/:id/riskSummary', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
+    try {
+        // Find the project by ID
+        let project = res.locals.project;
+        project = await projectController.addRiskScoreToProject(project);
+        const userProjects = [];
+        userProjects.push(project);
+        let metrics = await projectController.getUserProjectMetrics(userProjects);
+
+        return res.json(metrics);
+
+    } catch (error) {
+        next(error); // Pass error to error handling middleware
+    }
+});
 
 // GET route to retrieve a project by ID
-router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
+router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
     try {
         // Find the project by ID
         const project = res.locals.project;
@@ -44,14 +60,9 @@ router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, loadProject, 
         const acceptHeader = req.get('Accept');
 
         if (acceptHeader === 'application/json') {
-            // Respond with JSON
+            // Respond with JSON (filter it according to the schema?)
             return res.json(project);
         } else {
-            // Respond with HTML (rendering scan.ejs)
-            let page = {
-                link: "projectDetails",
-                title: "Project details"
-            };
             // Check if the page parameter is provided
             const pages = require('../pages.json');
             const pageParam = req.params.page;
@@ -65,6 +76,31 @@ router.get('/:id/:page?', ensureAuthenticated, checkProjectAccess, loadProject, 
 
             res.locals.page = page;
             res.render('pages/scan', { project: project });
+        }
+    } catch (error) {
+        next(error); // Pass error to error handling middleware
+    }
+});
+
+// GET route to retrieve a project by ID
+router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
+    try {
+        // Find the project by ID
+        const project = res.locals.project;
+
+        // Content negotiation based on request Accept header
+        const acceptHeader = req.get('Accept');
+
+        if (acceptHeader === 'application/json') {
+            // Respond with JSON (filter it according to the schema?)
+            return res.json(project);
+        } else {
+            let page = {
+                link: "/finalReport",
+                title: "Project evaluation"
+            };
+            res.locals.page = page;
+            res.render('pages/project', { project: project });
         }
     } catch (error) {
         next(error); // Pass error to error handling middleware

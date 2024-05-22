@@ -213,6 +213,7 @@ function moveSubmitButton() {
 }
 
 async function sendDataToServer(inputObject) {
+  console.log(inputObject);
   let url;
   let method;
   const form = document.getElementById("dataForm");
@@ -249,7 +250,9 @@ async function sendDataToServer(inputObject) {
       if (quickNavAttributeValue === "true" && nextAttributeValue) {
         quickNav(nextAttributeValue);
       } else if (projectId && nextAttributeValue) {
-          window.location.href = `/project/${projectId}/${nextAttributeValue}`;
+        window.location.href = `/project/${projectId}/${nextAttributeValue}`;
+      } else {
+        window.location.href = `/project/${projectId}/`;
       }
     } else {
       console.error("Request failed with status:", response.status);
@@ -267,7 +270,7 @@ function extractDisabledFieldValues(formId) {
         return;
     }
 
-    const disabledFields = form.querySelectorAll('input[disabled], select[disabled], textarea[disabled]');
+    const disabledFields = form.querySelectorAll('input.disabled, select.disabled, textarea.disabled');
 
     if (disabledFields.length === 0) {
         return;
@@ -275,10 +278,16 @@ function extractDisabledFieldValues(formId) {
 
     disabledFields.forEach(field => {
         const fieldValue = field.value;
-        // Replace input field with a paragraph element containing the value
+
+        // Hide the original field
+        field.style.display = 'none';
+
+        // Create a new paragraph element to display the field value
         const paragraphElement = document.createElement('p');
-        paragraphElement.textContent = `${fieldValue}`;
-        field.replaceWith(paragraphElement);
+        paragraphElement.textContent = fieldValue;
+
+        // Insert the new paragraph element after the original field
+        field.parentNode.insertBefore(paragraphElement, field.nextSibling);
     });
 }
 

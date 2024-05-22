@@ -54,6 +54,7 @@
 							</a>
 						</li>
 					<% }); %>
+					<li><a class="toggle-link <% if (page.link === '/finalReport') { %>selected<% } %>" href="/project/<%= `${project._id}`  %>/">Final report</a></li>
 				</ul>
 			</nav>
 		<% } %>

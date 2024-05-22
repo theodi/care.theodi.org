@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.13.5/css/buttons.dataTables.min.css">
+<script src="/js/dashboard.js"></script>
 
 <div class="content-block light-blue">
     <div style="text-align: center; width: 100%;">
@@ -85,7 +86,6 @@ $(document).ready(function () {
     })
     .then(response => response.json())
     .then(data => {
-        console.log(data);
         renderMyProjects(data.ownedProjects.projects);
         renderSharedProjects(data.sharedProjects);
         addRiskDonut(data.ownedProjects.riskCounts);
@@ -105,7 +105,7 @@ function renderMyProjects(data) {
                 width: '12%',
                 render: function(data, type, row) {
                     if (data == "done") {
-                        return "Complete";
+                        return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
                     }
                     if (data == "inProgress") {
                         return "In Progress";
@@ -152,7 +152,12 @@ function renderMyProjects(data) {
 
     $('#myProjectsTable').on('click', '.editBtn', function () {
         var id = $(this).data('id');
-        window.location.href = '/project/' + id;
+        window.location.href = '/project/' + id + "/projectDetails";
+    });
+
+    $('#myProjectsTable').on('click', '.viewOutput', function () {
+        var id = $(this).data('id');
+        window.location.href = '/project/' + id + "/";
     });
 
     $('#myProjectsTable').on('click', '.deleteBtn', function () {
@@ -234,102 +239,8 @@ function renderSharedProjects(data) {
 
     $('#sharedProjectsTable').on('click', '.editBtn', function () {
         var id = $(this).data('id');
-        window.location.href = '/project/' + id;
+        window.location.href = '/project/' + id + "/projectDetails";
     });
-}
-
-function addRiskDonut(riskCounts) {
-    const ctx = document.getElementById('riskChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(riskCounts),
-            datasets: [{
-                label: 'Risk count',
-                data: Object.values(riskCounts),
-                backgroundColor: [
-                    'rgba(200, 200, 200, 0.5)',
-                    'rgba(255, 99, 132, 0.5)',
-                    'rgba(255, 206, 86, 0.5)',
-                    'rgba(54, 162, 235, 0.5)'
-
-                ],
-                borderColor: [
-                    'rgba(200, 200, 200, 1)',
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(54, 162, 235, 1)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            aspectRatio: 2,
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'right',
-                },
-                title: {
-                    display: false,
-                    text: 'Risk Counts'
-                }
-            }
-        }
-    });
-}
-function addAverages(averageScores) {
-    const likelihoodBar = document.getElementById('likelihood-bar');
-    likelihoodBar.style.width = (averageScores.likelihood / 3 * 100) + '%';
-    likelihoodBar.innerText = averageScores.likelihood;
-    likelihoodBar.style.backgroundColor = getColorForScore(averageScores.likelihood);
-
-    const impactBar = document.getElementById('impact-bar');
-    impactBar.style.width = (averageScores.impact / 3 * 100) + '%';
-    impactBar.innerText = averageScores.impact;
-    impactBar.style.backgroundColor = getColorForScore(averageScores.impact);
-
-    const riskBar = document.getElementById('risk-bar');
-    riskBar.style.width = (averageScores.riskScore / 9 * 100) + '%';
-    riskBar.innerText = averageScores.riskScore;
-    riskBar.style.backgroundColor = getColorForScore(averageScores.riskScore / 3);
-}
-
-function addTopRisks(topRisks) {
-    const tableBody = document.getElementById('topRisksTableBody');
-    tableBody.innerHTML = ''; // Clear existing rows
-
-    topRisks.forEach(risk => {
-        const row = tableBody.insertRow();
-        const scoreText = getScoreText(risk.score/3);
-        const scoreColor = getColorForScore(risk.score/3);
-
-        row.innerHTML = `
-            <td>${risk.consequence}</td>
-            <td style="color: ${scoreColor}">${scoreText}</td>
-            <td><a href="/project/${risk.projectId}/actionPlanning">View</a></td>
-        `;
-    });
-}
-
-function getScoreText(score) {
-        if (score < 1) {
-            return 'Low';
-        } else if (score < 2) {
-            return 'Medium';
-        } else {
-            return 'High';
-        }
-    }
-
-function getColorForScore(score) {
-    if (score > 2) {
-        return 'rgba(255, 99, 132, 0.75)';
-    } else if (score >= 1 && score <= 2) {
-        return 'rgba(255, 206, 86, 0.75)';
-    } else {
-        return 'rgba(54, 162, 235, 0.75)';
-    }
 }
 </script>
 <%- include('../partials/footer') %>

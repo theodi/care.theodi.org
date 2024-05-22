@@ -11,18 +11,16 @@
       "items": [
         {
           "key": "unintendedConsequences[].consequence",
-          "fieldHtmlClass": "input inputText",
+          "fieldHtmlClass": "input inputText disabled",
           "placeholder": "Unintended consequence",
           "prepend": "<h2 class='draggable'>Unintended consequence</h2>",
-          "notitle": true,
-          "disabled": true
+          "notitle": true
         },
         {
           "key": "unintendedConsequences[].outcome",
-          "fieldHtmlClass": "input",
+          "fieldHtmlClass": "input disabled",
           "prepend": "<h3>Outcome</h3>",
-          "notitle": true,
-          "disabled": true
+          "notitle": true
         },
         {
           "type": "fieldset",
@@ -30,17 +28,15 @@
           "items": [
             {
               "key": "unintendedConsequences[].impact",
-              "fieldHtmlClass": "input",
+              "fieldHtmlClass": "input disabled",
               "prepend": "<h3>Impact</h3>",
-              "notitle": true,
-              "disabled": true
+              "notitle": true
             },
             {
               "key": "unintendedConsequences[].likelihood",
-              "fieldHtmlClass": "input",
+              "fieldHtmlClass": "input disabled",
               "prepend": "<h3>Likelihood</h3>",
-              "notitle": true,
-              "disabled": true
+              "notitle": true
             }
           ]
         },
@@ -88,7 +84,7 @@
         "type": "submit",
         "title": "View risk register",
         "htmlClass": "submitButton",
-        "next": "riskRegister",
-        "quickNav": "true"
+        "next": "",
+        "quickNav": "false"
   }
 ]
