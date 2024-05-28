@@ -5,6 +5,10 @@ const router = express.Router();
 const Project = require('../models/project');
 const projectController = require('../controllers/project');
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+const { buildDocx } = require('../lib/docxBuilder'); // Import the buildDocx function
+const docx = require('docx');
 
 // Middleware to ensure user is authenticated
 async function ensureAuthenticated(req, res, next) {
@@ -82,11 +86,13 @@ router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, a
     }
 });
 
+const { parse } = require('json2csv');
+
 // GET route to retrieve a project by ID
 router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
     try {
         // Find the project by ID
-        const project = res.locals.project;
+        let project = res.locals.project;
 
         // Content negotiation based on request Accept header
         const acceptHeader = req.get('Accept');
@@ -94,6 +100,38 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
         if (acceptHeader === 'application/json') {
             // Respond with JSON (filter it according to the schema?)
             return res.json(project);
+        } else if (acceptHeader === 'text/csv') {
+            // Respond with CSV
+            const fields = ['consequence', 'outcome', 'impact', 'likelihood', 'role', 'action.description', 'action.date', 'action.stakeholder', 'action.KPI'];
+            const opts = { fields };
+            const csv = parse(project.unintendedConsequences, opts);
+
+            res.setHeader('Content-Disposition', `attachment; filename=${project.title.replace(/\s+/g, '_').trim()}.csv`);
+            res.setHeader('Content-Type', 'text/csv');
+            return res.send(csv);
+        } else if (acceptHeader === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+            // Respond with DOCX
+            project = await projectController.addRiskScoreToProject(project);
+            const userProjects = [];
+            userProjects.push(project);
+            let metrics = await projectController.getUserProjectMetrics(userProjects);
+            const tempFilePath = await buildDocx(project,metrics);
+            const fileName = `${project.title.replace(/\s+/g, '_').trim()}.docx`;
+            //const buffer = await docx.Packer.toBuffer(doc);
+            res.set('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+            res.sendFile(path.resolve(tempFilePath), async (err) => {
+                if (err) {
+                    console.error("Error sending file:", err);
+                } else {
+                    // Cleanup temporary file after sending
+                    try {
+                        await fs.promises.unlink(tempFilePath);
+                    } catch (error) {
+                        console.error("Error deleting temporary file:", error);
+                    }
+                }
+            });
         } else {
             let page = {
                 link: "/finalReport",
@@ -106,6 +144,7 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
         next(error); // Pass error to error handling middleware
     }
 });
+
 
 // POST route to create a new project
 router.post('/', ensureAuthenticated, async (req, res) => {

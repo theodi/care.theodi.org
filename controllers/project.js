@@ -111,7 +111,8 @@ async function getUserProjectMetrics(userProjects) {
                 topRisks.push({
                     projectId: project._id,
                     consequence: unintendedConsequence.consequence,
-                    score: unintendedConsequence.riskScore
+                    score: unintendedConsequence.riskScore,
+                    level: getScoreText(unintendedConsequence.riskScore/3)
                 });
             }
         }
@@ -124,9 +125,9 @@ async function getUserProjectMetrics(userProjects) {
     const top5Risks = topRisks.slice(0, 5);
 
     // Calculate averages
-    const averageLikelihood = totalLikelihood / totalUnintendedConsequences;
-    const averageImpact = totalImpact / totalUnintendedConsequences;
-    const averageRiskScore = totalRiskScore / totalUnintendedConsequences;
+    const averageLikelihood = (totalLikelihood / totalUnintendedConsequences).toFixed(2);
+    const averageImpact = (totalImpact / totalUnintendedConsequences).toFixed(2);
+    const averageRiskScore = (totalRiskScore / totalUnintendedConsequences).toFixed(2);
 
     // Return risk counts, averages, and top 5 risks as a data object
     return {
@@ -150,6 +151,16 @@ function getRiskValue(textValue) {
             return 1;
         default:
             return 0;
+    }
+}
+
+function getScoreText(score) {
+    if (score < 1) {
+        return 'Low';
+    } else if (score < 2) {
+        return 'Medium';
+    } else {
+        return 'High';
     }
 }
 

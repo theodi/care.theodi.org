@@ -84,6 +84,8 @@
 </section>
 <div id="submitButtonContainer" class="content-block dark-blue proceed">
     <button id="downloadButton" class="btn btn-primary submitButton">Download Project Data</button>
+    <button id="downloadCSVButton" class="btn btn-primary submitButton">Download Risk Assessment (csv)</button>
+    <button id="downloadDOCXButton" class="btn btn-primary submitButton">Download Project Report (docx)</button>
 </div>
 <script>
 
@@ -122,6 +124,53 @@
                 URL.revokeObjectURL(url);
             } catch (error) {
                 console.error("Error downloading project data:", error);
+            }
+        });
+        document.getElementById("downloadCSVButton").addEventListener("click", async () => {
+            try {
+                const response = await fetch(`/project/${projectId}`, {
+                    headers: {
+                        "Accept": "text/csv"
+                    }
+                });
+
+                const csvData = await response.text();
+                const csvBlob = new Blob([csvData], { type: "text/csv" });
+                const url = URL.createObjectURL(csvBlob);
+
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = projectData.title.replace(/\s+/g, "_").trim() + ".csv";
+                link.click();
+
+                // Cleanup
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Error downloading CSV data:", error);
+            }
+        });
+        document.getElementById("downloadDOCXButton").addEventListener("click", async () => {
+            try {
+                const response = await fetch(`/project/${projectId}`, {
+                    headers: {
+                        "Accept": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    }
+                });
+
+                const blob = await response.blob(); // Get the response as a Blob
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = projectData.title.replace(/\s+/g, "_").trim() + ".docx";
+                document.body.appendChild(link); // Append the link to the document body
+                link.click();
+                document.body.removeChild(link); // Remove the link from the document body after clicking
+
+                // Cleanup
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Error downloading DOCX data:", error);
             }
         });
     }
