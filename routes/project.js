@@ -19,6 +19,8 @@ async function ensureAuthenticated(req, res, next) {
 }
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
+const { checkLimit } = require('../middleware/hubspot');
+const { updateToolStatistics } = require('../controllers/hubspot');
 
 // GET route to retrieve a project by ID
 router.get('/:id/completeAssessment', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
@@ -144,10 +146,8 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
         next(error); // Pass error to error handling middleware
     }
 });
-
-
 // POST route to create a new project
-router.post('/', ensureAuthenticated, async (req, res) => {
+router.post('/', ensureAuthenticated, checkLimit, async (req, res) => {
     try {
         // Set owner field to the ID of the authenticated user
         const user = req.session.passport.user;
@@ -155,6 +155,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
 
         const project = new Project(req.body);
         const savedProject = await project.save();
+        updateToolStatistics(req.session.passport.user.id);
         res.status(201).json(savedProject);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -169,6 +170,7 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res) => 
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });
         }
+        updateToolStatistics(req.session.passport.user.id);
         res.json(updatedProject);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -178,6 +180,10 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res) => 
 // DELETE route to delete a project
 router.delete('/:id', ensureAuthenticated, checkProjectOwner, async (req, res) => {
     const id = req.params.id;
+    // Unset req.session.projectId if it matches the ID to be deleted
+    if (req.session.projectId === id) {
+        delete req.session.projectId;
+    }
     try {
         // Find the project by ID and delete it
         const deletedProject = await Project.findByIdAndDelete(id);

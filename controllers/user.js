@@ -8,6 +8,8 @@ async function retrieveOrCreateUser(profile) {
       user = new User({
         name: profile.name,
         email: profile.email,
+        firstLogin: new Date(),
+        loginCount: 0,
         lastLogin: new Date()
       });
       await user.save();

@@ -95,8 +95,14 @@ $(document).ready(function () {
 });
 
 function renderMyProjects(data) {
-    $('#myProjectsTable').DataTable({
-        data: data,
+    const myProjectsTable = $('#myProjectsTable').DataTable({
+        ajax: {
+            url: '/projects',
+            dataSrc: 'ownedProjects.projects',
+            headers: {
+                Accept: 'application/json' // Set the Accept header to indicate JSON format
+            }
+        },
         columns: [
             { data: 'title', title: 'Title', defaultContent: '' },
             {

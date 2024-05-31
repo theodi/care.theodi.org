@@ -1,5 +1,3 @@
-Based on the provided homepage text, here is the updated README with relevant sections:
-
 # ODI Care Tool
 
 The ODI Care Tool is designed to help organisations think about the potential impact of their product or service on people and society through Consequence Scanning. This interactive tool provides a framework to carry out a Consequence Scanning activity and generate a risk register that can be downloaded and incorporated into your project planning and governance.
@@ -18,7 +16,7 @@ The ODI Care Tool is designed to help organisations think about the potential im
 
 1. Clone this repository to your local machine.
 2. Install dependencies using `npm install`.
-3. Create a `config.env` file in the root directory based on the provided `config.env.example` file. Fill in the required environment variables.
+3. Create a `config.env` file in the root directory based on the provided `config.env.example` file. Fill in the required environment variables, including the HubSpot API key and the limit for the number of free projects.
 4. Start the server using `npm start`.
 5. Access the server at `http://localhost:3080`.
 
@@ -40,9 +38,13 @@ The tool will:
 - **Suggest consequences**: Based on this analysis, the AI suggests potential consequences, both positive and negative, that might arise from your data project.
 - **Assess risk**: The tool will assess the impact and likelihood of these consequences to help you prioritize and manage risks effectively.
 - **Create actions**: The AI will generate specific actions to mitigate and manage identified consequences.
-- **Recommend KPIs**: The tool will also recommend Key Performance Indicators (KPIs) for your actions in order to track the effectiveness of your risk mitigation actions.
+- **Recommend KPIs**: The tool will also recommend Key Performance Indicators (KPIs) for your actions to track the effectiveness of your risk mitigation actions.
 
 Please note: Suggestions from the AI assistant are provided for consideration and should be taken as presented.
+
+## HubSpot Integration (ODI ONLY!)
+
+The ODI Care Tool integrates with the ODI HubSpot to manage user memberships and track tool usage statistics. Ensure you have a valid HubSpot API key and set it in the `config.env` file. You can also set the FREE_PROJECT_LIMIT. This enables anyone to use the tool who has an account, no valid membership is required.
 
 ## Contributing
 

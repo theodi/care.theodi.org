@@ -31,7 +31,8 @@ const authRoutes = require('./routes/auth'); // Require the authentication route
 const projectRoutes = require('./routes/project'); // Require the project routes module
 const assistantRoutes = require('./routes/assistant'); // Require the project routes module
 const { loadProject } = require('./middleware/project');
-const { deleteUser } = require('./controllers/user'); // Import necessary functions from controllers
+const { deleteUser, retrieveOrCreateUser } = require('./controllers/user'); // Import necessary functions from controllers
+const { getHubspotProfile, updateToolStatistics } = require('./controllers/hubspot');
 const app = express();
 const port = process.env.PORT || 3080;
 app.set('view engine', 'ejs');
@@ -196,7 +197,10 @@ app.get('/glossary', ensureAuthenticated, function(req, res) {
     }
 });
 
-app.get('/profile', ensureAuthenticated, function(req, res) {
+app.get('/profile', ensureAuthenticated, async (req, res) => {
+  res.locals.userProfile = await retrieveOrCreateUser(res.locals.user);
+  res.locals.userProfile.hubspot = await getHubspotProfile(res.locals.userProfile.id);
+
   const page = {
     title: "Profile page",
     link: "/profile"
@@ -234,13 +238,13 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
     try {
         // Check if the request accepts JSON
         const acceptHeader = req.get('Accept');
-
+        const userId = req.session.passport.user.id;
         if (acceptHeader === 'application/json') {
             // Fetch user projects and send JSON response
-            const userId = req.session.passport.user.id;
             const userProjects = await projectController.getUserProjects(userId);
             res.json(userProjects);
         } else {
+            updateToolStatistics(userId);
             const page = {
               title: "Evaluations",
               link: "/projects"

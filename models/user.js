@@ -6,7 +6,9 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     name: String,
     email: String,
+    firstLogin: Date,
     lastLogin: Date,
+    loginCount: Number,
     lastLoginFormatted: String,
   }, {
     collection: 'Users' // Specify the collection name

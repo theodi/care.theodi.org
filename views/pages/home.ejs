@@ -54,7 +54,13 @@
 
     <!-- add disclaimer -->
     <p>Please note: Suggestions from the AI assistant are provided for consideration and should be taken as presented.</p>
-    <button class="transparent" onclick="window.location.href='/projects'">Begin</button>
+      <% if (user && user.id) { %>
+        <!-- Show the "Begin" button if user is logged in -->
+        <button class="transparent" onclick="window.location.href='/projects'">Begin</button>
+    <% } else { %>
+        <!-- Show the login button if user is not logged in -->
+        <button class="transparent" onclick="window.location.href='/auth/django'">Login</button>
+    <% } %>
 </section>
 
 <style>
