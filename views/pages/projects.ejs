@@ -10,6 +10,22 @@
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.13.5/css/buttons.dataTables.min.css">
 <script src="/js/dashboard.js"></script>
 
+<!-- Share Overlay -->
+<div id="shareOverlay" class="overlay">
+    <div class="overlay-content">
+        <span class="close-btn" onclick="closeOverlay()">&times;</span>
+        <h2>New share</h2>
+        <form id="shareForm">
+            <label for="email">Please enter the email you wish to share this project with</label>
+            <input type="email" id="email" name="email" class="input inputText">
+            <button type="submit">Share</button>
+        </form>
+        <h2>Current shares</h2>
+        <table id="sharedEmailsTable" class="display" style="width:100%">
+        <thead><th>Email</th><th>action</th></thead><tbody id="sharedEmailsBody"></tbody></table>
+    </div>
+</div>
+
 <div class="content-block light-blue">
     <div style="text-align: center; width: 100%;">
         <br/>
@@ -145,7 +161,8 @@ function renderMyProjects(data) {
                 title: 'Actions',
                 render: function (data, type, row) {
                     return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
-                        '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
+                           '<button class="shareBtn" data-id="' + row.id + '">Share</button>' +
+                           '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
                 }
             }
         ],
@@ -192,6 +209,81 @@ function renderMyProjects(data) {
             });
         }
     });
+    $('#myProjectsTable').on('click', '.shareBtn', function () {
+        var id = $(this).data('id');
+        console.log(id);
+        openShareOverlay();
+        document.getElementById("shareOverlay").setAttribute('data-projectid',id);
+
+        // Get shared users of the project
+        getSharedUsers(id)
+            .then(sharedUsers => {
+                renderSharedUsers(sharedUsers);
+            });
+    });
+
+    $('#sharedEmailsTable').DataTable({
+        order: [[0, 'asc']], // Sort by title ascending by default
+        dom: 'Bfrtip', // Show buttons for export
+        buttons: [
+            //'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
+    });
+    // Add event listener for share form submission
+    $('#shareForm').on('submit', function (event) {
+        event.preventDefault();
+        const email = $('#email').val();
+        const projectId = $(this).closest('.overlay').data('projectid');
+        console.log($(this).closest('.overlay'));
+
+        // Call API to add share with email
+        fetch(`/project/${projectId}/sharedUsers`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email })
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Failed to add shared user');
+        })
+        .then(() => {
+            // Refresh shared users after adding
+            getSharedUsers(projectId)
+                .then(sharedUsers => {
+                    renderSharedUsers(sharedUsers);
+                });
+        })
+        .catch(error => console.error("Error adding shared user:", error));
+    });
+
+    // Add event listener for deleting shared email
+    $('#sharedEmailsBody').on('click', 'button.deleteBtn', function () {
+        const email = $(this).data('email');
+        const projectId = $(this).closest('.overlay').data('projectid');
+
+        // Call API to delete share with email
+        fetch(`/project/${projectId}/sharedUsers/${email}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Failed to delete shared user');
+        })
+        .then(() => {
+            // Refresh shared users after deleting
+            getSharedUsers(projectId)
+                .then(sharedUsers => {
+                    renderSharedUsers(sharedUsers);
+                });
+        })
+        .catch(error => console.error("Error deleting shared user:", error));
+    });
 }
 
 function renderSharedProjects(data) {
@@ -231,8 +323,7 @@ function renderSharedProjects(data) {
             {
                 title: 'Actions',
                 render: function (data, type, row) {
-                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
-                        '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
+                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>'
                 }
             }
         ],
@@ -246,6 +337,54 @@ function renderSharedProjects(data) {
     $('#sharedProjectsTable').on('click', '.editBtn', function () {
         var id = $(this).data('id');
         window.location.href = '/project/' + id + "/projectDetails";
+    });
+}
+// Function to open share overlay
+function openShareOverlay() {
+    document.getElementById("shareOverlay").style.display = "block";
+}
+
+// Function to close share overlay
+function closeOverlay() {
+    document.getElementById("shareOverlay").style.display = "none";
+}
+
+// Function to get shared users of a project
+function getSharedUsers(projectId) {
+    return fetch(`/project/${projectId}/sharedUsers`)
+        .then(response => response.json())
+        .catch(error => console.error("Error fetching shared users:", error));
+}
+
+// Function to render shared users
+function renderSharedUsers(sharedUsers) {
+    $('#sharedEmailsTable').DataTable().destroy();
+    sharedUsers = sharedUsers.sharedUsers;
+    const sharedEmails = $('#sharedEmailsBody');
+    sharedEmails.empty();
+
+    sharedUsers.forEach(email => {
+        const row = document.createElement('tr');
+        const emailCell = document.createElement('td');
+        emailCell.innerHTML = email;
+        const deleteBtn = document.createElement('button');
+        deleteBtn.setAttribute('data-email',email);
+        deleteBtn.innerHTML = 'Remove share';
+        deleteBtn.classList.add('deleteBtn');
+        const deleteCell = document.createElement('td');
+        deleteCell.append(deleteBtn);
+        row.append(emailCell);
+        row.append(deleteCell);
+        sharedEmails.append(row);
+        //listItem.append(deleteBtn);
+        //sharedEmailsList.append(listItem);
+    });
+    $('#sharedEmailsTable').DataTable({
+        order: [[0, 'asc']], // Sort by title ascending by default
+        dom: 'Bfrtip', // Show buttons for export
+        buttons: [
+            //'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
     });
 }
 </script>

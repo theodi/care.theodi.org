@@ -7,7 +7,7 @@ const projectSchema = new mongoose.Schema({
     },
     sharedWith: [{
         user: {
-            type: mongoose.Schema.Types.ObjectId
+            type: String
         }
     }],
     lastModified: {

@@ -6,6 +6,11 @@ async function getUserProjects(userId) {
     try {
         // Convert userId string to ObjectId
         const userIdObjectId = new mongoose.Types.ObjectId(userId);
+        const user = await User.findById(userId);
+        if (!user) {
+            throw new Error("User not found");
+        }
+        const userEmail = user.email;
 
         // Find all projects where the user is the owner
         const ownedProjects = await Project.find({ owner: userIdObjectId });
@@ -19,7 +24,7 @@ async function getUserProjects(userId) {
         }
 
         // Find all projects shared with the user
-        const sharedProjects = await Project.find({ sharedWith: userIdObjectId });
+        const sharedProjects = await Project.find({ "sharedWith.user": userEmail });
 
         const schemaPath = `../public/data/schemas/project.json`;
         const schema = require(schemaPath);

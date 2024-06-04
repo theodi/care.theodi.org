@@ -56,6 +56,86 @@ router.get('/:id/riskSummary', ensureAuthenticated, checkProjectAccess, loadProj
     }
 });
 
+// GET route to retrieve shared users of a project
+router.get('/:id/sharedUsers', ensureAuthenticated, checkProjectAccess, async (req, res) => {
+    const projectId = req.params.id;
+
+    try {
+        // Find the project by ID
+        const project = await Project.findById(projectId);
+
+        // Check if the project exists
+        if (!project) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
+        // Extract shared users from the project
+        const sharedUsers = project.sharedWith.map(user => user.user);
+
+        // Return shared users
+        res.json({ sharedUsers });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// POST route to add a new shared user to a project
+router.post('/:id/sharedUsers', ensureAuthenticated, checkProjectOwner, async (req, res) => {
+    const projectId = req.params.id;
+    const { email } = req.body; // Assuming the email is sent in the request body
+
+    try {
+        // Find the project by ID
+        const project = await Project.findById(projectId);
+
+        // Check if the project exists
+        if (!project) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
+        // Add the new shared user to the project
+        project.sharedWith.push({ user: email });
+
+        // Save the project with the updated shared users
+        await project.save();
+
+        // Return success message
+        res.json({ message: "User added to the project successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// DELETE route to remove a shared user from a project
+router.delete('/:id/sharedUsers/:userId', ensureAuthenticated, checkProjectOwner, async (req, res) => {
+    const projectId = req.params.id;
+    const userId = req.params.userId;
+
+    try {
+        // Find the project by ID
+        const project = await Project.findById(projectId);
+
+        // Check if the project exists
+        if (!project) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
+        // Find the index of the shared user in the sharedWith array
+        const index = project.sharedWith.findIndex(user => user.user === userId);
+
+        // If the shared user is found, remove it from the array
+        if (index !== -1) {
+            project.sharedWith.splice(index, 1);
+            await project.save();
+            res.json({ message: "Shared user removed from the project successfully" });
+        } else {
+            res.status(404).json({ message: "Shared user not found" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 // GET route to retrieve a project by ID
 router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
     try {
@@ -200,5 +280,6 @@ router.delete('/:id', ensureAuthenticated, checkProjectOwner, async (req, res) =
         res.status(500).json({ message: "Internal server error" });
     }
 });
+
 
 module.exports = router;

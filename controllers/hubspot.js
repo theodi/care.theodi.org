@@ -108,7 +108,7 @@ async function updateToolStatistics(userId) {
         };
 
         const firstLogin = formatDate(user.firstLogin);
-        const lastLogin = formatDate(user.lastLogin);
+        const lastLogin = formatDate(new Date());
 
         // Get the hubspot profile
         const hubspotProfile = await getHubspotProfile(userId);
@@ -131,11 +131,6 @@ async function updateToolStatistics(userId) {
                 total_assessments: totalAssessments
             }
         };
-        /*
-        console.log(hubSpotId);
-        console.log(JSON.stringify(patchData));
-        */
-        // Update the Hubspot profile with the statistics
 
         if (hubSpotId) {
             await hubspotClient.crm.contacts.basicApi.update(hubSpotId, patchData);
