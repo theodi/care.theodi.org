@@ -54,13 +54,16 @@ const checkProjectAccess = async (req, res, next) => {
     try {
         const projectId = req.params.id;
         const userId = req.session.passport.user.id;
+        const userEmail = req.session.passport.user.email;
 
         // Find the project by ID
         const project = await Project.findById(projectId);
 
         // Check if the project exists
         if (!project) {
-            return res.status(404).json({ message: "Project not found" });
+            const error = new Error("Project not found");
+            error.status = 404;
+            throw error;
         }
 
         // Check if the user is the owner of the project
@@ -69,16 +72,17 @@ const checkProjectAccess = async (req, res, next) => {
         }
 
         // Check if the project is shared with the user
-        const sharedWithUser = project.sharedWith.find(user => user.equals(userId));
+        const sharedWithUser = project.sharedWith.find(user => user.user === userEmail);
         if (sharedWithUser) {
             return next(); // Project is shared with the user, allow access
         }
 
         // If neither the owner nor shared with the user, deny access
-        return res.status(403).json({ message: "Unauthorized access" });
+        const error = new Error("Unauthorized access");
+        error.status = 403;
+        throw error;
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal server error" });
+        return next(error);
     }
 }
 
@@ -93,7 +97,9 @@ const checkProjectOwner = async(req, res, next) => {
 
         // Check if the project exists
         if (!project) {
-            return res.status(404).json({ message: "Project not found" });
+            const error = new Error("Project not found");
+            error.status = 404;
+            throw error;
         }
 
         // Check if the user is the owner of the project
@@ -102,10 +108,11 @@ const checkProjectOwner = async(req, res, next) => {
         }
 
         // If the user is not the owner, deny access
-        return res.status(403).json({ message: "Unauthorized access" });
+        const error = new Error("Unauthorized access");
+        error.status = 403;
+        throw error;
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal server error" });
+        return next(error);
     }
 }
 

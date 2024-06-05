@@ -312,6 +312,10 @@ app.use((err, req, res, next) => {
       statusCode = err.status;
       errorMessage = err.message;
   }
+  const page = {
+    title: "Error"
+  };
+  res.locals.page = page;
 
   // Log the error stack trace
   console.error(err.stack);

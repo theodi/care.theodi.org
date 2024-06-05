@@ -306,7 +306,7 @@ function renderSharedProjects(data) {
                 width: '12%',
                 render: function(data, type, row) {
                     if (data == "done") {
-                        return "Complete";
+                        return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
                     }
                     if (data == "inProgress") {
                         return "In Progress";
@@ -346,6 +346,10 @@ function renderSharedProjects(data) {
     $('#sharedProjectsTable').on('click', '.editBtn', function () {
         var id = $(this).data('id');
         window.location.href = '/project/' + id + "/projectDetails";
+    });
+    $('#sharedProjectsTable').on('click', '.viewOutput', function () {
+        var id = $(this).data('id');
+        window.location.href = '/project/' + id + "/";
     });
 }
 // Function to open share overlay
