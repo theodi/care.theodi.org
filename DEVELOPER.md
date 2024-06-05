@@ -130,12 +130,17 @@ There is one special page that must be loaded from URL which asks the AI to do a
 
 - **GET /projects**
 - **POST /projects**
-- **PUT /projects/:id**
-- **DELETE /projects/:id**
+- **PUT /project/:id**
+- **DELETE /project/:id**
+- **GET /project/:id/riskSummary**
+- **GET /project/:id/sharedUsers**
+- **POST /project/:id/sharedUsers**
+- **DELETE /project/:id/sharedUsers/:email**
 
 #### AI Assistant
 
 - **GET /assistant/:project_id/:message_id** - note the completeAssessment is a special route and doesn't return the AI response.
+- **GET /project/:id/completeAssessment** - Do a complete assessment
 
 ### Error Handling
 
