@@ -189,24 +189,37 @@ li {
     background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black background */
     overflow: auto;
 }
-
 .overlay .overlay-content {
+    display: flex;
     background-color: #fefefe; /* White background */
     margin: 15% auto; /* Center the overlay vertically */
     padding: 20px;
     border: 1px solid #888;
     width: 50%; /* Adjust the width of the overlay */
     color: black;
+    position: relative;
 }
 .overlay .overlay-content h2 {
   color: rgb(30 64 175);
 }
-
+.overlay .share-section {
+  flex: 1;
+  margin: 0 10px;
+}
+.overlay .share-section h2 {
+  margin-bottom: 10px;
+}
+.overlay .share-section form {
+  margin-bottom: 20px;
+}
 .overlay .close-btn {
     color: #aaaaaa;
     float: right;
     font-size: 28px;
     font-weight: bold;
+    position: absolute; /* Position the close button */
+    top: 0;
+    right: 10px;
 }
 
 .overlay .close-btn:hover,
