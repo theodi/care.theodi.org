@@ -1,6 +1,5 @@
 <%- include('../partials/header') %>
-<script src="/js/scan.js"></script>
-<script src="/js/aiAssistant.js"></script>
+<%- include('../partials/scan-header') %>
 <style>
     .mergeOverwrite {
         display: none;
@@ -23,6 +22,9 @@
     }
     tbody tr:nth-child(2n) {
         background-color: transparent;
+    }
+    input {
+        display: inline;
     }
 </style>
 <section class="content-block light-blue aiContainer">
@@ -49,7 +51,7 @@
     </subsection>
 </section>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
-    <div id="submitButtonContainer" class="content-block dark-blue proceed">
+    <div id="submitButtonContainer" class="content-block light-blue proceed">
         <div class="preAI">
             <input type="submit" class="btn btn-primary submitButton" id="yes" value="Yes: Run AI Risk Assessment"></input>
             <input type="submit" class="btn btn-primary submitButton proceedButton" value="No: Proceed to intended consequences"></input>
@@ -59,6 +61,7 @@
         </div>
     </div>
 </form>
+<%- include('../partials/scan-footer') %>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {

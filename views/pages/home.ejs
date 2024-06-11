@@ -1,5 +1,9 @@
 <!-- views/pages/auth.ejs -->
 <%- include('../partials/header') %>
+<section class="page-title dark-blue content-block">
+  <h1><%= page.title %></h1>
+  <input type="hidden" value="<%= page.link %>" id="pageId"/>
+</section>
 <section class="content-block dark-blue">
     <div class="grid-two-by-two">
         <div style="font-size: 1.1em;">

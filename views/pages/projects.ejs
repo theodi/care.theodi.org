@@ -13,7 +13,7 @@
 <!-- Share Overlay -->
 <div id="shareOverlay" class="overlay">
     <div class="overlay-content">
-        <span class="close-btn" onclick="closeOverlay()">&times;</span>
+        <span class="close-btn" onclick="closeShareOverlay()">&times;</span>
         <div class="share-section">
             <h2>New share</h2>
             <form id="shareForm">
@@ -34,6 +34,11 @@
         </div>
     </div>
 </div>
+<div class="main-content">
+    <section class="page-title container light-blue">
+        <h1 style="text-align: center;"><%= page.title %></h1>
+        <input type="hidden" value="<%= page.link %>" id="pageId"/>
+    </section>
 
 <div class="content-block light-blue">
     <div style="text-align: center; width: 100%;">
@@ -98,6 +103,7 @@
 <div class="content-block light-blue">
     <h2>Evaluations shared with me</h2>
     <table id="sharedProjectsTable" class="display" style="width:100%"></table>
+</div>
 </div>
 
 <script>
@@ -243,7 +249,6 @@ function renderMyProjects(data) {
         event.preventDefault();
         const email = $('#email').val();
         const projectId = $(this).closest('.overlay').data('projectid');
-        console.log($(this).closest('.overlay'));
 
         // Call API to add share with email
         fetch(`/project/${projectId}/sharedUsers`, {
@@ -358,7 +363,7 @@ function openShareOverlay() {
 }
 
 // Function to close share overlay
-function closeOverlay() {
+function closeShareOverlay() {
     document.getElementById("shareOverlay").style.display = "none";
 }
 

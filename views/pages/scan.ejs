@@ -1,10 +1,11 @@
 <!-- views/profile.ejs -->
 <%- include('../partials/header') %>
-<script src="/js/scan.js"></script>
-<script src="/js/aiAssistant.js"></script>
-<div id="panelRes" class="error"></div>
+<%- include('../partials/scan-header') %>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
 </form>
+
+<%- include('../partials/scan-footer') %>
+
 <script>
 
 let form = {};
@@ -158,7 +159,8 @@ async function renderForm(data) {
             onSubmit: function (errors, values) {
                 values = populateMissingElements(schema, values);
                 if (errors) {
-                    $('#panelRes').html('<p>Please correct the errors in your form</p>');
+                    console.log(errors);
+                    showErrorOverlay('<p>Please correct the errors in your form</p>');
                 } else {
                     for (const key in values) {
                         data[key] = values[key];
@@ -200,7 +202,7 @@ function populateMissingElements(schema,data) {
 function moveSubmitButton() {
     const submitButtonContainer = document.createElement('div');
     submitButtonContainer.setAttribute('id', 'submitButtonContainer'); // Add quotes around the attribute name
-    submitButtonContainer.classList.add('content-block', 'dark-blue', 'proceed'); // Separate class names with commas
+    submitButtonContainer.classList.add('content-block', 'white', 'proceed'); // Separate class names with commas
 
     const submitButton = document.querySelector('.submitButton'); // Use vanilla JavaScript to select the submit button
 
@@ -258,22 +260,26 @@ async function sendDataToServer(inputObject) {
         // Request failed, handle errors
         const errorData = await response.json();
         const errorMessage = errorData.message;
-        document.getElementById("panelRes").innerHTML = "<p>" + errorMessage + "</p>";
-        document.getElementById("panelRes").classList.add("error");
-
-        // Scroll to the error message
-        document.getElementById("panelRes").scrollIntoView({ behavior: "smooth" });
+        showErrorOverlay(errorMessage);
     }
   } catch (error) {
     // Handle network errors
     const errorMessage = "An error occurred. Please try again later.";
-    document.getElementById("panelRes").innerHTML = "<p>" + errorMessage + "</p>";
-    document.getElementById("panelRes").classList.add("error");
-
-    // Scroll to the error message
-    document.getElementById("panelRes").scrollIntoView({ behavior: "smooth" });
-    console.error("An error occurred:", error);
+    showErrorOverlay(errorMessage);
   }
+}
+
+function showErrorOverlay(errorMessage) {
+    // Populate the error message in the overlay
+    document.getElementById("error-content-inner").innerHTML = "<p>" + errorMessage + "</p>";
+
+    // Show the error overlay
+    document.getElementById("error-overlay").style.display = 'block';
+}
+
+function closeErrorOverlay() {
+    // Hide the error overlay
+    document.getElementById("error-overlay").style.display = 'none';
 }
 
 function extractDisabledFieldValues(formId) {

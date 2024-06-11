@@ -164,7 +164,7 @@ app.get('/about', function(req, res) {
   res.render('pages/about');
 });
 
-app.get('/glossary', ensureAuthenticated, function(req, res) {
+app.get('/glossary', function(req, res) {
     // Check the Accept header
     const acceptHeader = req.get('Accept');
 
@@ -200,7 +200,6 @@ app.get('/glossary', ensureAuthenticated, function(req, res) {
 app.get('/profile', ensureAuthenticated, async (req, res) => {
   res.locals.userProfile = await retrieveOrCreateUser(res.locals.user);
   res.locals.userProfile.hubspot = await getHubspotProfile(res.locals.userProfile.id);
-
   const page = {
     title: "Profile page",
     link: "/profile"

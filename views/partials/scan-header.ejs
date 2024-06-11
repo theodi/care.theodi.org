@@ -1,0 +1,37 @@
+<style>
+    .logo {
+        margin-left: -80px;
+    }
+</style>
+<script src="/js/scan.js"></script>
+<script src="/js/aiAssistant.js"></script>
+<div id="error-overlay" class="overlay">
+    <div id="overlay-content" class="overlay-content" style="padding-top: 40px;">
+        <span class="close-btn" onclick="closeErrorOverlay()">&times;</span>
+        <div id="error-content-inner"></div>
+    </div>
+</div>
+<div class="flexcontainer">
+    <div class="sidebar">
+        <% if (typeof project !== 'undefined') { %>
+            <nav class="projectProgress">
+                <h1>Current evaluation</h1>
+                <div class="projectTitle"><%= project.title %></div>
+                <ul class="project-menu">
+                    <% pages.forEach(item => { %>
+                        <li class="<%= item.completionState %>">
+                            <a href="<%= pages.find(pageItem => pageItem.link === page.link) ? '#' : `/project/${project._id}/${item.link}` %>" id="<%= item.link %>" class="<%= item.link === page.link ? 'selected' : '' %>" <% if (pages.find(pageItem => pageItem.link === page.link)) { %> onClick="quickNav('<%= item.link %>')" <% } %> >
+                                <%= item.title %>
+                            </a>
+                        </li>
+                    <% }); %>
+                    <li><a class="toggle-link <% if (page.link === '/finalReport') { %>selected<% } %>" href="/project/<%= `${project._id}`  %>/">Final report</a></li>
+                </ul>
+            </nav>
+        <% } %>
+    </div>
+    <div class="main-content">
+        <section class="page-title container light-blue">
+            <h1><%= page.title %></h1>
+            <input type="hidden" value="<%= page.link %>" id="pageId"/>
+        </section>

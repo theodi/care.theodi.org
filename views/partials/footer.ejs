@@ -1,2 +1,39 @@
-	</div>
+
 </body>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const glossaryLink = document.getElementById('glossary-link');
+  const privacyLink = document.getElementById('privacy-link');
+  const contentOverlay = document.getElementById('contentOverlay');
+  const overlayContentArea = document.getElementById('overlay-content-inner');
+
+  glossaryLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    showOverlay("/glossary");
+  });
+
+  privacyLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    showOverlay("/about");
+  });
+
+  function showOverlay(link) {
+    fetch(link)
+      .then(response => response.text())
+      .then(data => {
+        overlayContentArea.innerHTML = data;
+        openOverlay();
+      })
+      .catch(error => console.error('Error fetching content:', error));
+  }
+
+  function openOverlay() {
+    contentOverlay.style.display = 'block';
+  }
+
+  window.closeOverlay = function() {
+    contentOverlay.style.display = 'none';
+  };
+});
+
+</script>

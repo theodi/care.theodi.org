@@ -33,17 +33,13 @@ section {
    display: none;
 }
 .main-content {
-  margin-left: 270px; /* Same as the width of the sidebar */
-  transition: margin-left 0.3s; /* Smooth transition for any size adjustments */
+  flex-grow: 1; /* Takes up the remaining space */
 }
 .infobox {
   padding: 2rem;
   color: black;
-  background-color: rgba(255,255,255,0.4);
+  background-color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-.content-block {
-  padding: 1rem 3rem 2rem 3rem;
 }
 .odi-logo {
   height: 40px;
@@ -53,12 +49,9 @@ section {
 /*
  * Header
  */
- .page-title {
-  padding: 1em 10px 2em 10px;
-}
 .page-title h1 {
   font-family: Inter,system-ui,Avenir,Helvetica,Arial,sans-serif;
-  text-align: center;
+  text-align: left;
   font-weight: 700;
   font-size: 3rem;
 }
@@ -213,13 +206,13 @@ li {
   margin-bottom: 20px;
 }
 .overlay .close-btn {
-    color: #aaaaaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    position: absolute; /* Position the close button */
-    top: 0;
-    right: 10px;
+  color: #aaaaaa;
+  float: right;
+  font-size: 3rem;
+  font-weight: normal;
+  position: absolute;
+  top: 0;
+  right: 20px;
 }
 
 .overlay .close-btn:hover,
@@ -248,7 +241,6 @@ button {
   border: 2px solid white;
 }
 .submitButton {
-  background-color: transparent;
   border: 2px solid white;
 }
 /*
@@ -330,15 +322,130 @@ fieldset .form-group {
 /*
  * Navigation and project progress bar
  */
+.header {
+  background:  rgb(30 64 175);
+  background-color:  rgb(30 64 175);
+}
+.header .header-top {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 0;
+}
+
+.container {
+  padding: 10px;
+}
+.content-block {
+  padding: 1rem 30px 2rem 30px;
+}
+
+@media (min-width: 768px) {
+  .header .header-top {
+    padding: 30px 0;
+  }
+  .container {
+    padding: 0 100px;
+  }
+  .content-block {
+    padding: 1rem 100px 2rem 100px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .header .header-top {
+    padding: 40px 0;
+  }
+  .container {
+    padding: 0 100px;
+  }
+  .content-block {
+    padding: 1rem 100px 2rem 100px;
+  }
+}
+
+.header .main-nav ul {
+  display: flex;
+  list-style: none;
+  margin: 0;
+}
+
+.header .main-nav ul li {
+  padding: 8px 0px 8px 20px;
+}
+.header .main-nav ul .selected {
+  text-decoration: underline;
+}
+
+.header .main-nav ul a,
+.header .main-nav ul button {
+  cursor: pointer;
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  font-weight: bold;
+  padding: 0px;
+  border-radius: 25px;
+  border: none;
+  text-decoration: none;
+  background: none;
+}
+
+@media (min-width: 768px) {
+  .header .main-nav ul a,
+  .header .main-nav ul button {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .header .main-nav ul a,
+  .header .main-nav ul button {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .header .main-nav ul a,
+  .header .main-nav ul button {
+    font-size: 1rem;
+  }
+}
+
+.header .main-nav ul img {
+  margin-left: 8px;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  margin-top: -4px;
+}
+
+.header .main-nav ul .logout {
+  padding-left: 0px;
+  padding-right: 0px;
+}
+
+.header .logo {
+  width: 189px;
+  height: 44px;
+  background-image: url('/images/logo.svg');
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.flexcontainer {
+  display: flex;
+  min-height: 100vh;
+}
+
 .sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
   width: 270px;
-  height: 100%;
-  background-color: #f4f4f4;
-  overflow-y: auto; /* Scrollable contents if sidebar is long */
-  z-index: 1000; /* Ensures sidebar is above other content */
+  min-width: 270px;
+  max-width: 270px;
+  min-height: 100vh;
+  background-color: rgb(30 64 175);
 }
 .result ul {
   line-height: 2rem;

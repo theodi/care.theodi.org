@@ -1,5 +1,5 @@
 <%- include('../partials/header') %>
-<script src="/js/scan.js"></script>
+<%- include('../partials/scan-header') %>
 <script src="/js/dashboard.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
@@ -82,11 +82,12 @@
         </tbody>
     </table>
 </section>
-<div id="submitButtonContainer" class="content-block dark-blue proceed">
+<div id="submitButtonContainer" class="content-block white proceed">
     <button id="downloadButton" class="btn btn-primary submitButton">Download Project Data</button>
     <button id="downloadCSVButton" class="btn btn-primary submitButton">Download Risk Assessment (csv)</button>
     <button id="downloadDOCXButton" class="btn btn-primary submitButton">Download Project Report (docx)</button>
 </div>
+<%- include('../partials/scan-footer') %>
 <script>
 
     let projectData = {};

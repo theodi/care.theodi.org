@@ -1,6 +1,6 @@
 {
   "name": "care.theodi.org",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "The ODI Care tool (AI enabled)",
   "main": "index.js",
   "scripts": {

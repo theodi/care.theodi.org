@@ -1,7 +1,10 @@
 <!-- views/pages/auth.ejs -->
 <%- include('../partials/header') %>
+<section class="page-title light-blue content-block">
+  <h1 style="text-align: center;">Example case studies</h1>
+  <input type="hidden" value="<%= page.link %>" id="pageId"/>
+</section>
 <section class="content-block light-blue">
-    <h2>Pick your case study</h2>
     <div class="infobox" style="padding: 2rem; background-color: rgba(255,237,213,0.6);">
       <p>Choose one of our example case studies. For each case study, there is a comprehensive overview of the project, as well as several identified consequences and potential mitigative actions.</p>
       <h3>Your task:</h3>
@@ -14,10 +17,36 @@
       <p><em>Note:</em> The example case study will not save to your evaluations until you have read the project details and proceeded to the consequences page. You can then resume the evaluation by clicking the edit link in "my evaluations" on the <a href="/projects">evaluations page</a>.</p>
     </div>
     <br/><br/>
-    <div style="text-align: center; width: 100%;">
-      <button class="transparent" onclick="window.location.href='/new?template=example1'">A charitable transformation</button>
-      <button class="transparent" onclick="window.location.href='/new?template=example2'">The supply and demand of taxi services</button>
-      <button class="transparent" onclick="window.location.href='/new?template=example3'">The AI (Artificial Interviewer)</button>
-  </div>
+    <div class="infobox" class="light-blue">
+      <h2>Case Stuidy 1: A charitable transformation</h2>
+      <p>An animal charity is going through a digital transformation process. This charity supports animal care and rehoming. Therefore it holds data on the animals, the users of the service such as those who hand over animals, and those who foster or adopt, as well as data associated with volunteers, donors and broader stakeholders. As part of this transformation the charity wants to retire redundant platforms and consolidate all data and data processes into a single platform. This includes employee record systems, Customer Relationship Management (CRM) platforms, Volunteer Management Systems (VMS) as well as donations, animal welfare data, data supplied by local authorities and information related to internal processes and practices.\n\nObjective: To reduce costs and increase efficiencies by simplifying the digital estate of the charity and reduce the redundancies in existing processes to mitigate risks. The digital transformation should maintain stakeholder privacy and maintain performance in relation to animal care.</p>
+      <p>The data the charity holds includes (amongst others): Financial Donors: personal details, level of involvement, etc; Volunteers: personal details, experience, etc; Adopters: potential, previous and existing. Including details of refusals and returns; Users: individuals who have previously handed an animal to the charity.</p>
+      <button class="transparent" onclick="window.location.href='/new?template=example1'">Select this case study</button>
+    </div>
+    <br/><br/>
+    <div class="infobox" class="light-blue">
+      <h2>Case Stuidy 2: The supply and demand of taxi services</h2>
+      <p>A taxi firm uses data about their uses to provide personalised pricing and create a more efficient transport market where supply matches demand. The automatic pricing algorithm measures the demand in a localised area and increases the price of a fare to encourage more drivers onto the road. The increases in prices are temporary and applied on top of the standard fare (for example a 2x multiplier means the dynamic fare is twice that of the standard fare). To determine the dynamic pricing model the taxi firm analyses how much people are willing to pay for a certain route and uses factors such as if your phone battery is getting low, the speed which you type (including the amount of typos), walking speed and the way in which you hold your phone on any given day. These factors, coupled with the data about the number of rides requested, taken, cost, location and timing are all analysed together to build a predictive model.\n\nObjective: Dynamic pricing is intended to provide a supply and demand model that provides an effective service for customers, whilst maintaining efficient business practices.</p>
+      <p>Data includes (amongst others): Journeys made, Cost of journeys, Distances covered, Locations, Phone data (battery, typing, etc), Customer details, Driver Details, Hours worked, Journeys delivered.</p>
+      <button class="transparent" onclick="window.location.href='/new?template=example2'">Select this case study</button>
+    </div>
+    <br/><br/>
+    <div class="infobox" class="light-blue">
+      <h2>Case Stuidy 3: The AI (Artificial Interviewer)</h2>
+      <p>An organisation is planning to introduce an AI system to perform an initial filter on job applications made in order to reduce the amount of applications that require human interview. The purpose of the system is to perform an initial assessment of a candidate's application, including their CV. The application process will ask applicants to respond to scenario based questions to assess their skills and behaviours against the relevant person specification. Certain aspects of the CV will be anonymised in order to manage potential bias in the system. This includes suppression of personal details. Other information collected as part of the process, such as those related to Diversity and Inclusion are not collected and used as part of the algorithm.\n\nObjective: To enable a scalable and efficient job application process for the organisation to increase quality of the process, for the organisation and the applicant, as well as deliver cost and resource savings.</p>
+      <p>Data used includes:
+        <ul>
+          <li>Job history (titles, organisation, length of service, etc)</li>
+          <li>Previous salary</li>
+          <li>Education history (qualification, awarder, etc)</li>
+          <li>Hobbies and interests, where provided</li>
+          <li>Responses to questions</li>
+          <li>Job applied for</li>
+          <li>Number of roles</li>
+          <li>Salary offered</li>
+        </ul>
+      </p>
+      <button class="transparent" onclick="window.location.href='/new?template=example3'">Select this case study</button>
+    </div>
 </section>
 <%- include('../partials/footer') %>
