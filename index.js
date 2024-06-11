@@ -39,7 +39,7 @@ app.set('view engine', 'ejs');
 
 // Middleware for logging
 const logger = require('morgan');
-app.use(logger('dev'));
+//app.use(logger('dev'));
 
 // Middleware for parsing incoming requests
 app.use(express.json());
@@ -317,7 +317,7 @@ app.use((err, req, res, next) => {
   res.locals.page = page;
 
   // Log the error stack trace
-  console.error(err.stack);
+  //console.error(err.stack);
 
   // Content negotiation based on request Accept header
   const acceptHeader = req.get('Accept');
