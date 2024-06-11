@@ -450,6 +450,7 @@ fieldset .form-group {
 .result ul {
   line-height: 2rem;
 }
+/*
 .sidebar li, .result li {
   margin: 0;
   padding: 4px 0 6px 21px;
@@ -459,6 +460,7 @@ fieldset .form-group {
   background-position: left center;
   background-size: 25px;
 }
+  */
 .result li {
   padding-left: 2rem;
 }
@@ -493,6 +495,37 @@ fieldset .form-group {
   background-repeat: no-repeat;
   background-position: left center;
   background-size: 36px;
+}
+.sidebar ul {
+  list-style-type: none; /* Remove default list styling */
+  padding-left: 10px;
+}
+.sidebar li {
+  position: relative;
+  padding-left: 10px; /* Adjust padding for space before text */
+  margin-bottom: 10px; /* Space between items */
+}
+.sidebar li::before {
+  content: '';
+  display: inline-block;
+  width: 20px; /* Circle size */
+  height: 20px; /* Circle size */
+  border-radius: 50%; /* Makes it a circle */
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: inherit; /* Circle color for incomplete */
+  border: 2px solid white; /* Border color for incomplete */
+}
+
+.sidebar li.done::before {
+  background-color: green; /* Circle color for complete */
+  content: '✓'; /* Unicode check mark */
+  color: white; /* Check mark color */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /*
