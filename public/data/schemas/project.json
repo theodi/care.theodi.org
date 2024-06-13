@@ -70,7 +70,9 @@
               },
               "date": {
                 "type": "string",
-                "title": "Date"
+                "title": "Date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Date in the format YYYY-MM-DD"
               },
               "stakeholder": {
                 "type": "string",
