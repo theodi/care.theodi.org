@@ -490,12 +490,6 @@ fieldset .form-group {
   color: inherit;
   padding-left: 20px;
 }
-.projectProgress .inProgress {
-  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAACXBIWXMAAAsTAAALEwEAmpwYAAABlklEQVR4nO2Wu0pDQRCGv0JSGO00aIyFGojvIj6AWGkXI1iYh4nWgrdoJQHtVFQkVgZMHkOjiBqDsjDFspzLnPUELPLDKc7s5dvZnZ1ZGOofagIYsf6vgTegDTSAClBIGzoLfAD7DvjH+XrALpBPCzwGnANbjj0LlIAV4AD4lAV0gWVf2DqwJ5NrNQ/UBd4HNn3AdeAbmPMYuy1j+z6ej3pCbbjx/AWY1gzIy5mmoROB78R1nATegYuUwAsScD1gJqpjBjgMiF6tcsAtcGnZjsTrDc85VdCWQO4t+6rYzgYBNUf0KACTyaastpLYO1ET3EhG8vW0Jf+2xq2kEioDvQppuwMenInjoGpwlJoOQAO1t7qNp1yQBqoOroyEf0UB10Dt61SOi86uVKIw5WTbmwpoUZtAkA5ppcxT8baWZFBWs8oIVQX67NxrVVnseVaoqlUWl5IOXgOOpTxqVbS2tx8RpIm2vRFQPEwsLMqVMYv8srY3sadBKshjz7yr4h57taRnqnnemntug1+BJ0kO5T8G41AMRL9cR3tn3mEBjQAAAABJRU5ErkJggg==');
-  background-repeat: no-repeat;
-  background-position: left center;
-  background-size: 36px;
-}
 .sidebar ul {
   list-style-type: none; /* Remove default list styling */
   padding-left: 10px;
