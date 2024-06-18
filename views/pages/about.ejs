@@ -11,7 +11,7 @@
       <li>Time and date of login</li>
     </ul>
     <h2>Project Data</h2>
-    <p>All the data you create is stored in a cloud database (MongoDB Atlas) alongside your account data specified above. Data is not encrypted at rest. System maintainers have access to the database for administration. Reading and extracting data for purposes other than ensuring the system is online and functioning is strictly prohibited.</p>
+    <p>All the data you create is stored in a cloud database. System maintainers have access to the database for administration. Reading and extracting data for purposes other than ensuring the system is online and functioning is strictly prohibited.</p>
     <p>In addition to what you see on the screen, each project has the following data associated with it:</p>
     <ul>
       <li>Project owner (ID)</li>
@@ -46,6 +46,14 @@
     <p>If you delete a project, it is gone. We do not archive; it is deleted there and then. The only place it will exist is within an automated backup.</p>
     <h2>Backups</h2>
     <p>We take backups of the system purely to ensure that in the event of a disaster we can restore the system to a good state. Should this happen, it may be discovered that data has been restored that a user has deleted. This is a rare occurrence, and we will contact users to let them know that a backup has been restored and communicate the impact on saved/restored data.</p>
+  </div>
+  <h1>Tool hosting, security and data storage</h1>
+  <div class="infobox">
+    <p>The CARE tool is hosted on a <a href="https://www.digitalocean.com/" target="_blank">Digital Ocean</a> server in the UK which is maintained with the latest security updates.</p>
+    <p><a href="https://www.cloudflare.com">Cloudflare</a> is used as the content devlivery platform and to protect against attacks.</p>
+    <p>Account data (name, email, time and date of login etc) and project data is stored in <a href="https://www.mongodb.com" target="_blank">MongoDB atlas</a> which is in turn hosted on Microsoft Azure infrastructure located in Ireland. Data is encryted at REST in Azure, so Microsoft/Mongo cannot see the data. System maintainers have access to the database for administration. Reading and extracting data for purposes other than ensuring the system is online and functioning is strictly prohibited.</p>
+    <p>The tool is developed in <a href="https://nodejs.org/en" target="_blank">NodeJS</a> and regular valnerability audits are automatically carried out, reported and actioned as necessary.</p>
+    <p>The tool integrates with the ODIs website for authenticate and HubSpot for statistics reporting, please refer to the ODI <a href="https://theodi.org/our-policies/privacy-policy/" target="_blank">privacy policy</a> for more details.</p>
   </div>
   <h1 id="useOfAI">Use of AI (OpenAI ChatGPT)</h1>
   <div class="infobox">
