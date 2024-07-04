@@ -122,6 +122,10 @@ app.use(express.static(__dirname + '/public')); // Public directory
 // Use authentication routes
 app.use('/auth', authRoutes);
 
+app.get('/admin', function(req,res) {
+  res.redirect('/auth/google');
+});
+
 app.use(loadProject);
 
 app.use('/project', projectRoutes);
@@ -243,7 +247,9 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
             const userProjects = await projectController.getUserProjects(userId);
             res.json(userProjects);
         } else {
-            updateToolStatistics(userId);
+            if (req.session.authMethod !== 'local') {
+              updateToolStatistics(req.session.passport.user.id);
+            }
             const page = {
               title: "Evaluations",
               link: "/projects"

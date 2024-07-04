@@ -235,7 +235,9 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res) => {
 
         const project = new Project(req.body);
         const savedProject = await project.save();
-        updateToolStatistics(req.session.passport.user.id);
+        if (req.session.authMethod !== 'local') {
+            updateToolStatistics(req.session.passport.user.id);
+        }
         res.status(201).json(savedProject);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -250,7 +252,9 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res) => 
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });
         }
-        updateToolStatistics(req.session.passport.user.id);
+        if (req.session.authMethod !== 'local') {
+            updateToolStatistics(req.session.passport.user.id);
+        }
         res.json(updatedProject);
     } catch (error) {
         res.status(400).json({ message: error.message });

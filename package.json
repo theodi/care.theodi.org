@@ -1,6 +1,6 @@
 {
   "name": "care.theodi.org",
-  "version": "2.6.2",
+  "version": "2.7.0",
   "description": "The ODI Care tool (AI enabled)",
   "main": "index.js",
   "scripts": {
@@ -19,6 +19,7 @@
   "homepage": "https://github.com/theodi/care.theodi.org",
   "dependencies": {
     "@hubspot/api-client": "^11.1.0",
+    "bcrypt": "^5.1.1",
     "chartjs-to-image": "^1.2.2",
     "cors": "^2.8.5",
     "docx": "^8.5.0",
@@ -29,11 +30,13 @@
     "json2csv": "^6.0.0-alpha.2",
     "mongoose": "^8.2.1",
     "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "nodemon": "^3.1.0",
     "openai": "^4.29.0",
     "passport": "^0.6.0",
     "passport-google-oauth": "^2.0.0",
+    "passport-local": "^1.0.0",
     "tmp-promise": "^3.0.3"
   }
 }
