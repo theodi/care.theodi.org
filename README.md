@@ -42,7 +42,45 @@ The tool will:
 
 Please note: Suggestions from the AI assistant are provided for consideration and should be taken as presented.
 
-## HubSpot Integration (ODI ONLY!)
+### Authentication Methods
+
+1. **Google Authentication**:
+   - Provides admin access.
+   - Admins have additional privileges, including the ability to change the local account password.
+   - Once logged in with Google, an option to change the local password will appear in the navigation tool bar.
+
+2. **Django Authentication**:
+   - Represents users with accounts on the ODI website.
+   - These users have access to the tool based on their ODI membership.
+
+3. **Local Accounts**:
+   - Equivalent to free accounts and are limited to the FREE_PROJECT_LIMIT.
+   - These accounts are designed for short-term use and demonstrations.
+
+### Local Login for Test Accounts
+
+The ODI Care Tool provides a local login feature for test accounts to facilitate easy demonstration and testing of the tool without requiring OAuth logins. Here's how it works:
+
+- **Local Accounts Creation**: Local accounts can be created using a predefined password that is set for all test accounts. These accounts are intended for short-term use and demonstrations.
+- **Password Reset**: The default password for local accounts can be reset through a secure form accessible after logging in with Google authentication. This reset process will also delete all existing local accounts and associated projects to ensure a clean slate for new demonstrations.
+- **Daily Cleanup**: All local accounts and their associated projects are automatically deleted every day at 03:30 UTC. This cleanup ensures that local accounts are only used temporarily and do not persist beyond their intended short-term use.
+
+#### Using the Local Login Feature
+
+1. **Access the Reset Password Page**:
+   - Login with Google authentication to access the reset password option in the navigation tool bar.
+   - Navigate to the reset password page to view and change the current default password for local accounts.
+   - The current password is displayed on this page, and you can set a new password that will be applied to all local accounts.
+
+2. **Resetting the Password**:
+   - Enter and confirm the new password.
+   - Upon submission, the current password will be updated, and all existing local accounts and projects will be deleted.
+   - The new password will then be used for any new local account logins.
+
+3. **Automatic Daily Deletion**:
+   - Every day at 03:30 UTC, a scheduled task will run to delete all local accounts and their associated projects. This ensures that any test data does not persist longer than necessary.
+
+### HubSpot Integration (ODI ONLY!)
 
 The ODI Care Tool integrates with the ODI HubSpot to manage user memberships and track tool usage statistics. Ensure you have a valid HubSpot API key and set it in the `config.env` file. You can also set the FREE_PROJECT_LIMIT. This enables anyone to use the tool who has an account, no valid membership is required.
 
