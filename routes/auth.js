@@ -126,6 +126,4 @@ router.post('/local/password', ensureAuthenticated, async (req, res, next) => {
   }
 });
 
-
-
 module.exports = router;
