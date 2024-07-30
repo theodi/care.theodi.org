@@ -258,4 +258,29 @@ async function getCompletionState(projectId, schema) {
     }
 }
 
-module.exports = { getUserProjects, getCompletionState, getUserProjectMetrics, addRiskScoreToProject };
+async function getProjectOwner(project) {
+    try {
+        // Validate that the project object has an owner field
+        if (!project || !project.owner) {
+            throw new Error("Invalid project object or missing owner field");
+        }
+
+        // Find the owner user by ID
+        const owner = await User.findById(project.owner);
+        if (!owner) {
+            throw new Error("Owner not found");
+        }
+
+        // Return owner details
+        return {
+            id: owner._id,
+            name: owner.name,
+            email: owner.email
+        };
+    } catch (error) {
+        console.error("Error retrieving project owner:", error);
+        throw error; // Propagate the error to the caller
+    }
+}
+
+module.exports = { getUserProjects, getCompletionState, getUserProjectMetrics, addRiskScoreToProject, getProjectOwner };

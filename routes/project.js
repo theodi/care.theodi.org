@@ -194,10 +194,11 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
         } else if (acceptHeader === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             // Respond with DOCX
             project = await projectController.addRiskScoreToProject(project);
+            let owner = await projectController.getProjectOwner(project);
             const userProjects = [];
             userProjects.push(project);
             let metrics = await projectController.getUserProjectMetrics(userProjects);
-            const tempFilePath = await buildDocx(project,metrics);
+            const tempFilePath = await buildDocx(project,metrics, owner);
             const fileName = `${project.title.replace(/\s+/g, '_').trim()}.docx`;
             //const buffer = await docx.Packer.toBuffer(doc);
             res.set('Content-Disposition', `attachment; filename="${fileName}"`);

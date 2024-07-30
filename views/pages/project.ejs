@@ -152,6 +152,10 @@
         });
         document.getElementById("downloadDOCXButton").addEventListener("click", async () => {
             try {
+                // Show an alert to inform users about updating the table of contents
+                alert("Once the document has downloaded, you will need to update the table of contents to correct page numbering and titles.");
+
+                // Fetch the document
                 const response = await fetch(`/project/${projectId}`, {
                     headers: {
                         "Accept": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
