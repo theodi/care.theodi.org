@@ -121,7 +121,7 @@ async function populateMessage(messageId, data) {
 async function getAIReponse(message) {
     const completion = await openai.chat.completions.create({
         messages: [{ role: "user", content: message }],
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
     });
     return completion.choices[0].message.content;
 }
