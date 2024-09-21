@@ -1,10 +1,74 @@
 :root {
-  --button-base: rgb(30 64 175);
-  --button-hover: #9b9b9b;
-  --background: rgb(30 64 175);
-  --background-body: rgb(219 234 254);
-  --links: rgb(30 64 175);
+  /* Screens */
+  --screen-xxs: 350px;
+  --screen-xs: 580px;
+  --screen-sm: 640px;
+  --screen-md: 768px;
+  --screen-lg: 1024px;
+  --screen-xl: 1280px;
+
+  /* Colors */
+  --color-white: #FFFFFF;
+  --color-transparent: transparent;
+  --color-black: #000000;
+  --color-dark-grey: #333333;
+  --color-light-grey: #E2E6E9;
+  --color-dark-blue: #072589;
+  --color-light-blue: #6DF8FF;
+  --color-pink: #F467C0;
+  --color-orange: #F37533;
+  --color-light-green: #6BF58B;
+  --color-dark-green: #1DD3A7;
+  --color-progress-pie-progress: #a5e6b3;
+  --color-red: #dd1d1d;
+  --color-orange: #F96701;
+  --color-yellow: #fef11a;
+
+  /* Font Family */
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  /* Font Sizes */
+  --font-size-14: 0.875rem;
+  --line-height-14: 1.5rem;
+  --font-size-16: 1rem;
+  --line-height-16: 1.625rem;
+  --font-size-18: 1.125rem;
+  --line-height-18: 1.5rem;
+  --font-size-20: 1.25rem;
+  --line-height-20: 1.625rem;
+  --font-size-22: 1.375rem;
+  --line-height-22: 2rem;
+  --font-size-24: 1.5rem;
+  --line-height-24: 2.125rem;
+  --font-size-25: 1.563rem;
+  --line-height-25: 1.875rem;
+  --font-size-32: 2rem;
+  --line-height-32: 2.625rem;
+  --font-size-35: 2.188rem;
+  --line-height-35: 2.813rem;
+  --font-size-45: 2.813rem;
+  --line-height-45: 3.125rem;
+  --font-size-52: 3.25rem;
+  --line-height-52: 3.875rem;
+  --font-size-56: 3.5rem;
+  --line-height-56: 4.125rem;
+  --font-size-85: 5.313rem;
+  --line-height-85: 5.938rem;
+
+  --button-base: var(--color-dark-blue);
+  --button-hover: var(--color-light-grey);
+  --button-hover-color: var(--color-dark-blue);
+  --background: var(--color-white);
+  --background-body: var(--color-dark-blue);
+  --links: var(--color-dark-blue);
+
+  --button-base: var(--color-dark-blue);
+  --button-hover: var(--color-white);
+  --background: var(--color-dark-blue);
+  --background-body: white;
+  --links: var(--color-dark-blue);
 }
+
 input:not([type="checkbox"]):not([type="radio"]), input[type="range"], select, button, textarea {
   appearance: auto;
   -webkit-appearance: auto;
@@ -38,8 +102,15 @@ section {
 .infobox {
   padding: 2rem;
   color: black;
-  background-color: white;
+  background-color: var(--color-light-grey);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.infobox .input {
+  background-color: white;
+}
+.infobox.grey {
+  background-color: var(--color-light-grey);
+  color: var(--color-dark-blue);
 }
 .odi-logo {
   height: 40px;
@@ -78,34 +149,40 @@ li {
  */
 .white {
   background-color: rgb(255 255 255);
-  color: rgb(30 64 175);
+  color: black;
 }
 .white h1, .white h2, .white h3 {
-  color: rgb(30 64 175);
+  color: var(--color-dark-blue);
 }
 .dark-blue {
-  background-color: rgb(30 64 175);
+  background-color: var(--color-dark-blue);
 }
 .light-blue {
-  background-color: rgb(219 234 254);
+  background-color: var(--color-light-grey);
   color: black;
 }
 .light-blue h1, .light-blue h2, .light-blue h3, .light-blue h4 {
-  color: rgba(30 64 175);
+  color: var(--color-dark-blue);
 }
 .yellow {
-  background-color: rgb(255 237 213);
+  background-color: var(--color-light-grey);
   color: black;
 }
 .yellow h1, .yellow h2, .yellow h3 {
-  color: rgb(30 64 175);
+  color: var(--color-dark-blue);
 }
 .light-yellow {
-  background-color: rgba(255,237,213,0.4);
+  background-color: var(--color-light-grey);
 }
 /*
  * Dashboard
  */
+tbody tr:nth-child(2n) {
+  background-color: var(--color-light-grey);
+}
+tbody tr:nth-child(2n) td {
+  color: black;
+}
 .dashboard {
   display: flex;
   margin-bottom: 1rem;
@@ -114,7 +191,7 @@ li {
   min-width: 250px;
   width: 300px;
   height: 250px;
-  border: 1px solid rgb(30 64 175);
+  border: 1px solid var(--color-dark-blue);
   margin-right: 1rem;
 }
 .top-risks {
@@ -132,11 +209,8 @@ li {
 #unintendedConsequences tr:nth-child(2n) {
   color: white;
 }
-.top-risks tbody tr:nth-child(2n) a {
-  color: white;
-}
 .dashboard-box .dashboard-header {
-  background-color: rgb(30 64 175);
+  background-color: var(--color-dark-blue);
   height: 55px;
 }
 .dashboard-box .dashboard-header .small {
@@ -165,7 +239,7 @@ li {
 .bar {
   height: 100%;
   border-radius: 10px;
-  background-color: rgb(30 64 175);/* Default color for the progress bars */
+  background-color: var(--color-dark-blue);
   text-align: center;
   line-height: 20px; /* Vertically center the text */
   color: white;
@@ -193,7 +267,7 @@ li {
     position: relative;
 }
 .overlay .overlay-content h2 {
-  color: rgb(30 64 175);
+  color: var(--color-dark-blue);
 }
 .overlay .share-section {
   flex: 1;
@@ -233,6 +307,17 @@ li {
   padding-bottom: .5rem;
   padding-left: 2rem;
   padding-right: 2rem;
+  border: none !important;
+}
+.btn:hover, button:hover, .submitButton:hover {
+  color: var(--color-dark-blue);
+}
+.btn:focus, button:focus, .submitButton:focus,
+.btn:active, button:active, .submitButton:active {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 .content-block .submitButton {
   margin-top: 1rem;
@@ -249,10 +334,11 @@ button {
 form .input {
   padding-inline: 10px;
   font-size: 16px;
-  box-shadow: #64646f33 0 7px 29px;
-  color: gray;
-  background-color: white;
+  box-shadow: none;
+  color: var(--color-dark-blue);
+  background-color: var(--color-light-grey);
   border-radius: 0px;
+  border: 1px solid var(--color-dark-blue);
 }
 form .inputText {
   width: 80%;
@@ -282,7 +368,7 @@ ul._jsonform-array-ul ._jsonform-array-buttons {
   padding-inline: 0px;
 }
 ._jsonform-array-ul li {
-  border-bottom: 2px solid rgb(30 64 175);
+  border-bottom: 2px solid var(--color-dark-blue);
 }
 ._jsonform-array-deletelast {
   display: none;
@@ -323,8 +409,9 @@ fieldset .form-group {
  * Navigation and project progress bar
  */
 .header {
-  background:  rgb(30 64 175);
-  background-color:  rgb(30 64 175);
+  background:  var(--color-dark-blue);
+  background-color:  var(--color-dark-blue);
+  max-height: 98px;
 }
 .header .header-top {
   display: flex;
@@ -341,7 +428,7 @@ fieldset .form-group {
 
 @media (min-width: 768px) {
   .header .header-top {
-    padding: 30px 0;
+    padding: 20px 0;
   }
   .container {
     padding: 0 100px;
@@ -353,7 +440,7 @@ fieldset .form-group {
 
 @media (min-width: 1440px) {
   .header .header-top {
-    padding: 40px 0;
+    padding: 30px 0;
   }
   .container {
     padding: 0 100px;
@@ -374,6 +461,17 @@ fieldset .form-group {
 }
 .header .main-nav ul .selected {
   text-decoration: underline;
+  text-underline-offset: 4px;
+}
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.header .main-nav ul a:hover,
+.header .main-nav ul button:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px; /* Adjust this value as needed */
 }
 
 .header .main-nav ul a,
@@ -384,10 +482,9 @@ fieldset .form-group {
   line-height: 1;
   display: inline-flex;
   align-items: center;
-  font-weight: bold;
   padding: 0px;
-  border-radius: 25px;
-  border: none;
+  border-radius: 0px;
+  border: none !important;
   text-decoration: none;
   background: none;
 }
@@ -429,7 +526,7 @@ fieldset .form-group {
 
 .header .logo {
   width: 189px;
-  height: 44px;
+  height: 36px;
   background-image: url('/images/logo.svg');
   background-repeat: no-repeat;
   background-size: contain;
@@ -445,10 +542,11 @@ fieldset .form-group {
   min-width: 270px;
   max-width: 270px;
   min-height: 100vh;
-  background-color: rgb(30 64 175);
+  background-color: var(--color-dark-blue);
 }
 .result ul {
   line-height: 2rem;
+  margin-left: 1em;
 }
 /*
 .sidebar li, .result li {
@@ -461,9 +559,6 @@ fieldset .form-group {
   background-size: 25px;
 }
   */
-.result li {
-  padding-left: 2rem;
-}
 .sidebar ul li a {
   display: block;
   padding: 10px;
@@ -474,7 +569,7 @@ fieldset .form-group {
   font-weight: bold;
 }
 .projectProgress {
-  background-color: rgb(30 64 175);
+  background-color: var(--color-dark-blue);
   padding-left: 1rem;
   padding-right: 0.5rem;
   padding-top: 0.5rem;
@@ -538,7 +633,14 @@ fieldset .form-group {
   float: right;
   padding: 6px;
   margin-top: -12px;
-  color: rgb(30 64 175);
+  color: var(--color-dark-blue);
+}
+.expandButton:hover, .expandButton:focus, .expandButton:active {
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 .aiRunning {
   text-align: center;

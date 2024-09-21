@@ -8,15 +8,15 @@ function addRiskDonut(riskCounts) {
                 label: 'Risk count',
                 data: Object.values(riskCounts),
                 backgroundColor: [
-                    'rgba(200, 200, 200, 0.5)',
-                    'rgba(255, 99, 132, 0.5)',
-                    'rgba(255, 206, 86, 0.5)',
-                    'rgba(54, 162, 235, 0.5)'
+                    'rgba(226, 230, 233, 1)',
+                    'rgba(221, 29, 29, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(54, 162, 235, 1)'
 
                 ],
                 borderColor: [
-                    'rgba(200, 200, 200, 1)',
-                    'rgba(255, 99, 132, 1)',
+                    'rgba(226, 230, 233, 1)',
+                    'rgba(221, 29, 29, 1)',
                     'rgba(255, 206, 86, 1)',
                     'rgba(54, 162, 235, 1)'
                 ],
@@ -60,14 +60,15 @@ function addTopRisks(topRisks) {
     tableBody.innerHTML = ''; // Clear existing rows
 
     topRisks.forEach(risk => {
+        console.log(risk);
         const row = tableBody.insertRow();
         const scoreText = getScoreText(risk.score/3);
-        const scoreColor = getColorForScore(risk.score/3);
+        const scoreColor = getColorForScore(risk.score/2);
 
         row.innerHTML = `
             <td>${risk.consequence}</td>
-            <td style="color: ${scoreColor}">${scoreText}</td>
-            <td><a href="/project/${risk.projectId}/actionPlanning">View</a></td>
+            <td style="background-color: ${scoreColor}; text-align: center; color: white;">${scoreText}</td>
+            <td style="text-align: center;"><a href="/project/${risk.projectId}/actionPlanning">View</a></td>
         `;
     });
 }
@@ -84,11 +85,11 @@ function getScoreText(score) {
 
 function getColorForScore(score) {
     if (score > 2) {
-        return 'rgba(255, 99, 132, 0.75)';
+        return 'rgba(221, 29, 29, 1)';
     } else if (score >= 1 && score <= 2) {
-        return 'rgba(255, 206, 86, 0.75)';
+        return 'rgba(255, 206, 86, 1)';
     } else {
-        return 'rgba(54, 162, 235, 0.75)';
+        return 'rgba(54, 162, 235, 1)';
     }
 }
 

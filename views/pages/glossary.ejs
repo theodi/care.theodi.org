@@ -1,4 +1,8 @@
 
+<link href="/css/water.css" rel="stylesheet">
+<link href="/css/glyphicon.css" rel="stylesheet">
+<link href="/css/style.css" rel="stylesheet">
+<link rel="shortcut icon" href="/images/odifavicon32.ico">
 <style>
     .glossary .navigation {
         display: flex;
@@ -7,11 +11,12 @@
     }
     .glossary .letter {
         cursor: pointer;
-        background-color: #f0f0f0;
+        background-color: var(--color-light-grey);
+        color: var(--color-dark-blue);
         padding: 10px 20px;
     }
     .glossary .letter.active {
-        background-color: #2b98eb;
+        background-color: var(--color-dark-blue);
         color: #fff;
     }
     .glossary .content {
@@ -24,9 +29,10 @@
         text-align: center;
     }
     .glossary section .item {
-        border: 1px solid #ccc;
+        border: none;
         margin: 20px;
         padding: 20px;
+        background-color: var(--color-light-grey);
     }
     .glossary .section h2 {
         text-align: center;
@@ -37,18 +43,18 @@
         height: 43px;
         padding-inline: 10px;
         font-size: 16px;
-        box-shadow: #64646f33 0 7px 29px;
+        box-shadow: none;
         margin-top: 1.25rem;
-        background-color: transparent;
+        background-color: var(--color-light-grey);
         color: black;
-        border: 2px solid rgba(30 64 175);
+        border: 2px solid var(--color-dark-blue);
         margin-left: auto;
         margin-right: auto;
         border-radius: 0px;
     }
 </style>
 <div class="main-content glossary">
-    <section class="content-block light-blue">
+    <section class="content-block white">
         <h1 style="text-align: center;"><%= page.title %></h1>
         <div class="navigation">
             <% Object.keys(data).forEach(letter => { %>

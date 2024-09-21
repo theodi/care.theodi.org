@@ -4,7 +4,7 @@
     "prepend": "<h2>Assign Actions to Consequences</h2><p>For each unintended consequence, you will now assign specific actions to mitigate or manage the risk and add a Key Performance Indicator (KPI) to track the effectiveness of each action. You should:</p><ul><li><b>Create the mitigation Action</b>: Describe the specific action(s) that need to be taken to mitigate or manage the consequence effectively. Be as detailed as possible, specifying what needs to be done and who is responsible.</li><li><b>Define the Key Performance Indicator (KPI)</b>: Define a KPI that will help measure the success or progress of the mitigation action. The KPI should be a measurable metric that indicates the desired outcome. It could be related to time, cost, performance, or any other relevant measure.</li><li>For each action, you should also assign an estimated timescale (3 months, 6 months, 1 year, etc).</li></ul></div><h1>Action planning</h1><br/><div class='infobox'>",
     "append": "</div>",
     "notitle": true,
-    "htmlClass": "content-block light-blue",
+    "htmlClass": "content-block white",
     "type": "array",
     "items": {
       "type": "section",

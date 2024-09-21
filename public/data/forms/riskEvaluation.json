@@ -4,7 +4,7 @@
     "prepend": "<h2>Evaluate Risks of Unintended Consequences</h2><p>To evaluate the risks associated with your data project, we are going to further examine the unintended consequences. </p><p>For each unintended consequence, please assess both its impact and likelihood on a scale of low, medium, and high. This evaluation will help prioritise and manage risks effectively.</p><h1>Risk evaluation</h1><br/><div class='infobox'>",
     "append": "</div>",
     "notitle": true,
-    "htmlClass": "content-block light-blue",
+    "htmlClass": "content-block white",
     "type": "array",
     "items": {
       "type": "section",
