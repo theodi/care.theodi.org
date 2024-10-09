@@ -24,34 +24,50 @@ async function getHubspotUser(userId, email) {
                 }
             ],
             properties: ["email", "firstname", "lastname", "associatedcompanyid", "odi_membership__active_or_lapsed__", "odi_member_partner_type"]
-        }
+        };
+
         const contactResponse = await hubspotClient.crm.contacts.searchApi.doSearch(contactSearchRequest);
+
+        if (!contactResponse || !contactResponse.results || contactResponse.results.length === 0) {
+            throw new Error("No contact found with the provided email.");
+        }
 
         const companyId = contactResponse.results[0].properties.associatedcompanyid;
         const hubSpotId = contactResponse.results[0].id;
         let membershipStatus = contactResponse.results[0].properties.odi_membership__active_or_lapsed__;
         let membershipType = contactResponse.results[0].properties.odi_member_partner_type;
-
-        const companySearchRequest = {
-            filterGroups: [
-                {
-                    filters: [
-                        {
-                            propertyName: "hs_object_id",
-                            operator: "EQ",
-                            value: companyId
-                        }
-                    ]
-                }
-            ],
-            properties: ["name", "odi_membership_status__active_or_lapsed__", "member_partner_type_org_"]
-        }
-        const companyResponse = await hubspotClient.crm.companies.searchApi.doSearch(companySearchRequest);
         let companyMembership = false;
-        if (companyResponse.results[0].properties.odi_membership_status__active_or_lapsed__ == "Active") {
-            companyMembership = true;
-            membershipStatus = "Active";
-            membershipType = companyResponse.results[0].properties.member_partner_type_org_;
+
+        // If companyId is valid, fetch company details
+        if (companyId) {
+            try {
+                const companySearchRequest = {
+                    filterGroups: [
+                        {
+                            filters: [
+                                {
+                                    propertyName: "hs_object_id",
+                                    operator: "EQ",
+                                    value: companyId
+                                }
+                            ]
+                        }
+                    ],
+                    properties: ["name", "odi_membership_status__active_or_lapsed__", "member_partner_type_org_"]
+                };
+                const companyResponse = await hubspotClient.crm.companies.searchApi.doSearch(companySearchRequest);
+
+                if (companyResponse && companyResponse.results && companyResponse.results.length > 0) {
+                    if (companyResponse.results[0].properties.odi_membership_status__active_or_lapsed__ === "Active") {
+                        companyMembership = true;
+                        membershipStatus = "Active";
+                        membershipType = companyResponse.results[0].properties.member_partner_type_org_;
+                    }
+                }
+            } catch (companyError) {
+                console.warn("Error fetching company details:", companyError);
+                // Continue without company details if there's an error fetching them
+            }
         }
 
         // Check if a record with the hubSpotId already exists
