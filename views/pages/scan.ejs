@@ -236,6 +236,7 @@ async function sendDataToServer(inputObject) {
       method,
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json"
       },
       body: JSON.stringify(inputObject),
     });

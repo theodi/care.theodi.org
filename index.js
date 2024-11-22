@@ -3,6 +3,7 @@ const fs = require('fs');
 
 // Load environment variables securely
 require("dotenv").config({ path: "./config.env" });
+const { checkLimit } = require('./middleware/hubspot');
 
 // MongoDB setup
 const mongoose = require('mongoose');
@@ -141,7 +142,7 @@ app.get('/', function(req, res) {
   res.render('pages/home');
 });
 
-app.get('/new', ensureAuthenticated, function(req, res) {
+app.get('/new', ensureAuthenticated, checkLimit, function(req, res, next) {
   const page = {
     title: "Project details",
     link: "projectDetails"

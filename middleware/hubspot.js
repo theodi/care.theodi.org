@@ -16,20 +16,20 @@ const checkLimit = async (req, res, next) => {
         require("dotenv").config({ path: "./config.env" });
         // 2. Read FREE_PROJECT_LIMIT from the config.env
         const freeLimit = parseInt(process.env.FREE_PROJECT_LIMIT);
-        //console.log(freeLimit);
 
         // 3. Look up how many existing projects the user has to ensure it is below the limit
         const projectCount = await Project.countDocuments({ owner: userId });
         //console.log(projectCount);
         if (projectCount >= freeLimit) {
-            return res.status(403).json({ message: `You have reached the limit of ${freeLimit} free projects.` });
+            const error = new Error(`You have reached the limit of ${freeLimit} free projects.`);
+            error.status = 403;
+            throw error;
         }
 
         // If the user does not have an active membership and has not reached the project limit, proceed to the next middleware or route handler
         next();
     } catch (error) {
-        console.error("Error in checkLimit middleware:", error);
-        res.status(500).json({ message: "Internal server error." });
+        return next(error);
     }
 }
 

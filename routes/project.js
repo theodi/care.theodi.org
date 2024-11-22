@@ -228,7 +228,7 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
     }
 });
 // POST route to create a new project
-router.post('/', ensureAuthenticated, checkLimit, async (req, res) => {
+router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
     try {
         // Set owner field to the ID of the authenticated user
         const user = req.session.passport.user;
@@ -241,12 +241,12 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res) => {
         }
         res.status(201).json(savedProject);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        next(error);
     }
 });
 
 // PUT route to update an existing project
-router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res) => {
+router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
     const id = req.params.id;
     try {
         const updatedProject = await Project.findByIdAndUpdate(id, req.body, { new: false });
@@ -263,7 +263,7 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res) => 
 });
 
 // DELETE route to delete a project
-router.delete('/:id', ensureAuthenticated, checkProjectOwner, async (req, res) => {
+router.delete('/:id', ensureAuthenticated, checkProjectOwner, async (req, res, next) => {
     const id = req.params.id;
     // Unset req.session.projectId if it matches the ID to be deleted
     if (req.session.projectId === id) {
