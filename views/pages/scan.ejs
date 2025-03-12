@@ -215,6 +215,7 @@ function moveSubmitButton() {
 }
 
 async function sendDataToServer(inputObject) {
+  inputObject = cleanArrays(inputObject);
   console.log(inputObject);
   let url;
   let method;
@@ -268,6 +269,23 @@ async function sendDataToServer(inputObject) {
     const errorMessage = "An error occurred. Please try again later.";
     showErrorOverlay(errorMessage);
   }
+}
+
+
+/**
+ * Recursively cleans arrays in an object, removing null and undefined values.
+ */
+ function cleanArrays(obj) {
+  if (Array.isArray(obj)) {
+    // Remove null and undefined, and re-index the array
+    return obj.filter(item => item != null).map(item => cleanArrays(item));
+  } else if (obj !== null && typeof obj === "object") {
+    // If obj is an object, recursively clean its properties
+    for (let key in obj) {
+      obj[key] = cleanArrays(obj[key]);
+    }
+  }
+  return obj;
 }
 
 function showErrorOverlay(errorMessage) {

@@ -92,6 +92,9 @@ async function getUserProjectMetrics(userProjects) {
 
         // Iterate over unintended consequences of the project
         for (const unintendedConsequence of project.unintendedConsequences) {
+            if (!unintendedConsequence) {
+                continue;
+            }
             // Increment the corresponding risk count category based on the risk score
             if (unintendedConsequence.riskScore === null) {
                 riskCounts.unclassified++;
@@ -172,6 +175,9 @@ function getScoreText(score) {
 async function addRiskScoreToProject(project) {
     for (const unintendedConsequence of project.unintendedConsequences) {
         // Check if both impact and likelihood are defined
+        if (!unintendedConsequence) {
+            continue;
+        }
         if (unintendedConsequence.likelihood && unintendedConsequence.impact) {
             // Calculate risk score for the unintended consequence
             let riskScore = 1; // Default risk score
@@ -253,8 +259,7 @@ async function getCompletionState(projectId, schema) {
         }
         return "todo";
     } catch (error) {
-        console.error("Error calculating completion state:", error);
-        return "Error";
+        return "inProgress";
     }
 }
 
