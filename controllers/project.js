@@ -92,8 +92,8 @@ async function getUserProjectMetrics(userProjects) {
 
         // Iterate over unintended consequences of the project
         for (const unintendedConsequence of project.unintendedConsequences) {
-            if (!unintendedConsequence) {
-                continue;
+            if (!unintendedConsequence || unintendedConsequence.outcome === "Positive") {
+                continue; // Skip positive unintended consequences
             }
             // Increment the corresponding risk count category based on the risk score
             if (unintendedConsequence.riskScore === null) {
@@ -175,8 +175,8 @@ function getScoreText(score) {
 async function addRiskScoreToProject(project) {
     for (const unintendedConsequence of project.unintendedConsequences) {
         // Check if both impact and likelihood are defined
-        if (!unintendedConsequence) {
-            continue;
+        if (!unintendedConsequence || unintendedConsequence.outcome === "Positive") {
+            continue; // Skip positive outcomes entirely
         }
         if (unintendedConsequence.likelihood && unintendedConsequence.impact) {
             // Calculate risk score for the unintended consequence

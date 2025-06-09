@@ -169,6 +169,12 @@ async function renderForm(data) {
                 }
             }
         });
+
+         // Only hide positive consequences on certain pages
+        const formName = window.location.pathname.split('/')[3];
+        if (formName === "riskEvaluation" || formName === "actionPlanning") {
+            setTimeout(hidePositiveConsequences, 200); // Wait for form to render
+        }
     } catch (error) {
         console.error("Error rendering form:", error);
     }
@@ -329,6 +335,23 @@ function extractDisabledFieldValues(formId) {
         field.parentNode.insertBefore(paragraphElement, field.nextSibling);
     });
 }
+function hidePositiveConsequences() {
+    if (!Array.isArray(projectData.unintendedConsequences)) return;
+
+    projectData.unintendedConsequences.forEach((uc, index) => {
+        if (uc.outcome === "Positive") {
+            // Try to locate a field rendered for this item
+            const field = document.querySelector(`[name="unintendedConsequences[${index}].consequence"]`);
+            if (field) {
+                const container = field ? field.closest('li') : null;
+                if (container) {
+                    container.style.display = 'none';
+                }
+            }
+        }
+    });
+}
+
 
 
 </script>

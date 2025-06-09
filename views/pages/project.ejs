@@ -16,6 +16,9 @@
     <h2>Intended conseuqneces</h2>
     <ul id="intendedConsequencesList">
     </ul>
+    <h2>Positive Unintended conseuqneces</h2>
+    <ul id="positiveUnintendedConsequencesList">
+    </ul>
     <h2>Risk dashboard</h2>
     <section class="dashboard">
         <subsection class="dashboard-box">
@@ -216,20 +219,28 @@
         // Populate unintended consequences in risk management table
         const unintendedConsequencesBody = document.getElementById("unintendedConsequencesBody");
         if (projectData.unintendedConsequences && projectData.unintendedConsequences.length > 0) {
-            projectData.unintendedConsequences.forEach(consequence => {
-                const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td>${consequence.consequence}</td>
-                    <td>${getScoreText(consequence.riskScore/3)}</td>
-                    <td>${consequence.likelihood}</td>
-                    <td>${consequence.impact}</td>
-                    <td>${consequence.role}</td>
-                    <td>${consequence.action.description}</td>
-                    <td>${consequence.action.date}</td>
-                    <td>${consequence.action.stakeholder}</td>
-                    <td>${consequence.action.KPI}</td>
-                `;
-                unintendedConsequencesBody.appendChild(row);
+            const unintended = projectData.unintendedConsequences || [];
+            unintended.forEach(consequence => {
+                if (consequence.outcome === "Positive") {
+                    const item = document.createElement("li");
+                    item.textContent = consequence.consequence;
+                    positiveUnintendedConsequencesList.appendChild(item);
+                } else {
+                    // Add only negative/neutral ones to the risk table
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${consequence.consequence}</td>
+                        <td>${getScoreText(consequence.riskScore / 3)}</td>
+                        <td>${consequence.likelihood}</td>
+                        <td>${consequence.impact}</td>
+                        <td>${consequence.role}</td>
+                        <td>${consequence.action?.description || ""}</td>
+                        <td>${consequence.action?.date || ""}</td>
+                        <td>${consequence.action?.stakeholder || ""}</td>
+                        <td>${consequence.action?.KPI || ""}</td>
+                    `;
+                    unintendedConsequencesBody.appendChild(row);
+                }
             });
         } else {
             unintendedConsequencesBody.innerHTML = "<tr><td colspan='9'>No unintended consequences provided.</td></tr>";
