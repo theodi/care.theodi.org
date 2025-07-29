@@ -10,7 +10,7 @@ and the data used:
 
 {{dataUsed}}
 
-Using this context suggest some intended consequnences and unintented consequnences of the project.
+Using this context suggest some intended consequences and unintended consequences of the project.
 
 Intended consequences are the positive impacts and benefits. This could include improved decision-making, increased efficiency, cost savings, enhanced customer satisfaction, or any other favourable results.
 
@@ -22,8 +22,8 @@ Unintended consequences can have both positive and negative impacts. Consider th
 
 For each unintended outcome, suggest the impact and likelihood (high, medium or low) of the outcome as well as the role that the organisation should play (act, influence or monitor). Also add mitigating actions to each unintended outcome with a description and stakeholder. Finally create a list of all stakeholders impacted by the project and involved in the actions.
 
-Your response should be in the format of undeclared JSON conforming to the following schema:
-
-{{schema}}
-
-Return just the data, not the schema.
+IMPORTANT: 
+- All dates must be in YYYY-MM-DD format (e.g., "2024-12-31")
+- All required fields must be provided
+- For unintended consequences, ensure each has a complete action with description, date, stakeholder, and KPI
+- For stakeholders, specify whether they are "Internal" or "External" (or leave empty string for unspecified)

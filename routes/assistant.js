@@ -6,11 +6,44 @@ const router = express.Router();
 const Project = require('../models/project');
 
 const OpenAI = require("openai");
+const { zodTextFormat } = require("openai/helpers/zod");
+const { z } = require('zod');
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
 
+// Zod schemas for structured responses
+const ActionSchema = z.object({
+  description: z.string().min(1, "Action description is required"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  stakeholder: z.string().min(1, "Stakeholder is required"),
+  KPI: z.string().min(1, "KPI is required")
+});
+
+const UnintendedConsequenceSchema = z.object({
+  consequence: z.string().min(1, "Consequence description is required"),
+  outcome: z.enum(["", "Positive", "Negative"]),
+  impact: z.enum(["", "High", "Medium", "Low"]),
+  likelihood: z.enum(["", "High", "Medium", "Low"]),
+  role: z.enum(["", "Act", "Influence", "Monitor"]),
+  action: ActionSchema
+});
+
+const IntendedConsequenceSchema = z.object({
+  consequence: z.string().min(1, "Consequence description is required")
+});
+
+const StakeholderSchema = z.object({
+  stakeholder: z.string().min(1, "Stakeholder name is required"),
+  type: z.enum(["", "Internal", "External"])
+});
+
+const CompleteAssessmentSchema = z.object({
+  intendedConsequences: z.array(IntendedConsequenceSchema).min(1, "At least one intended consequence is required"),
+  unintendedConsequences: z.array(UnintendedConsequenceSchema).min(1, "At least one unintended consequence is required"),
+  stakeholders: z.array(StakeholderSchema).min(1, "At least one stakeholder is required")
+});
 
 // Middleware to ensure user is authenticated
 async function ensureAuthenticated(req, res, next) {
@@ -26,28 +59,63 @@ router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProje
         const messageId = req.params.messageId;
         // Get the merge query parameter from the URL
         const merge = req.query.merge === 'true'; // Convert to boolean
-        const schema = require('../public/data/schemas/partials/'+messageId+'.json');
-        projectData.schema = JSON.stringify(schema);
-        const message = await populateMessage(messageId, projectData);;
-        const response = await getAIReponse(message);
-        // Parse the AI response JSON string
-        const parsedResponse = JSON.parse(response);
+        
+        // Get the appropriate schema based on messageId
+        const zodSchema = getSchemaForMessageId(messageId);
+        
+        const message = await populateMessage(messageId, projectData);
+        const response = await getAIResponse(message, messageId, zodSchema);
+        
+        // Validate the response using Zod
+        const validatedResponse = validateResponse(response, messageId);
 
         // Check if the messageId is "completeAssessment"
         if (messageId === "completeAssessment") {
             // Call the completeAssessment function
-            const summary = await completeAssessment(parsedResponse, projectData, merge);
+            const summary = await completeAssessment(validatedResponse, projectData, merge);
             res.json(summary)
         } else {
-            // If it's not completeAssessment, send the parsedResponse back to the client
-            res.json(parsedResponse);
+            // If it's not completeAssessment, send the validated response back to the client
+            res.json(validatedResponse);
         }
     } catch (error) {
-        console.error(error);
-        // Handle errors
+        console.error('Error in assistant route:', error);
+        
+        // Handle validation errors specifically
+        if (error.name === 'ZodError') {
+            return res.status(400).json({ 
+                message: "AI response validation failed", 
+                errors: error.errors,
+                details: "The AI response did not match the expected schema format"
+            });
+        }
+        
+        // Handle other errors
         res.status(500).json({ message: "Internal server error" });
     }
 });
+
+function getSchemaForMessageId(messageId) {
+    const schemas = {
+        'completeAssessment': CompleteAssessmentSchema,
+        'intendedConsequences': z.object({
+            intendedConsequences: z.array(IntendedConsequenceSchema)
+        }),
+        'unintendedConsequences': z.object({
+            unintendedConsequences: z.array(UnintendedConsequenceSchema)
+        }),
+        'stakeholders': z.object({
+            stakeholders: z.array(StakeholderSchema)
+        })
+    };
+    
+    return schemas[messageId] || CompleteAssessmentSchema;
+}
+
+function validateResponse(response, messageId) {
+    const schema = getSchemaForMessageId(messageId);
+    return schema.parse(response);
+}
 
 async function completeAssessment(parsedResponse, projectData, merge = true) {
     // Merge the parsed data into the existing project data if merge is true
@@ -118,12 +186,18 @@ async function populateMessage(messageId, data) {
     return populatedText;
 }
 
-async function getAIReponse(message) {
-    const completion = await openai.chat.completions.create({
-        messages: [{ role: "user", content: message }],
+async function getAIResponse(message, messageId, schema) {
+    const response = await openai.responses.parse({
         model: "gpt-4o-mini",
+        input: [
+            { role: "user", content: message }
+        ],
+        text: {
+            format: zodTextFormat(schema, "assessment_data"),
+        },
     });
-    return completion.choices[0].message.content;
+
+    return response.output_parsed;
 }
 
 module.exports = router;

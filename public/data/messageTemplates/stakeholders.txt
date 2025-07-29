@@ -22,8 +22,7 @@ We have also defined the following intended consequences of the project:
 
  For each stakeholder, indicate whether they are an internal stakeholder (part of the organisation or project team) or an external stakeholder (outside the organisation or project team).
 
- Your response should be in the format of undeclared JSON conforming to the following schema:
-
- {{schema}}
-
- Return just the data, not the schema.
+IMPORTANT: 
+- All required fields must be provided
+- For each stakeholder, specify whether they are "Internal" or "External" (or leave empty string for unspecified)
+- Each stakeholder must have a clear name/description
