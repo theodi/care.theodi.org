@@ -188,33 +188,81 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
             const opts = { fields };
             const csv = parse(project.unintendedConsequences, opts);
 
-            res.setHeader('Content-Disposition', `attachment; filename=${project.title.replace(/\s+/g, '_').trim()}.csv`);
+            // Sanitize filename for CSV export
+            const sanitizedTitle = project.title
+                .replace(/[^\w\s-]/g, '') // Remove special characters except spaces and hyphens
+                .replace(/\s+/g, '_') // Replace spaces with underscores
+                .trim();
+            const csvFileName = `${sanitizedTitle}.csv`;
+            res.setHeader('Content-Disposition', `attachment; filename="${csvFileName}"`);
             res.setHeader('Content-Type', 'text/csv');
             return res.send(csv);
         } else if (acceptHeader === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             // Respond with DOCX
-            project = await projectController.addRiskScoreToProject(project);
-            let owner = await projectController.getProjectOwner(project);
-            const userProjects = [];
-            userProjects.push(project);
-            let metrics = await projectController.getUserProjectMetrics(userProjects);
-            const tempFilePath = await buildDocx(project,metrics, owner);
-            const fileName = `${project.title.replace(/\s+/g, '_').trim()}.docx`;
-            //const buffer = await docx.Packer.toBuffer(doc);
-            res.set('Content-Disposition', `attachment; filename="${fileName}"`);
-            res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-            res.sendFile(path.resolve(tempFilePath), async (err) => {
-                if (err) {
-                    console.error("Error sending file:", err);
-                } else {
-                    // Cleanup temporary file after sending
-                    try {
-                        await fs.promises.unlink(tempFilePath);
-                    } catch (error) {
-                        console.error("Error deleting temporary file:", error);
-                    }
+            console.log('Starting DOCX generation for project:', project._id);
+            
+            try {
+                project = await projectController.addRiskScoreToProject(project);
+                console.log('Risk scores added to project');
+                
+                let owner = await projectController.getProjectOwner(project);
+                console.log('Project owner retrieved:', owner?.name);
+                
+                const userProjects = [];
+                userProjects.push(project);
+                let metrics = await projectController.getUserProjectMetrics(userProjects);
+                console.log('Project metrics retrieved:', Object.keys(metrics || {}));
+                
+                console.log('Calling buildDocx...');
+                const tempFilePath = await buildDocx(project, metrics, owner);
+                console.log('buildDocx completed, temp file:', tempFilePath);
+                
+                // Validate the generated file
+                if (!tempFilePath || !fs.existsSync(tempFilePath)) {
+                    throw new Error('Generated file does not exist');
                 }
-            });
+                
+                const fileStats = fs.statSync(tempFilePath);
+                console.log('Generated file size:', fileStats.size, 'bytes');
+                
+                if (fileStats.size < 1000) {
+                    throw new Error(`Generated file is too small (${fileStats.size} bytes), likely corrupted`);
+                }
+                
+                // Sanitize filename for HTTP headers - remove invalid characters
+                const sanitizedTitle = project.title
+                    .replace(/[^\w\s-]/g, '') // Remove special characters except spaces and hyphens
+                    .replace(/\s+/g, '_') // Replace spaces with underscores
+                    .trim();
+                const fileName = `${sanitizedTitle}.docx`;
+                console.log('Sending file:', fileName, 'size:', fileStats.size);
+                
+                // Use a simple, safe filename for the header to avoid encoding issues
+                const safeFileName = `project_report.docx`;
+                res.set('Content-Disposition', `attachment; filename="${safeFileName}"`);
+                res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+                
+                res.sendFile(path.resolve(tempFilePath), async (err) => {
+                    if (err) {
+                        console.error("Error sending file:", err);
+                    } else {
+                        console.log('File sent successfully, cleaning up...');
+                        // Cleanup temporary file after sending
+                        try {
+                            await fs.promises.unlink(tempFilePath);
+                            console.log('Temporary file cleaned up');
+                        } catch (error) {
+                            console.error("Error deleting temporary file:", error);
+                        }
+                    }
+                });
+            } catch (docxError) {
+                console.error('Error in DOCX generation:', docxError);
+                return res.status(500).json({ 
+                    error: 'Failed to generate DOCX file', 
+                    details: docxError.message 
+                });
+            }
         } else {
             let page = {
                 link: "/finalReport",

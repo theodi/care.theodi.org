@@ -244,6 +244,38 @@ tbody tr:nth-child(2n) td {
   line-height: 20px; /* Vertically center the text */
   color: white;
 }
+.riskHeatmap {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1em;
+    margin-bottom: 2em;
+}
+
+.riskHeatmap th,
+.riskHeatmap td {
+    border: 1px solid #ccc;
+    padding: 6px;
+    vertical-align: top;
+    min-height: 60px;
+    min-width: 120px;
+    font-size: 0.9em;
+    background-color: white;
+}
+
+.risk-entry {
+    margin-bottom: 4px;
+}
+
+#cell-high-high { background-color: #f8d7da; }        /* red */
+#cell-high-medium,
+#cell-medium-high { background-color: #fad8cb; }      /* Orange */
+#cell-medium-medium,
+#cell-high-low,
+#cell-low-high  { background-color: #fff3cd; }    /* Yellow */
+#cell-low-low { background-color: #d4edda; }
+#cell-medium-low,
+#cell-low-medium { background-color: #faffdc; }
+
 /* Overlay styles */
 .overlay {
     display: none;

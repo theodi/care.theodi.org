@@ -68,6 +68,39 @@
             </div>
         </subsection>
     </section>
+    <section class="content-block white riskGrid">
+        <h2>Risk heatmap</h2>
+        <table class="riskHeatmap">
+            <thead>
+                <tr>
+                    <th>Impact →<br>Likelihood ↓</th>
+                    <th>Low</th>
+                    <th>Medium</th>
+                    <th>High</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th>High</th>
+                    <td id="cell-high-low"></td>
+                    <td id="cell-high-medium"></td>
+                    <td id="cell-high-high"></td>
+                </tr>
+                <tr>
+                    <th>Medium</th>
+                    <td id="cell-medium-low"></td>
+                    <td id="cell-medium-medium"></td>
+                    <td id="cell-medium-high"></td>
+                </tr>
+                <tr>
+                    <th>Low</th>
+                    <td id="cell-low-low"></td>
+                    <td id="cell-low-medium"></td>
+                    <td id="cell-low-high"></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
     <h2>Risk management table</h2>
     <table id="unintendedConsequences">
         <thead>
@@ -226,6 +259,17 @@
                     item.textContent = consequence.consequence;
                     positiveUnintendedConsequencesList.appendChild(item);
                 } else {
+                    //Risk heatmap
+                    const lid = consequence.likelihood.toLowerCase();
+                    const iid = consequence.impact.toLowerCase();
+                    const cell = document.getElementById(`cell-${lid}-${iid}`);
+                    if (cell) {
+                        const div = document.createElement("div");
+                        div.classList.add("risk-entry");
+                        div.textContent = consequence.consequence;
+                        cell.appendChild(div);
+                    }
+
                     // Add only negative/neutral ones to the risk table
                     const row = document.createElement("tr");
                     row.innerHTML = `
