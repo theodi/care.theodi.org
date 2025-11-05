@@ -139,7 +139,7 @@ function renderMyProjects(data) {
                         return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
                     }
                     if (data == "inProgress") {
-                        return "In Progress";
+                        return "In progress";
                     }
                     if (data == "todo") {
                         return "To do";
@@ -157,7 +157,7 @@ function renderMyProjects(data) {
             },
             {
                 data: 'lastModified',
-                title: 'Last Modified',
+                title: 'Last modified',
                 width: '12%',
                 render: function(data, type, row) {
                     // Parse the date string into a Date object
@@ -308,7 +308,7 @@ function renderSharedProjects(data) {
                         return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
                     }
                     if (data == "inProgress") {
-                        return "In Progress";
+                        return "In progress";
                     }
                     if (data == "todo") {
                         return "To do";
@@ -319,7 +319,7 @@ function renderSharedProjects(data) {
             { data: 'owner', title: 'Owner', defaultContent: '' },
             {
                 data: 'lastModified',
-                title: 'Last Modified',
+                title: 'Last modified',
                 width: '12%',
                 render: function(data, type, row) {
                     // Parse the date string into a Date object

@@ -1,23 +1,23 @@
 <%- include('../partials/header') %>
 <section class="content-block light-blue">
-  <h1>Profile Information</h1>
+  <h1>Profile information</h1>
   <p>
-    <b>Id</b>: <%= userProfile.id %><br>
+    <b>ID</b>: <%= userProfile.id %><br>
     <b>Email</b>: <%= userProfile.email %><br>
     <b>Name</b>: <%= userProfile.name || user.displayName || (user.first_name + ' ' + user.last_name) %><br>
     <b>Last login:</b> <%= userProfile.lastLoginFormatted %><br>
     <b>Login count:</b> <%= userProfile.loginCount %><br>
     <h2>Membership</h2>
-    <b>ODI Membership Status:</b> <%= userProfile.hubspot.membershipStatus %><br>
-    <b>ODI Membership as part of company?:</b> <%= userProfile.hubspot.companyMembership %><br>
-    <b>ODI Membership type: </b> <%= userProfile.hubspot.membershipType %> <br>
+    <b>ODI membership status:</b> <%= userProfile.hubspot.membershipStatus %><br>
+    <b>ODI membership as part of company?:</b> <%= userProfile.hubspot.companyMembership %><br>
+    <b>ODI membership type: </b> <%= userProfile.hubspot.membershipType %> <br>
   </p>
 </section>
 
 <section class="content-block white">
-  <h2>Delete Account</h2>
+  <h2>Delete account</h2>
   <form id="deleteForm" action="/profile" method="POST">
-    <button type="button" onclick="confirmDelete()">Delete Account</button>
+    <button type="button" onclick="confirmDelete()">Delete account</button>
   </form>
   <p id="errorMessage" style="color: red;"></p> <!-- Error message element -->
 </section>
