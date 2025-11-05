@@ -1,9 +1,13 @@
 function addRiskDonut(riskCounts) {
     const ctx = document.getElementById('riskChart').getContext('2d');
+    // Capitalize the first letter of each label
+    const labels = Object.keys(riskCounts).map(key => {
+        return key.charAt(0).toUpperCase() + key.slice(1);
+    });
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: Object.keys(riskCounts),
+            labels: labels,
             datasets: [{
                 label: 'Risk count',
                 data: Object.values(riskCounts),
