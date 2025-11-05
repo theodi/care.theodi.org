@@ -4,10 +4,10 @@
   "properties": {
     "unintendedConsequences": {
         "type": "array",
-        "title": "Unintended Consequences",
+        "title": "Unintended consequences",
         "items": {
             "type": "object",
-            "title": "Unintended Consequence",
+            "title": "Unintended consequence",
             "properties": {
                 "consequence": {
                     "type": "string",

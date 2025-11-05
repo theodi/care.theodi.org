@@ -3,43 +3,43 @@
         { "title": "Consequence", "description": "In the context of a data project, this refers to an outcome or result, whether positive or negative, that can occur as a direct or indirect effect of project actions or decisions." }
     ],
     "D": [
-        { "title": "Data Project", "description": "A specific initiative focused on working with data, often involving data collection, analysis, and the pursuit of particular goals or objectives." },
-        { "title": "Data Lifecycle", "description": "The stages through which data passes, from its creation or acquisition to its disposal or archiving." }
+        { "title": "Data project", "description": "A specific initiative focused on working with data, often involving data collection, analysis, and the pursuit of particular goals or objectives." },
+        { "title": "Data lifecycle", "description": "The stages through which data passes, from its creation or acquisition to its disposal or archiving." }
     ],
     "E": [
-        { "title": "External Factors", "description": "Events or conditions outside the project that can impact the project's outcomes, such as changes in regulations, market conditions, or technological advancements." }
+        { "title": "External factors", "description": "Events or conditions outside the project that can impact the project's outcomes, such as changes in regulations, market conditions, or technological advancements." }
     ],
     "I": [
         { "title": "Impact", "description": "The effect or influence that a consequence may have on a project, stakeholders, data, or other relevant aspects. Impact can be categorised as low, medium, or high." },
-        { "title": "Intended Consequences", "description": "Positive outcomes that a project aims to achieve, aligned with its objectives and goals." }
+        { "title": "Intended consequences", "description": "Positive outcomes that a project aims to achieve, aligned with its objectives and goals." }
     ],
     "K": [
-        { "title": "Key Performance Indicator (KPI)", "description": "A measurable metric that indicates the success or progress of a specific action or outcome. KPIs are used to track and evaluate performance in various aspects of a project." }
+        { "title": "Key performance indicator (KPI)", "description": "A measurable metric that indicates the success or progress of a specific action or outcome. KPIs are used to track and evaluate performance in various aspects of a project." }
     ],
     "L": [
         { "title": "Likelihood", "description": "The probability or chance of a consequence occurring. Likelihood can be categorised as low, medium, or high." }
     ],
     "M": [
-        { "title": "Mitigation Action", "description": "Specific steps or measures taken to reduce the impact or likelihood of a risk consequence." }
+        { "title": "Mitigation action", "description": "Specific steps or measures taken to reduce the impact or likelihood of a risk consequence." }
     ],
     "O": [
         { "title": "Objectives", "description": "Specific, measurable goals and desired outcomes that the project aims to achieve." }
     ],
     "P": [
-        { "title": "Project Overview", "description": "A concise summary of the data project, including its purpose, goals, and context." }
+        { "title": "Project overview", "description": "A concise summary of the data project, including its purpose, goals, and context." }
     ],
     "R": [
-        { "title": "Risk Register", "description": "A document that centralises information related to the assessment and management of risks in a project. It typically includes details about project objectives, stakeholders, identified consequences, and risk management strategies." },
-        { "title": "Risk Assessment", "description": "The process of evaluating the potential impact and likelihood of identified risks in a project to prioritise and manage them effectively." },
-        { "title": "Risk Management", "description": "The systematic process of identifying, assessing, mitigating, and monitoring risks to achieve project objectives and minimise negative impacts." },
-        { "title": "Risk Management Table", "description": "A structured format for categorising and managing identified consequences, typically including information on impact, likelihood, mitigation actions, and KPIs." },
-        { "title": "Risk Priority", "description": "Assigning priority levels to risks or actions to indicate their relative importance or urgency." },
-        { "title": "Regulatory and Compliance Requirements", "description": "Legal or industry-specific rules and standards that the project must adhere to when handling data." }
+        { "title": "Risk register", "description": "A document that centralises information related to the assessment and management of risks in a project. It typically includes details about project objectives, stakeholders, identified consequences, and risk management strategies." },
+        { "title": "Risk assessment", "description": "The process of evaluating the potential impact and likelihood of identified risks in a project to prioritise and manage them effectively." },
+        { "title": "Risk management", "description": "The systematic process of identifying, assessing, mitigating, and monitoring risks to achieve project objectives and minimise negative impacts." },
+        { "title": "Risk management table", "description": "A structured format for categorising and managing identified consequences, typically including information on impact, likelihood, mitigation actions, and KPIs." },
+        { "title": "Risk priority", "description": "Assigning priority levels to risks or actions to indicate their relative importance or urgency." },
+        { "title": "Regulatory and compliance requirements", "description": "Legal or industry-specific rules and standards that the project must adhere to when handling data." }
     ],
     "S": [
         { "title": "Stakeholders", "description": "Individuals, teams, or organisations involved in or affected by the project. They can be categorised as internal or external stakeholders." }
     ],
     "U": [
-        { "title": "Unintended Consequences", "description": "Results, both positive and negative, that are unexpected or unforeseen and may arise during a project's execution." }
+        { "title": "Unintended consequences", "description": "Results, both positive and negative, that are unexpected or unforeseen and may arise during a project's execution." }
     ]
 }

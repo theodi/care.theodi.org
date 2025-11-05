@@ -1,7 +1,7 @@
 [
     {
         "key": "title",
-        "prepend": "<h2>Project Title:</h2>",
+        "prepend": "<h2>Project title</h2>",
         "notitle": true,
         "htmlClass": "content-block white",
         "fieldHtmlClass": "input inputText",
@@ -10,7 +10,7 @@
     {
         "key": "objectives",
         "type": "textarea",
-        "prepend": "<h2>Project Overview:</h2><p style='color: black;'>Please provide a detailed description of your data project including its general goals and overall purpose. You may wish to include details on the following:</p><ol style='color: black;'><li>Explain how data will be used, processed, stored, and protected throughout the project.</li><li>Provide an estimated project timeline, including key milestones, and important deadlines.</li><li>Mention any relevant data privacy regulations, industry standards, or compliance requirements that the project must adhere to.</li><li>Explain how risks will be monitored throughout the project and the process for reporting and addressing them as they occur.</li></ol><p style='color: black;'>Please be as specific as possible. If you choose to use the Assistant AI then the information you provide here will help identify potential risks and generate potential actions for your data project.</p><br/>",
+        "prepend": "<h2>Project overview</h2><p style='color: black;'>Please provide a detailed description of your data project including its general goals and overall purpose. You may wish to include details on the following:</p><ol style='color: black;'><li>Explain how data will be used, processed, stored, and protected throughout the project.</li><li>Provide an estimated project timeline, including key milestones, and important deadlines.</li><li>Mention any relevant data privacy regulations, industry standards, or compliance requirements that the project must adhere to.</li><li>Explain how risks will be monitored throughout the project and the process for reporting and addressing them as they occur.</li></ol><p style='color: black;'>Please be as specific as possible. If you choose to use the assistant AI then the information you provide here will help identify potential risks and generate potential actions for your data project.</p><br/>",
         "notitle": true,
         "placeholder": "Enter objectives...",
         "htmlClass": "content-block white",

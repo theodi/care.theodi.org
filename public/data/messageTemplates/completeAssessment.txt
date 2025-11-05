@@ -10,15 +10,15 @@ and the data used:
 
 {{dataUsed}}
 
-Using this context suggest some intended consequnences and unintented consequnences of the project.
+Using this context suggest some intended consequences and unintended consequences of the project.
 
 Intended consequences are the positive impacts and benefits. This could include improved decision-making, increased efficiency, cost savings, enhanced customer satisfaction, or any other favourable results.
 
 Unintended consequences can have both positive and negative impacts. Consider the following:
-    - Positive Unintended Consequences: Think about unexpected benefits or positive outcomes that might result from the project. For example, improved processes, increased efficiency, or unforeseen uses or users of the product or service.
-    - Negative Unintended Consequences: Consider any adverse effects or unexpected problems that might occur. This could involve privacy breaches, data misuse, or potential bias in the data.
-    - Secondary Effects: Think about ripple effects that the project might have on other processes, systems, or stakeholders, even if they are not directly involved.
-    - External Factors: Take into account external factors or events that the project might interact with or influence. These could include changes in regulations, market conditions, or technological advancements.
+    - Positive unintended consequences: Think about unexpected benefits or positive outcomes that might result from the project. For example, improved processes, increased efficiency, or unforeseen uses or users of the product or service.
+    - Negative unintended consequences: Consider any adverse effects or unexpected problems that might occur. This could involve privacy breaches, data misuse, or potential bias in the data.
+    - Secondary effects: Think about ripple effects that the project might have on other processes, systems, or stakeholders, even if they are not directly involved.
+    - External factors: Take into account external factors or events that the project might interact with or influence. These could include changes in regulations, market conditions, or technological advancements.
 
 For each unintended outcome, suggest the impact and likelihood (high, medium or low) of the outcome as well as the role that the organisation should play (act, influence or monitor). Also add mitigating actions to each unintended outcome with a description and stakeholder. Finally create a list of all stakeholders impacted by the project and involved in the actions.
 

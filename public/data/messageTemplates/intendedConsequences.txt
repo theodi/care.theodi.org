@@ -1,4 +1,4 @@
-You are helping a user to carry out a aisk assessment on a project idea involving data.
+You are helping a user to carry out a risk assessment on a project idea involving data.
 
 Here is the description of the project:
 
@@ -10,7 +10,7 @@ and the data used:
 
 {{dataUsed}}
 
-Using this context suggest some intended consequnences for the project. Intended consequences are the positive impacts and benefits. This could include improved decision-making, increased efficiency, cost savings, enhanced customer satisfaction, or any other favourable results.
+Using this context suggest some intended consequences for the project. Intended consequences are the positive impacts and benefits. This could include improved decision-making, increased efficiency, cost savings, enhanced customer satisfaction, or any other favourable results.
 
 Your response should be in the format of undeclared JSON conforming to the following schema:
 

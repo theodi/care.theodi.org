@@ -4,7 +4,7 @@
     "properties": {
         "intendedConsequences": {
             "type": "array",
-            "title": "Intended Consequences",
+            "title": "Intended consequences",
             "items": {
                 "type": "object",
                 "title": "Consequence",

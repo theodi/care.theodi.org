@@ -1,6 +1,6 @@
 {
-    "title": "A Charitable Transformation",
-    "objectives": "An animal charity is going through a digital transformation process. This charity supports animal care and rehoming. Therefore it holds data on the animals, the users of the service such as those who hand over animals, and those who foster or adopt, as well as data associated with volunteers, donors and broader stakeholders. As part of this transformation the charity wants to retire redundant platforms and consolidate all data and data processes into a single platform. This includes employee record systems, Customer Relationship Management (CRM) platforms, Volunteer Management Systems (VMS) as well as donations, animal welfare data, data supplied by local authorities and information related to internal processes and practices.\n\nObjective: To reduce costs and increase efficiencies by simplifying the digital estate of the charity and reduce the redundancies in existing processes to mitigate risks. The digital transformation should maintain stakeholder privacy and maintain performance in relation to animal care.",
+    "title": "A charitable transformation",
+    "objectives": "An animal charity is going through a digital transformation process. This charity supports animal care and rehoming. Therefore it holds data on the animals, the users of the service such as those who hand over animals, and those who foster or adopt, as well as data associated with volunteers, donors and broader stakeholders. As part of this transformation the charity wants to retire redundant platforms and consolidate all data and data processes into a single platform. This includes employee record systems, customer relationship management (CRM) platforms, volunteer management systems (VMS) as well as donations, animal welfare data, data supplied by local authorities and information related to internal processes and practices.\n\nObjective: To reduce costs and increase efficiencies by simplifying the digital estate of the charity and reduce the redundancies in existing processes to mitigate risks. The digital transformation should maintain stakeholder privacy and maintain performance in relation to animal care.",
     "stakeholders": [
         { "stakeholder": "Charity Digital Team", "type": "Internal" },
         { "stakeholder": "CFO", "type": "Internal" },
@@ -14,7 +14,7 @@
         { "stakeholder": "Charity Partners)", "type": "External" },
         { "stakeholder": "IT Team", "type": "External" }
     ],
-    "dataUsed": "The data the charity holds includes (amongst others): Financial Donors: personal details, level of involvement, etc; Volunteers: personal details, experience, etc; Adopters: potential, previous and existing. Including details of refusals and returns; Users: individuals who have previously handed an animal to the charity.",
+    "dataUsed": "The data the charity holds includes (amongst others): financial donors: personal details, level of involvement, etc; volunteers: personal details, experience, etc; adopters: potential, previous and existing. Including details of refusals and returns; users: individuals who have previously handed an animal to the charity.",
     "intendedConsequences": [
         { "consequence": "Reduction of risk from old systems, including privacy, leaks and disparities in data organisation and structure" },
         { "consequence": "More effect analysis and reporting across the charity" },
