@@ -1,11 +1,10 @@
 // passport.js
 
-const bcrypt = require('bcrypt');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const OAuth2Strategy = require('passport-oauth2').Strategy;
 const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
-const { retrieveUserByEmail } = require('./controllers/user');
+const { retrieveUserByEmail, verifyPassword } = require('./controllers/user');
 
 // Passport setup for Google authentication
 passport.use('google', new GoogleStrategy({
@@ -70,7 +69,7 @@ passport.use('local', new LocalStrategy(
       if (!user) {
         return done({ status: 401, message: 'Incorrect email.' }, false);
       }
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const isValidPassword = verifyPassword(password, user.password);
       if (!isValidPassword) {
         return done({ status: 401, message: 'Incorrect password.' }, false);
       }

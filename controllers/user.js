@@ -1,11 +1,30 @@
 const path = require('path');
 const cron = require('node-cron');
+const crypto = require('crypto');
 const User = require('../models/user'); // Import the Token model
 const Project = require('../models/project');
-const bcrypt = require('bcrypt');
 
 // Load environment variables securely
 require("dotenv").config({ path: "../config.env" });
+
+const SCRYPT_KEYLEN = 64;
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derivedKey = crypto.scryptSync(password, salt, SCRYPT_KEYLEN).toString('hex');
+  return `${salt}:${derivedKey}`;
+}
+
+function verifyPassword(password, stored) {
+  if (!stored) return false;
+  const [salt, key] = stored.split(':');
+  if (!salt || !key) return false;
+  const derivedKey = crypto.scryptSync(password, salt, SCRYPT_KEYLEN).toString('hex');
+  const a = Buffer.from(derivedKey, 'hex');
+  const b = Buffer.from(key, 'hex');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 let currentDefaultPassword = process.env.DEFAULT_PASSWORD || "defaultPassword123";
 
@@ -14,7 +33,7 @@ async function retrieveUserByEmail(email) {
   let user = await User.findOne({ email });
   if (!user) {
     // Create a new user with a default password
-    const hashedPassword = await bcrypt.hash(currentDefaultPassword, 10); // Use a secure default password
+    const hashedPassword = hashPassword(currentDefaultPassword);
     user = new User({
       name: email,
       email: email,
@@ -100,4 +119,13 @@ async function deleteUser(userId) {
   }
 }
 
-module.exports = { retrieveUserByEmail, retrieveOrCreateUser, deleteUser, deleteLocalProjectsAndAccounts, updateDefaultPassword, getDefaultPassword };
+module.exports = {
+  retrieveUserByEmail,
+  retrieveOrCreateUser,
+  deleteUser,
+  deleteLocalProjectsAndAccounts,
+  updateDefaultPassword,
+  getDefaultPassword,
+  hashPassword,
+  verifyPassword
+};

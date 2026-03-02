@@ -1,6 +1,6 @@
 {
   "name": "care.theodi.org",
-  "version": "2.9.3",
+  "version": "2.10.0",
   "description": "The ODI Care tool (AI enabled)",
   "main": "index.js",
   "scripts": {
@@ -19,7 +19,6 @@
   "homepage": "https://github.com/theodi/care.theodi.org",
   "dependencies": {
     "@hubspot/api-client": "^11.1.0",
-    "bcrypt": "^5.1.1",
     "chartjs-to-image": "^1.2.2",
     "cors": "^2.8.5",
     "docx": "^8.5.0",
