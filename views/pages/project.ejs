@@ -68,8 +68,9 @@
             </div>
         </subsection>
     </section>
-    <section class="content-block white riskGrid">
+    <section class="riskGrid">
         <h2>Risk heatmap</h2>
+        <div class="table-scroll">
         <table class="riskHeatmap">
             <thead>
                 <tr>
@@ -100,8 +101,10 @@
                 </tr>
             </tbody>
         </table>
+        </div>
     </section>
     <h2>Risk management table</h2>
+    <div class="table-scroll">
     <table id="unintendedConsequences">
         <thead>
             <th width="21%">Consequence</th>
@@ -117,6 +120,7 @@
         <tbody id="unintendedConsequencesBody">
         </tbody>
     </table>
+    </div>
 </section>
 <div id="submitButtonContainer" class="content-block white proceed">
     <button id="downloadButton" class="btn btn-primary submitButton">Download project data</button>
@@ -140,14 +144,38 @@
         addButtonListeners(projectId);
     });
 
+    function getDownloadButtons() {
+        return [
+            document.getElementById("downloadButton"),
+            document.getElementById("downloadCSVButton"),
+            document.getElementById("downloadDOCXButton")
+        ].filter(Boolean);
+    }
+
+    function setDownloadButtonsDisabled(disabled) {
+        getDownloadButtons().forEach((btn) => {
+            btn.disabled = disabled;
+        });
+    }
+
+    let projectDownloadInProgress = false;
+
     function addButtonListeners(projectId) {
         document.getElementById("downloadButton").addEventListener("click", async () => {
+            if (projectDownloadInProgress) {
+                return;
+            }
+            projectDownloadInProgress = true;
+            setDownloadButtonsDisabled(true);
             try {
                 const response = await fetch(`/project/${projectId}`, {
                     headers: {
                         "Accept": "application/json"
                     }
                 });
+                if (!response.ok) {
+                    throw new Error(`Download failed (${response.status})`);
+                }
                 const jsonData = await response.json();
                 const jsonBlob = new Blob([JSON.stringify(jsonData,null,2)], { type: "application/json" });
                 const url = URL.createObjectURL(jsonBlob);
@@ -157,19 +185,29 @@
                 link.download = projectData.title.replace(/\s+/g, "_").trim() + ".json";
                 link.click();
 
-                // Cleanup
                 URL.revokeObjectURL(url);
             } catch (error) {
                 console.error("Error downloading project data:", error);
+            } finally {
+                projectDownloadInProgress = false;
+                setDownloadButtonsDisabled(false);
             }
         });
         document.getElementById("downloadCSVButton").addEventListener("click", async () => {
+            if (projectDownloadInProgress) {
+                return;
+            }
+            projectDownloadInProgress = true;
+            setDownloadButtonsDisabled(true);
             try {
                 const response = await fetch(`/project/${projectId}`, {
                     headers: {
                         "Accept": "text/csv"
                     }
                 });
+                if (!response.ok) {
+                    throw new Error(`Download failed (${response.status})`);
+                }
 
                 const csvData = await response.text();
                 const csvBlob = new Blob([csvData], { type: "text/csv" });
@@ -180,38 +218,48 @@
                 link.download = projectData.title.replace(/\s+/g, "_").trim() + ".csv";
                 link.click();
 
-                // Cleanup
                 URL.revokeObjectURL(url);
             } catch (error) {
                 console.error("Error downloading CSV data:", error);
+            } finally {
+                projectDownloadInProgress = false;
+                setDownloadButtonsDisabled(false);
             }
         });
         document.getElementById("downloadDOCXButton").addEventListener("click", async () => {
+            if (projectDownloadInProgress) {
+                return;
+            }
+            projectDownloadInProgress = true;
+            setDownloadButtonsDisabled(true);
             try {
-                // Show an alert to inform users about updating the table of contents
                 alert("Once the document has downloaded, you will need to update the table of contents to correct page numbering and titles.");
 
-                // Fetch the document
                 const response = await fetch(`/project/${projectId}`, {
                     headers: {
                         "Accept": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     }
                 });
+                if (!response.ok) {
+                    throw new Error(`Download failed (${response.status})`);
+                }
 
-                const blob = await response.blob(); // Get the response as a Blob
+                const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
 
                 const link = document.createElement("a");
                 link.href = url;
                 link.download = projectData.title.replace(/\s+/g, "_").trim() + ".docx";
-                document.body.appendChild(link); // Append the link to the document body
+                document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link); // Remove the link from the document body after clicking
+                document.body.removeChild(link);
 
-                // Cleanup
                 URL.revokeObjectURL(url);
             } catch (error) {
                 console.error("Error downloading DOCX data:", error);
+            } finally {
+                projectDownloadInProgress = false;
+                setDownloadButtonsDisabled(false);
             }
         });
     }

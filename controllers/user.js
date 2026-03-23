@@ -84,9 +84,13 @@ function generateRandomPassword(length) {
 
 // Schedule the task to run at 3:30 am UTC every day
 cron.schedule('30 3 * * *', async () => {
-  console.log('Running the scheduled task to delete local projects and accounts and reset password');
-  await updateDefaultPassword(generateRandomPassword(12));
-  await deleteLocalProjectsAndAccounts();
+  try {
+    console.log('Running the scheduled task to delete local projects and accounts and reset password');
+    await updateDefaultPassword(generateRandomPassword(12));
+    await deleteLocalProjectsAndAccounts();
+  } catch (err) {
+    console.error('Scheduled local-account cleanup failed:', err);
+  }
 }, {
   timezone: "UTC"
 });

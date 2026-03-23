@@ -29,7 +29,12 @@ async function getHubspotUser(userId, email) {
         const contactResponse = await hubspotClient.crm.contacts.searchApi.doSearch(contactSearchRequest);
 
         if (!contactResponse || !contactResponse.results || contactResponse.results.length === 0) {
-            throw new Error("No contact found with the provided email.");
+            await Hubspot.findOneAndUpdate(
+                { userId },
+                { $unset: { hubSpotId: "" } }
+            );
+            console.warn("No Hubspot contact found for email; cleared any stale hubSpotId:", email);
+            return;
         }
 
         const companyId = contactResponse.results[0].properties.associatedcompanyid;
@@ -105,11 +110,12 @@ async function getHubspotProfile(userId) {
         return hubspotProfile;
     } catch (error) {
         console.error("Error in getHubspotProfile:", error);
-        throw error; // Rethrow the error to be handled elsewhere
+        return null;
     }
 }
 
 async function updateToolStatistics(userId) {
+    let hubSpotId = null;
     try {
         // Get the user profile from the user table (firstLogin, lastLogin)
         const user = await User.findById(userId);
@@ -128,7 +134,7 @@ async function updateToolStatistics(userId) {
 
         // Get the hubspot profile
         const hubspotProfile = await getHubspotProfile(userId);
-        const hubSpotId = hubspotProfile ? hubspotProfile.hubSpotId : null;
+        hubSpotId = hubspotProfile ? hubspotProfile.hubSpotId : null;
 
         // Get the projects data
         const userProjects = await projectController.getUserProjects(userId);
@@ -151,11 +157,21 @@ async function updateToolStatistics(userId) {
         if (hubSpotId) {
             await hubspotClient.crm.contacts.basicApi.update(hubSpotId, patchData);
         } else {
-            console.error("Hubspot profile not found for user with ID:", userId);
+            console.warn("Hubspot profile not found for user with ID:", userId);
         }
     } catch (error) {
         console.error("Error in updateToolStatistics:", error);
-        throw error; // Rethrow the error to be handled elsewhere
+        if (error.code === 404 && hubSpotId) {
+            try {
+                await Hubspot.findOneAndUpdate(
+                    { userId },
+                    { $unset: { hubSpotId: "" } }
+                );
+                console.warn("Cleared stale hubSpotId after HubSpot 404 for user:", userId);
+            } catch (clearErr) {
+                console.warn("Could not clear stale HubSpot id:", clearErr);
+            }
+        }
     }
 }
 

@@ -8,9 +8,10 @@
     <b>Last login:</b> <%= userProfile.lastLoginFormatted %><br>
     <b>Login count:</b> <%= userProfile.loginCount %><br>
     <h2>Membership</h2>
-    <b>ODI membership status:</b> <%= userProfile.hubspot.membershipStatus %><br>
-    <b>ODI membership as part of company?:</b> <%= userProfile.hubspot.companyMembership %><br>
-    <b>ODI membership type: </b> <%= userProfile.hubspot.membershipType %> <br>
+    <% const hs = userProfile.hubspot; %>
+    <b>ODI membership status:</b> <%= hs && hs.membershipStatus != null ? hs.membershipStatus : '—' %><br>
+    <b>ODI membership as part of company?:</b> <%= hs && hs.companyMembership != null ? hs.companyMembership : '—' %><br>
+    <b>ODI membership type: </b> <%= hs && hs.membershipType != null ? hs.membershipType : '—' %> <br>
   </p>
 </section>
 

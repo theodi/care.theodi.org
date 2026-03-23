@@ -28,11 +28,16 @@ function addRiskDonut(riskCounts) {
             }]
         },
         options: {
-            aspectRatio: 2,
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'right',
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 8,
+                        font: { size: 11 },
+                    },
                 },
                 title: {
                     display: false,

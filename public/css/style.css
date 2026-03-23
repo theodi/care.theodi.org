@@ -97,7 +97,9 @@ section {
    display: none;
 }
 .main-content {
-  flex-grow: 1; /* Takes up the remaining space */
+  flex: 1 1 0%;
+  min-width: 0; /* Allow shrinking inside .flexcontainer so content can use full viewport */
+  max-width: 100%;
 }
 .infobox {
   padding: 2rem;
@@ -185,18 +187,32 @@ tbody tr:nth-child(2n) td {
 }
 .dashboard {
   display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 .dashboard-box {
-  min-width: 250px;
-  width: 300px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 100%;
+  width: auto;
   height: 250px;
   border: 1px solid var(--color-dark-blue);
-  margin-right: 1rem;
 }
 .top-risks {
-  flex: 1;
-  min-width: 500px;
+  flex: 1 1 280px;
+  min-width: 200px;
+  max-width: 100%;
+}
+/* Below this width, top risks sits on its own row so three columns are not cramped */
+@media (max-width: 1599px) {
+  .dashboard .top-risks {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
 }
 .top-risks .dashboard-chart {
   overflow-y: auto;
@@ -228,6 +244,14 @@ tbody tr:nth-child(2n) td {
 }
 .dashboard-box .dashboard-chart {
   padding: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+/* Donut + legend stay inside the Risks card */
+.dashboard-box:not(.top-risks) .dashboard-chart {
+  overflow: hidden;
 }
 .progress-bar {
   width: 100%;
@@ -567,14 +591,43 @@ a:hover {
 .flexcontainer {
   display: flex;
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .sidebar {
+  flex: 0 0 270px;
   width: 270px;
   min-width: 270px;
   max-width: 270px;
   min-height: 100vh;
   background-color: var(--color-dark-blue);
+}
+/* Final report + wide tables: stay within the main column; scroll when needed */
+.content-block.white.result {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.result > .dashboard {
+  min-width: 0;
+}
+/* Horizontal scroll for wide tables without breaking table layout */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* Nested inside .result — no second .content-block padding (keeps width aligned with dashboard) */
+.result > section.riskGrid {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+.result > section.riskGrid .table-scroll {
+  width: 100%;
 }
 .result ul {
   line-height: 2rem;

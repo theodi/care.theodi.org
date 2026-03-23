@@ -48,6 +48,14 @@ async function reloadPage() {
     moveSubmitButton();
 }
 
+window.mergeFormValuesIntoProjectData = function (values) {
+    values = populateMissingElements(schema, values);
+    for (const key in values) {
+        projectData[key] = values[key];
+    }
+    return projectData;
+};
+
 async function populateBlankArrays() {
     try {
         // Fetch the project schema
@@ -220,20 +228,18 @@ function moveSubmitButton() {
     }
 }
 
-async function sendDataToServer(inputObject) {
+async function sendDataToServer(inputObject, navigationOverride) {
   inputObject = cleanArrays(inputObject);
   console.log(inputObject);
   let url;
   let method;
   const form = document.getElementById("dataForm");
-  var projectId = form.dataset.projectId;
+  let id = form.dataset.projectId || projectId;
 
-  if (projectId) {
-    // If _id is set, use PUT to update existing data
-    url = `/project/${projectId}`;
+  if (id) {
+    url = `/project/${id}`;
     method = "PUT";
   } else {
-    // If _id is not set, use POST to create new data
     url = `/project/`;
     method = "POST";
   }
@@ -249,20 +255,25 @@ async function sendDataToServer(inputObject) {
     });
 
     if (response.ok) {
-      // Request was successful, parse the response to get the ID
       if (method == "POST") {
         const responseData = await response.json();
-        projectId = responseData._id; // Replace with the actual field name from the response
+        id = responseData._id;
+        projectId = id;
+        form.dataset.projectId = id;
+      }
+      if (navigationOverride && navigationOverride.navigateQuickNavTo) {
+        await quickNav(navigationOverride.navigateQuickNavTo);
+        return;
       }
       const nextAttributeValue = $('.submitButton').attr('next');
       const quickNavAttributeValue = $('.submitButton').attr('quickNav');
 
       if (quickNavAttributeValue === "true" && nextAttributeValue) {
-        quickNav(nextAttributeValue);
-      } else if (projectId && nextAttributeValue) {
-        window.location.href = `/project/${projectId}/${nextAttributeValue}`;
+        await quickNav(nextAttributeValue);
+      } else if (id && nextAttributeValue) {
+        window.location.href = `/project/${id}/${nextAttributeValue}`;
       } else {
-        window.location.href = `/project/${projectId}/`;
+        window.location.href = `/project/${id}/`;
       }
     } else {
         // Request failed, handle errors

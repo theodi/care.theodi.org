@@ -20,7 +20,7 @@
                 <ul class="project-menu">
                     <% pages.forEach(item => { %>
                         <li class="<%= item.completionState %>">
-                            <a href="<%= pages.find(pageItem => pageItem.link === page.link) ? '#' : `/project/${project._id}/${item.link}` %>" id="<%= item.link %>" class="<%= item.link === page.link ? 'selected' : '' %>" <% if (pages.find(pageItem => pageItem.link === page.link)) { %> onClick="quickNav('<%= item.link %>')" <% } %> >
+                            <a href="<%= pages.find(pageItem => pageItem.link === page.link) ? '#' : `/project/${project._id}/${item.link}` %>" id="<%= item.link %>" class="<%= item.link === page.link ? 'selected' : '' %>" <% if (pages.find(pageItem => pageItem.link === page.link)) { %> onclick="return scanNavigateToSection(event, '<%= item.link %>')" <% } %> >
                                 <%= item.title %>
                             </a>
                         </li>

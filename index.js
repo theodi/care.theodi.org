@@ -13,7 +13,9 @@ const mongoURI = process.env.MONGO_URI;
 const mongoDB = process.env.MONGO_DB;
 
 // Connect to MongoDB
-mongoose.connect(mongoURI, { dbName: mongoDB });
+mongoose.connect(mongoURI, { dbName: mongoDB }).catch((err) => {
+  console.error('MongoDB initial connection failed:', err);
+});
 
 const db = mongoose.connection;
 
@@ -180,8 +182,11 @@ app.get('/glossary', function(req, res) {
             if (err) {
                 res.status(500).json({ error: 'Internal Server Error' });
             } else {
-                const glossaryData = JSON.parse(data);
-                res.json(glossaryData);
+                try {
+                    res.json(JSON.parse(data));
+                } catch {
+                    res.status(500).json({ error: 'Invalid glossary data' });
+                }
             }
         });
     } else {
@@ -190,7 +195,12 @@ app.get('/glossary', function(req, res) {
             if (err) {
                 res.status(500).send('Internal Server Error');
             } else {
-                const glossaryData = JSON.parse(data);
+                let glossaryData;
+                try {
+                    glossaryData = JSON.parse(data);
+                } catch {
+                    return res.status(500).send('Internal Server Error');
+                }
                 const page = {
                   title: "Glossary",
                   link: "/glossary"
@@ -202,15 +212,19 @@ app.get('/glossary', function(req, res) {
     }
 });
 
-app.get('/profile', ensureAuthenticated, async (req, res) => {
-  res.locals.userProfile = await retrieveOrCreateUser(res.locals.user);
-  res.locals.userProfile.hubspot = await getHubspotProfile(res.locals.userProfile.id);
-  const page = {
-    title: "Profile page",
-    link: "/profile"
-  };
-  res.locals.page = page;
-  res.render('pages/profile');
+app.get('/profile', ensureAuthenticated, async (req, res, next) => {
+  try {
+    res.locals.userProfile = await retrieveOrCreateUser(res.locals.user);
+    res.locals.userProfile.hubspot = await getHubspotProfile(res.locals.userProfile.id);
+    const page = {
+      title: "Profile page",
+      link: "/profile"
+    };
+    res.locals.page = page;
+    res.render('pages/profile');
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.delete('/profile', ensureAuthenticated, async (req, res, next) => {
