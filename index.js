@@ -4,6 +4,7 @@ const fs = require('fs');
 // Load environment variables securely
 require("dotenv").config({ path: "./config.env" });
 const { checkLimit } = require('./middleware/hubspot');
+const { getAiPrivacyDisclosure } = require('./services/aiPrivacyDisclosure');
 
 // MongoDB setup
 const mongoose = require('mongoose');
@@ -168,6 +169,7 @@ app.get('/about', function(req, res) {
     link: "/about"
   };
   res.locals.page = page;
+  res.locals.aiPrivacy = getAiPrivacyDisclosure();
   res.render('pages/about');
 });
 

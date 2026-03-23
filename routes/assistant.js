@@ -5,9 +5,8 @@ const express = require('express');
 const router = express.Router();
 const Project = require('../models/project');
 
-const OpenAI = require("openai");
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+const { chatCompletion } = require('../services/aiChat');
+const { parseModelJsonResponse } = require('../services/parseAIJson');
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
 
@@ -29,9 +28,8 @@ router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProje
         const schema = require('../public/data/schemas/partials/'+messageId+'.json');
         projectData.schema = JSON.stringify(schema);
         const message = await populateMessage(messageId, projectData);;
-        const response = await getAIReponse(message);
-        // Parse the AI response JSON string
-        const parsedResponse = JSON.parse(response);
+        const response = await getAIReponse(message, messageId, schema);
+        const parsedResponse = parseModelJsonResponse(response);
 
         // Check if the messageId is "completeAssessment"
         if (messageId === "completeAssessment") {
@@ -118,12 +116,14 @@ async function populateMessage(messageId, data) {
     return populatedText;
 }
 
-async function getAIReponse(message) {
-    const completion = await openai.chat.completions.create({
-        messages: [{ role: "user", content: message }],
-        model: "gpt-4o-mini",
+async function getAIReponse(message, messageId, rawSchema) {
+    const rawClone = JSON.parse(JSON.stringify(rawSchema));
+    return chatCompletion([{ role: 'user', content: message }], {
+        structuredResponse: {
+            schemaName: `care_${messageId}`,
+            rawSchema: rawClone,
+        },
     });
-    return completion.choices[0].message.content;
 }
 
 module.exports = router;

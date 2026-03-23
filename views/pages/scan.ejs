@@ -155,10 +155,41 @@ async function quickNav(page) {
     reloadPage(); // Assuming this function is needed for other purposes
 }
 
+/**
+ * HTML date inputs only accept YYYY-MM-DD. Normalise ISO strings and trim
+ * legacy values so the picker shows the stored date instead of appearing blank.
+ */
+function normalizeActionDueDatesForHtmlDateInput(data) {
+    if (!data || !Array.isArray(data.unintendedConsequences)) return;
+    for (const uc of data.unintendedConsequences) {
+        if (!uc.action) continue;
+        let d = uc.action.date;
+        if (d == null || String(d).trim() === '') {
+            uc.action.date = '';
+            continue;
+        }
+        d = String(d).trim();
+        const dayPart = d.slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dayPart)) {
+            uc.action.date = dayPart;
+            continue;
+        }
+        const parsed = new Date(d);
+        if (!Number.isNaN(parsed.getTime())) {
+            const y = parsed.getUTCFullYear();
+            const m = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(parsed.getUTCDate()).padStart(2, '0');
+            uc.action.date = `${y}-${m}-${day}`;
+        } else {
+            uc.action.date = '';
+        }
+    }
+}
+
 async function renderForm(data) {
     document.getElementById('dataForm').innerHTML = "";
     try {
-        // Fetch the schema from "schemas/project.json"
+        normalizeActionDueDatesForHtmlDateInput(data);
 
         $('#dataForm').jsonForm({
             schema: schema,

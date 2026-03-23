@@ -27,3 +27,5 @@ Using this context suggest some stakeholders (e.g. roles, teams or organisations
  {{schema}}
 
  Return just the data, not the schema.
+
+ Output only raw JSON: no markdown code blocks (no triple-backtick fences), and no text before or after the JSON.

@@ -17,3 +17,5 @@ Your response should be in the format of undeclared JSON conforming to the follo
 {{schema}}
 
 Return just the data, not the schema.
+
+Output only raw JSON: no markdown code blocks (no triple-backtick fences), and no text before or after the JSON.

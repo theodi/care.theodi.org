@@ -11,6 +11,8 @@
       "items": [
         {
           "key": "unintendedConsequences[].consequence",
+          "type": "textarea",
+          "height": "100px",
           "fieldHtmlClass": "input inputText disabled",
           "placeholder": "Unintended consequence",
           "prepend": "<h2 class='draggable'>Unintended consequence</h2>",

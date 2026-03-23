@@ -11,6 +11,8 @@
             "items": [
             {
                 "key": "intendedConsequences[].consequence",
+                "type": "textarea",
+                "height": "100px",
                 "fieldHtmlClass": "input inputText",
                 "placeholder": "Intended consequence",
                 "prepend": "<h2 class='draggable'>Intended consequence</h2>",
