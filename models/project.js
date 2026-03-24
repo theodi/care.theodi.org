@@ -92,7 +92,15 @@ const projectSchema = new mongoose.Schema({
         low: {
             type: Number
         }
-    }
+    },
+    organisationSubscriptionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'OrganisationSubscription',
+    },
+    sharedWithOrganisation: {
+        type: Boolean,
+        default: false,
+    },
 }, {
     collection: 'Projects' // Specify the collection name
 });

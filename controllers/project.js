@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Project = require('../models/project');
 const User = require('../models/user'); // Import the User model
+const { findActiveMembershipsForEmail } = require('../lib/organisationEntitlements');
 
 async function getUserProjects(userId) {
     try {
@@ -26,6 +27,19 @@ async function getUserProjects(userId) {
         // Find all projects shared with the user
         const sharedProjects = await Project.find({ "sharedWith.user": userEmail });
 
+        const activeMemberships = await findActiveMembershipsForEmail(userEmail);
+        const subscriptionIds = activeMemberships
+            .map((m) => m.subscriptionId && m.subscriptionId._id)
+            .filter(Boolean);
+        let organisationProjectDocs = [];
+        if (subscriptionIds.length > 0) {
+            organisationProjectDocs = await Project.find({
+                sharedWithOrganisation: true,
+                organisationSubscriptionId: { $in: subscriptionIds },
+                owner: { $ne: userIdObjectId },
+            });
+        }
+
         const schemaPath = `../public/data/schemas/project.json`;
         const schema = require(schemaPath);
 
@@ -43,15 +57,32 @@ async function getUserProjects(userId) {
         });
         const filteredSharedProjects = await Promise.all(sharedProjectsPromises);
 
+        const organisationProjectsPromises = organisationProjectDocs.map(async (project) => {
+            const owner = await User.findById(project.owner);
+            const status = await getCompletionState(project._id, schema);
+            return {
+                id: project._id,
+                title: project.title,
+                owner: owner ? owner.name : 'Unknown',
+                lastModified: project.lastModified,
+                status,
+                organisation: true,
+            };
+        });
+        const organisationProjects = await Promise.all(organisationProjectsPromises);
+
         const ownedProjectsPromises = ownedProjects.map(async project => {
             const status = await getCompletionState(project._id,schema);
+            const sharedWith = project.sharedWith || [];
             return {
                 id: project._id,
                 title: project.title,
                 owner: project.owner,
                 lastModified: project.lastModified,
                 riskCounts: project.riskCounts,
-                status: status
+                status: status,
+                sharedWithOrganisation: !!project.sharedWithOrganisation,
+                sharedWithCount: sharedWith.length,
             };
         });
         const ownedProjectsStatus = await Promise.all(ownedProjectsPromises);
@@ -65,7 +96,8 @@ async function getUserProjects(userId) {
                 averages: metrics.averages,
                 topRisks: metrics.topRisks
             },
-            sharedProjects: filteredSharedProjects
+            sharedProjects: filteredSharedProjects,
+            organisationProjects,
         };
     } catch (error) {
         throw error; // Propagate the error to the caller

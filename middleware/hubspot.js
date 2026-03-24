@@ -1,5 +1,6 @@
 const Hubspot = require('../models/hubspot');
 const Project = require('../models/project');
+const { userHasActiveOrgEntitlementByEmail } = require('../lib/organisationEntitlements');
 
 const checkLimit = async (req, res, next) => {
     try {
@@ -10,6 +11,10 @@ const checkLimit = async (req, res, next) => {
         const hubspotUser = await Hubspot.findOne({ userId });
         if (hubspotUser && hubspotUser.membershipStatus === "Active") {
             // If membershipStatus is active, proceed to the next middleware or route handler
+            return next();
+        }
+
+        if (user.email && (await userHasActiveOrgEntitlementByEmail(user.email))) {
             return next();
         }
 

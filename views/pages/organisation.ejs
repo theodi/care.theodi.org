@@ -1,0 +1,124 @@
+<%- include('../partials/header') %>
+<div class="main-content">
+  <section class="page-title container white">
+    <h1 style="text-align: center;"><%= page.title %></h1>
+    <input type="hidden" value="<%= page.link %>" id="pageId"/>
+  </section>
+
+  <% if (!organisation) { %>
+  <div class="content-block white">
+    <p>You are not part of an organisation subscription, or your subscription is not active. Contact your organisation admin or ODI if you believe this is wrong.</p>
+    <p><a href="/projects">Back to evaluations</a></p>
+  </div>
+  <% } else { %>
+  <% var orgAdminCount = organisation.members.filter(function(m) { return m.role === 'admin'; }).length; %>
+  <div class="content-block white">
+    <h2><%= organisation.subscription.organisationName %></h2>
+    <p>
+      Domain: <strong>@<%= organisation.subscription.emailDomain %></strong><br/>
+      Plan: <strong><%= organisation.subscription.planTier %></strong><br/>
+      Seats: <strong><%= organisation.subscription.seatUsed %> / <%= organisation.subscription.seatLimit %></strong><br/>
+      Subscription: <strong><%= organisation.subscription.subscriptionActive ? 'Active' : 'Expired' %></strong>
+      (until <%= new Date(organisation.subscription.endDate).toLocaleDateString() %>)
+    </p>
+    <div id="orgMessage" class="alert" style="display:none;"></div>
+
+    <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
+    <h3>Add admin or member</h3>
+    <p>Work email on your organisation domain. No CARE account required until they sign in. You must keep at least one admin.</p>
+    <form id="addMemberForm" class="org-add-member-form">
+      <label class="org-add-member-form__email"><span class="org-add-member-form__label-text">Email</span> <input type="email" name="email" required class="input inputText" placeholder="name@<%= organisation.subscription.emailDomain %>"/></label>
+      <label class="org-add-member-form__role"><span class="org-add-member-form__label-text">Role</span>
+        <select name="membershipRole" id="addMemberMembershipRole" class="input inputText" required>
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary">Add</button>
+    </form>
+    <% } %>
+  </div>
+
+  <div class="content-block light-blue">
+    <h2>Members</h2>
+    <table class="display" style="width:100%" id="membersTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>CARE account</th>
+          <th>Role</th>
+          <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %><th></th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% organisation.members.forEach(function(m) { %>
+        <tr data-membership-id="<%= m.membershipId %>">
+          <td><%= m.name || '—' %></td>
+          <td><%= m.email %></td>
+          <td><%= m.hasAccount ? 'Yes' : 'Not yet' %></td>
+          <td><%= m.role %></td>
+          <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
+          <td>
+            <% var canRemove = (m.role !== 'admin') || (orgAdminCount > 1); %>
+            <% if (canRemove) { %>
+            <button type="button" class="removeMemberBtn" data-membership-id="<%= m.membershipId %>">Remove</button>
+            <% } else { %>
+            —
+            <% } %>
+          </td>
+          <% } %>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+<% if (organisation && organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
+<script>
+document.getElementById('addMemberForm').addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  const msg = document.getElementById('orgMessage');
+  const form = ev.target;
+  const email = form.elements.email.value.trim();
+  const membershipRole = form.elements.membershipRole.value;
+  msg.style.display = 'none';
+  fetch('/organisation/members', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, membershipRole }),
+  }).then(function (res) {
+    return res.json().then(function (data) {
+      if (!res.ok) throw new Error(data.message || res.statusText);
+      window.location.reload();
+    });
+  }).catch(function (e) {
+    msg.style.display = 'block';
+    msg.textContent = e.message;
+    msg.style.color = '#c00';
+  });
+});
+document.querySelectorAll('.removeMemberBtn').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    const id = btn.getAttribute('data-membership-id');
+    if (!confirm('Remove this member from the organisation?')) return;
+    const msg = document.getElementById('orgMessage');
+    msg.style.display = 'none';
+    fetch('/organisation/members/' + encodeURIComponent(id), { method: 'DELETE', headers: { Accept: 'application/json' } })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.message || res.statusText);
+          window.location.reload();
+        });
+      })
+      .catch(function (e) {
+        msg.style.display = 'block';
+        msg.textContent = e.message;
+        msg.style.color = '#c00';
+      });
+  });
+});
+</script>
+<% } %>
+<%- include('../partials/footer') %>

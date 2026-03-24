@@ -32,7 +32,12 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('./passport'); // Require the passport module
 const authRoutes = require('./routes/auth'); // Require the authentication routes module
+const subscriptionRoutes = require('./routes/subscriptions');
+const organisationRoutes = require('./routes/organisation');
 const projectRoutes = require('./routes/project'); // Require the project routes module
+const { isCareStaffEmail } = require('./middleware/careStaff');
+const { userHasActiveOrgEntitlementByEmail, getUserOrganisationMetaByEmail } = require('./lib/organisationEntitlements');
+const { formatApiError } = require('./lib/formatApiError');
 const assistantRoutes = require('./routes/assistant'); // Require the project routes module
 const { loadProject } = require('./middleware/project');
 const { deleteUser, retrieveOrCreateUser } = require('./controllers/user'); // Import necessary functions from controllers
@@ -66,6 +71,21 @@ app.use(passport.session());
 
 app.use(function(req, res, next) {
   res.locals.user = req.session.passport ? req.session.passport.user : req.session.user;
+  next();
+});
+
+app.use(async function(req, res, next) {
+  const u = res.locals.user;
+  res.locals.isCareStaff = isCareStaffEmail(u && u.email);
+  if (u && u.id && req.isAuthenticated()) {
+    try {
+      res.locals.hasOrganisationMembership = await userHasActiveOrgEntitlementByEmail(u.email);
+    } catch (e) {
+      res.locals.hasOrganisationMembership = false;
+    }
+  } else {
+    res.locals.hasOrganisationMembership = false;
+  }
   next();
 });
 
@@ -129,6 +149,9 @@ app.use('/auth', authRoutes);
 app.get('/admin', function(req,res) {
   res.redirect('/auth/google');
 });
+
+app.use('/subscriptions', subscriptionRoutes);
+app.use('/organisation', organisationRoutes);
 
 app.use(loadProject);
 
@@ -262,7 +285,9 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
         if (acceptHeader === 'application/json') {
             // Fetch user projects and send JSON response
             const userProjects = await projectController.getUserProjects(userId);
-            res.json(userProjects);
+            const userEmail = req.session.passport.user.email;
+            const organisationMeta = await getUserOrganisationMetaByEmail(userEmail);
+            res.json({ ...userProjects, organisationMeta });
         } else {
             if (req.session.authMethod !== 'local') {
               updateToolStatistics(req.session.passport.user.id);
@@ -326,32 +351,25 @@ app.get('*', function(req, res, next){
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  // Default status code for unhandled errors
-  let statusCode = 500;
-  let errorMessage = "Internal Server Error";
-  // Check if the error has a specific status code and message
-  if (err.status) {
-      statusCode = err.status;
-      errorMessage = err.message;
+  const { statusCode, body } = formatApiError(err);
+  if (statusCode >= 500) {
+    console.error('[http error]', req.method, req.originalUrl, err.message);
+    if (err.stack) console.error(err.stack);
   }
   const page = {
     title: "Error"
   };
   res.locals.page = page;
 
-  // Log the error stack trace
-  //console.error(err.stack);
+  const acceptHeader = req.get('Accept') || '';
+  const wantsJson = acceptHeader.includes('application/json');
 
-  // Content negotiation based on request Accept header
-  const acceptHeader = req.get('Accept');
-
-  if (acceptHeader === 'application/json') {
-      // Respond with JSON
-      res.status(statusCode).json({ message: errorMessage });
-  } else {
-      // Respond with HTML (rendering an error page)
-      res.status(statusCode).render('errors/error', { statusCode, errorMessage });
+  if (wantsJson) {
+    return res.status(statusCode).json(body);
   }
+  const errorMessage =
+    typeof body.message === 'string' ? body.message : 'Internal Server Error';
+  return res.status(statusCode).render('errors/error', { statusCode, errorMessage });
 });
 
 // Start server

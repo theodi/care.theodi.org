@@ -5,30 +5,72 @@
 <link href="/lib/DataTables/datatables.min.css" rel="stylesheet">
 <script src="/lib/DataTables/datatables.min.js"></script>
 
-<!-- Share Overlay -->
-<div id="shareOverlay" class="overlay">
-    <div class="overlay-content">
-        <span class="close-btn" onclick="closeShareOverlay()">&times;</span>
-        <div class="share-section">
-            <h2>New share</h2>
-            <form id="shareForm">
-                <label for="email">Please enter the email you wish to share this project with</label>
-                <input type="email" id="email" name="email" class="input inputText">
-                <button type="submit">Share</button>
-            </form>
-        </div>
-        <div class="share-section">
-            <h2>Current shares</h2>
-            <table id="sharedEmailsTable" class="display" style="width:100%">
-                <thead>
-                    <th>Email</th>
-                    <th>Action</th>
-                </thead>
-                <tbody id="sharedEmailsBody"></tbody>
-            </table>
+<!-- Share Overlay (Drive-style: org access first, then people, then add row) -->
+<div id="shareOverlay" class="overlay"<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %> data-has-org="1"<% } %>>
+    <div class="overlay-content share-overlay-panel">
+        <span class="close-btn" onclick="closeShareOverlay()" aria-label="Close">&times;</span>
+        <h2 class="share-overlay-title">Share evaluation</h2>
+        <p class="share-overlay-lead small">Invite people by email or share with your whole organisation. Everyone with access can edit this evaluation.</p>
+        <div id="shareOverlayMessage" class="alert share-overlay-message" style="display:none;" role="status"></div>
+        <table class="share-access-table">
+            <thead>
+                <tr>
+                    <th scope="col">Who has access</th>
+                    <th scope="col" class="share-access-col-action" aria-label="Actions"></th>
+                </tr>
+            </thead>
+            <% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
+            <tbody id="shareAccessOrgTbody">
+                <tr class="share-access-row share-access-row--org">
+                    <td>
+                        <div class="share-access-who">
+                            <span class="share-access-avatar share-access-avatar--org" aria-hidden="true">Org</span>
+                            <div>
+                                <div class="share-access-primary">Everyone in your organisation</div>
+                                <p id="shareOrgOrganisationName" class="share-access-hint small share-access-org-name">&nbsp;</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="share-access-col-action share-access-col-action--toggle">
+                        <label class="share-access-toggle" for="orgShareCheckbox">
+                            <input type="checkbox" id="orgShareCheckbox" class="visually-hidden" aria-describedby="orgShareHint"/>
+                            <span class="share-access-toggle-ui" aria-hidden="true"></span>
+                            <span class="share-access-toggle-text" id="orgShareToggleText">Off</span>
+                        </label>
+                        <span id="orgShareHint" class="visually-hidden">Toggle sharing with all organisation members</span>
+                    </td>
+                </tr>
+            </tbody>
+            <% } %>
+            <tbody id="shareAccessPeopleTbody">
+                <tr class="share-access-subhead-row" id="shareAccessPeopleSubhead">
+                    <td colspan="2">People you’ve shared with</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="share-access-add">
+            <input type="email" id="shareInviteEmail" class="input inputText" placeholder="Add people by email…" autocomplete="email" aria-label="Email address to invite"/>
+            <button type="button" class="btn btn-primary" id="shareAddPersonBtn">Add</button>
         </div>
     </div>
 </div>
+<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
+<div id="transferOwnerOverlay" class="overlay">
+    <div class="overlay-content">
+        <span class="close-btn" onclick="closeTransferOwnerOverlay()">&times;</span>
+        <h2>Transfer ownership</h2>
+        <p class="small">The new owner must be listed on your organisation and must already have a CARE account (evaluations are always owned by a user id).</p>
+        <input type="hidden" id="transferProjectId" value=""/>
+        <label for="transferOwnerSelect">New owner</label>
+        <select id="transferOwnerSelect" class="input inputText" style="width:100%; max-width: 28rem;"></select>
+        <p style="margin-top: 1rem;">
+            <button type="button" class="btn btn-primary" id="transferOwnerSubmit">Transfer</button>
+            <button type="button" class="transparent" onclick="closeTransferOwnerOverlay()">Cancel</button>
+        </p>
+        <div id="transferOwnerMessage" class="alert" style="display:none;"></div>
+    </div>
+</div>
+<% } %>
 <div class="main-content">
     <section class="page-title container white">
         <h1 style="text-align: center;"><%= page.title %></h1>
@@ -98,9 +140,125 @@
     <h2>Evaluations shared with me</h2>
     <table id="sharedProjectsTable" class="display" style="width:100%"></table>
 </div>
+<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
+<div class="content-block white">
+    <h2>Organisation evaluations</h2>
+    <p class="small">Evaluations other members have shared with the organisation.</p>
+    <table id="organisationProjectsTable" class="display" style="width:100%"></table>
+</div>
+<% } %>
 </div>
 
 <script>
+
+var organisationMetaGlobal = {};
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/** Open completed output vs project details for in-progress / todo. */
+function evalProjectAssessmentHref(row) {
+    var id = String(row.id != null ? row.id : '');
+    if (!id) return '#';
+    if (row.status === 'done') {
+        return '/project/' + id + '/';
+    }
+    return '/project/' + id + '/projectDetails';
+}
+
+function renderEvalTitleCell(data, type, row) {
+    if (type === 'sort' || type === 'filter' || type === 'type') {
+        return data == null ? '' : String(data);
+    }
+    var label = data == null || String(data).trim() === '' ? 'Untitled evaluation' : String(data);
+    var href = evalProjectAssessmentHref(row);
+    return (
+        '<a class="eval-title-link" href="' +
+        href +
+        '">' +
+        escapeHtml(label) +
+        '</a>'
+    );
+}
+
+function shareOverlayProjectId() {
+    return $('#shareOverlay').attr('data-projectid');
+}
+
+function showShareOverlayMessage(text, isError) {
+    var el = document.getElementById('shareOverlayMessage');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#b00020' : '';
+}
+
+function clearShareOverlayMessage() {
+    var el = document.getElementById('shareOverlayMessage');
+    if (!el) return;
+    el.style.display = 'none';
+    el.textContent = '';
+}
+
+function updateOrgShareToggleLabel() {
+    var cb = document.getElementById('orgShareCheckbox');
+    var label = document.getElementById('orgShareToggleText');
+    if (!cb || !label) return;
+    label.textContent = cb.checked ? 'On' : 'Off';
+}
+
+function getSharedUsers(projectId) {
+    return fetch('/project/' + projectId + '/sharedUsers', { headers: { Accept: 'application/json' } })
+        .then(function (response) {
+            return response.json();
+        })
+        .catch(function (error) {
+            console.error('Error fetching shared users:', error);
+        });
+}
+
+function renderSharedUsers(sharedUsers) {
+    var $tb = $('#shareAccessPeopleTbody');
+    if (!$tb.length) return;
+    $tb.find('.share-access-person-row, .share-access-empty-row').remove();
+    var list = sharedUsers && sharedUsers.sharedUsers ? sharedUsers.sharedUsers : [];
+    if (list.length === 0) {
+        $tb.append(
+            $(
+                '<tr class="share-access-empty-row"><td colspan="2"><span class="small share-access-muted">No individual invites yet. Add an email below.</span></td></tr>'
+            )
+        );
+        return;
+    }
+    list.forEach(function (email) {
+        var initials = String(email)
+            .trim()
+            .charAt(0)
+            .toUpperCase();
+        if (!initials) initials = '?';
+        var $tr = $('<tr class="share-access-person-row"></tr>');
+        var $whoTd = $('<td></td>');
+        var $who = $('<div class="share-access-who"></div>');
+        $who.append(
+            $('<span class="share-access-avatar" aria-hidden="true"></span>').text(initials)
+        );
+        var $inner = $('<div></div>');
+        $inner.append($('<div class="share-access-primary"></div>').text(email));
+        $who.append($inner);
+        $whoTd.append($who);
+        var $btn = $('<button type="button" class="btn btn-primary share-access-remove"></button>')
+            .text('Remove')
+            .data('email', email);
+        var $actTd = $('<td class="share-access-col-action"></td>').append($btn);
+        $tr.append($whoTd, $actTd);
+        $tb.append($tr);
+    });
+}
 
 $(document).ready(function () {
     // Fetch projects data from server
@@ -111,8 +269,18 @@ $(document).ready(function () {
     })
     .then(response => response.json())
     .then(data => {
+        organisationMetaGlobal = data.organisationMeta || {};
+        var orgNameEl = document.getElementById('shareOrgOrganisationName');
+        if (orgNameEl) {
+            orgNameEl.textContent =
+                organisationMetaGlobal.organisationName ||
+                'Your organisation';
+        }
         renderMyProjects(data.ownedProjects.projects);
         renderSharedProjects(data.sharedProjects);
+        if (typeof renderOrganisationProjects === 'function') {
+            renderOrganisationProjects(data.organisationProjects || [], organisationMetaGlobal);
+        }
         addRiskDonut(data.ownedProjects.riskCounts);
         addAverages(data.ownedProjects.averages);
         addTopRisks(data.ownedProjects.topRisks);
@@ -129,28 +297,20 @@ function renderMyProjects(data) {
             }
         },
         columns: [
-            { data: 'title', title: 'Title', defaultContent: '' },
             {
-                data: 'status',
-                title: 'Status',
-                width: '12%',
-                render: function(data, type, row) {
-                    if (data == "done") {
-                        return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
-                    }
-                    if (data == "inProgress") {
-                        return "In progress";
-                    }
-                    if (data == "todo") {
-                        return "To do";
-                    }
-                    return "Unknown"
+                data: 'title',
+                title: 'Title',
+                defaultContent: '',
+                className: 'eval-title-col',
+                render: function (data, type, row) {
+                    return renderEvalTitleCell(data, type, row);
                 }
             },
             {
                 data: 'riskCounts',
                 title: 'Risk counts',
-                width: '12%',
+                width: '11rem',
+                className: 'eval-risk-col',
                 render: function(data, type, row) {
                     return "High: " + data["high"] + "<br/>" + "Medium: " + data["medium"] + "<br/>" + "Low: " + data["low"] + "<br/>" + "Unclassified: " + data["unclassified"] + "<br/>"
                 }
@@ -158,7 +318,8 @@ function renderMyProjects(data) {
             {
                 data: 'lastModified',
                 title: 'Last modified',
-                width: '12%',
+                width: '9.5rem',
+                className: 'eval-modified-col',
                 render: function(data, type, row) {
                     // Parse the date string into a Date object
                     var date = new Date(data);
@@ -167,29 +328,99 @@ function renderMyProjects(data) {
                 }
             },
             {
-                title: 'Actions',
+                data: 'status',
+                title: 'Status',
+                width: '6.5rem',
+                className: 'eval-status-col',
+                render: function(data, type, row) {
+                    if (data == "done") {
+                        return '<span class="eval-status-label">Complete</span>';
+                    }
+                    if (data == "inProgress") {
+                        return '<span class="eval-status-label">In progress</span>';
+                    }
+                    if (data == "todo") {
+                        return '<span class="eval-status-label">To do</span>';
+                    }
+                    return '<span class="eval-status-label">Unknown</span>';
+                }
+            },
+            {
+                data: null,
+                title: 'Sharing',
+                orderable: false,
+                searchable: false,
+                width: '6.75rem',
+                className: 'eval-shares-col',
                 render: function (data, type, row) {
-                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
-                           '<button class="shareBtn" data-id="' + row.id + '">Share</button>' +
-                           '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
+                    if (type === 'sort' || type === 'filter' || type === 'type') {
+                        return '';
+                    }
+                    var pid = String(row.id != null ? row.id : '');
+                    var n = parseInt(row.sharedWithCount, 10) || 0;
+                    var hasPeople = n > 0;
+                    var hasOrg = !!row.sharedWithOrganisation;
+                    var hasAny = hasOrg || hasPeople;
+                    var buildingSvg =
+                        '<svg class="eval-share-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12h12"/><path d="M6 16h12"/><path d="M10 6h4"/><path d="M10 22v-4h4v4"/></svg>';
+                    var personSvg =
+                        '<svg class="eval-share-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+                    if (!hasAny) {
+                        return (
+                            '<button type="button" class="btn btn-primary eval-share-open" data-id="' +
+                            pid +
+                            '">Share</button>'
+                        );
+                    }
+                    var parts = [];
+                    if (hasOrg) {
+                        parts.push(
+                            '<span class="eval-share-stack">' +
+                                '<span class="eval-share-icon-wrap">' +
+                                buildingSvg +
+                                '</span>' +
+                                '<span class="eval-share-below" aria-hidden="true">1</span>' +
+                                '</span>'
+                        );
+                    }
+                    if (hasPeople) {
+                        parts.push(
+                            '<span class="eval-share-stack">' +
+                                '<span class="eval-share-icon-wrap">' +
+                                personSvg +
+                                '</span>' +
+                                '<span class="eval-share-below" aria-hidden="true">' +
+                                n +
+                                '</span>' +
+                                '</span>'
+                        );
+                    }
+                    return (
+                        '<button type="button" class="eval-share-open eval-share-open--icons" data-id="' +
+                        pid +
+                        '" title="Edit sharing" aria-label="Edit sharing">' +
+                        '<span class="eval-share-icons">' +
+                        parts.join('') +
+                        '</span></button>'
+                    );
+                }
+            },
+            {
+                title: 'Actions',
+                width: '10rem',
+                className: 'eval-actions-col',
+                orderable: false,
+                searchable: false,
+                render: function (data, type, row) {
+                    return '<button type="button" class="deleteBtn" data-id="' + row.id + '">Delete</button>';
                 }
             }
         ],
-        order: [[0, 'asc']], // Sort by title ascending by default
+        order: [[0, 'asc']], // Title
         dom: 'Bfrtip', // Show buttons for export
         buttons: [
             //'copy', 'csv', 'excel', 'pdf', 'print'
         ]
-    });
-
-    $('#myProjectsTable').on('click', '.editBtn', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/projectDetails";
-    });
-
-    $('#myProjectsTable').on('click', '.viewOutput', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/";
     });
 
     $('#myProjectsTable').on('click', '.deleteBtn', function () {
@@ -218,105 +449,265 @@ function renderMyProjects(data) {
             });
         }
     });
-    $('#myProjectsTable').on('click', '.shareBtn', function () {
+    $('#myProjectsTable').on('click', '.eval-share-open', function () {
         var id = $(this).data('id');
-        console.log(id);
         openShareOverlay();
-        document.getElementById("shareOverlay").setAttribute('data-projectid',id);
+        $('#shareOverlay').attr('data-projectid', id);
+        $('#shareInviteEmail').val('');
+        clearShareOverlayMessage();
 
-        // Get shared users of the project
-        getSharedUsers(id)
-            .then(sharedUsers => {
+        getSharedUsers(id).then(function (sharedUsers) {
+            renderSharedUsers(sharedUsers);
+        });
+        var cb = document.getElementById('orgShareCheckbox');
+        if (cb) {
+            fetch('/project/' + id, { headers: { Accept: 'application/json' } })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (proj) {
+                    cb.checked = !!(proj && proj.sharedWithOrganisation);
+                    updateOrgShareToggleLabel();
+                })
+                .catch(function () {
+                    cb.checked = false;
+                    updateOrgShareToggleLabel();
+                });
+        }
+    });
+
+    $('#shareAddPersonBtn').on('click', function () {
+        var email = ($('#shareInviteEmail').val() || '').trim();
+        var projectId = shareOverlayProjectId();
+        clearShareOverlayMessage();
+        if (!projectId) return;
+        if (!email) {
+            showShareOverlayMessage('Enter an email address.', true);
+            return;
+        }
+        fetch('/project/' + projectId + '/sharedUsers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ email })
+        })
+            .then(function (response) {
+                if (response.ok) return response.json();
+                return response.json().then(function (d) {
+                    throw new Error(d.message || 'Could not add this person');
+                });
+            })
+            .then(function () {
+                $('#shareInviteEmail').val('');
+                return getSharedUsers(projectId);
+            })
+            .then(function (sharedUsers) {
                 renderSharedUsers(sharedUsers);
+            })
+            .catch(function (e) {
+                showShareOverlayMessage(e.message || String(e), true);
             });
     });
 
-    $('#sharedEmailsTable').DataTable({
-        order: [[0, 'asc']], // Sort by title ascending by default
-        dom: 'Bfrtip', // Show buttons for export
-        buttons: [
-            //'copy', 'csv', 'excel', 'pdf', 'print'
-        ]
-    });
-    // Add event listener for share form submission
-    $('#shareForm').on('submit', function (event) {
-        event.preventDefault();
-        const email = $('#email').val();
-        const projectId = $(this).closest('.overlay').data('projectid');
-
-        // Call API to add share with email
-        fetch(`/project/${projectId}/sharedUsers`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email })
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Failed to add shared user');
-        })
-        .then(() => {
-            // Refresh shared users after adding
-            getSharedUsers(projectId)
-                .then(sharedUsers => {
-                    renderSharedUsers(sharedUsers);
+    $('#shareOverlay').on('click', '.share-access-remove', function () {
+        var email = $(this).data('email');
+        var projectId = shareOverlayProjectId();
+        clearShareOverlayMessage();
+        if (!projectId || !email) return;
+        fetch('/project/' + projectId + '/sharedUsers/' + encodeURIComponent(email), { method: 'DELETE' })
+            .then(function (response) {
+                if (response.ok) return response.json();
+                return response.json().then(function (d) {
+                    throw new Error(d.message || 'Could not remove access');
                 });
-        })
-        .catch(error => console.error("Error adding shared user:", error));
+            })
+            .then(function () {
+                return getSharedUsers(projectId);
+            })
+            .then(function (sharedUsers) {
+                renderSharedUsers(sharedUsers);
+            })
+            .catch(function (e) {
+                showShareOverlayMessage(e.message || String(e), true);
+            });
     });
 
-    // Add event listener for deleting shared email
-    $('#sharedEmailsBody').on('click', 'button.deleteBtn', function () {
-        const email = $(this).data('email');
-        const projectId = $(this).closest('.overlay').data('projectid');
-
-        // Call API to delete share with email
-        fetch(`/project/${projectId}/sharedUsers/${email}`, {
-            method: 'DELETE'
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Failed to delete shared user');
-        })
-        .then(() => {
-            // Refresh shared users after deleting
-            getSharedUsers(projectId)
-                .then(sharedUsers => {
-                    renderSharedUsers(sharedUsers);
-                });
-        })
-        .catch(error => console.error("Error deleting shared user:", error));
+    $('#shareInviteEmail').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $('#shareAddPersonBtn').trigger('click');
+        }
     });
 }
+
+function renderOrganisationProjects(data, organisationMeta) {
+    var orgTable = $('#organisationProjectsTable');
+    if (!orgTable.length) return;
+    if ($.fn.DataTable.isDataTable('#organisationProjectsTable')) {
+        orgTable.DataTable().destroy();
+    }
+    var cols = [
+        {
+            data: 'title',
+            title: 'Title',
+            defaultContent: '',
+            render: function (data, type, row) {
+                return renderEvalTitleCell(data, type, row);
+            }
+        },
+        {
+            data: 'status',
+            title: 'Status',
+            width: '12%',
+            className: 'eval-status-col',
+            render: function(data, type, row) {
+                if (data == "done") return '<span class="eval-status-label">Complete</span>';
+                if (data == "inProgress") return '<span class="eval-status-label">In progress</span>';
+                if (data == "todo") return '<span class="eval-status-label">To do</span>';
+                return '<span class="eval-status-label">Unknown</span>';
+            }
+        },
+        { data: 'owner', title: 'Owner', defaultContent: '' ,width: '12%' },
+        {
+            data: 'lastModified',
+            title: 'Last modified',
+            width: '12%',
+            render: function(data, type, row) {
+                return new Date(data).toLocaleString();
+            }
+        }
+    ];
+    if (organisationMeta && organisationMeta.isAdmin) {
+        cols.push({
+            title: 'Actions',
+            width: '11rem',
+            className: 'eval-actions-col',
+            render: function (data, type, row) {
+                return '<button type="button" class="transferOwnerOpenBtn" data-id="' + row.id + '">Transfer ownership</button>';
+            }
+        });
+    }
+    orgTable.DataTable({
+        data: data,
+        columns: cols,
+        order: [[0, 'asc']],
+        dom: 'Bfrtip',
+        buttons: []
+    });
+    orgTable.off('click', 'tbody .transferOwnerOpenBtn');
+    orgTable.on('click', 'tbody .transferOwnerOpenBtn', function () {
+        var pid = $(this).data('id');
+        var pidEl = document.getElementById('transferProjectId');
+        var overlayEl = document.getElementById('transferOwnerOverlay');
+        if (!pidEl || !overlayEl) return;
+        pidEl.value = pid;
+        var tmsg = document.getElementById('transferOwnerMessage');
+        if (tmsg) tmsg.style.display = 'none';
+        fetch('/organisation', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (ctx) {
+                var sel = document.getElementById('transferOwnerSelect');
+                if (!sel) return;
+                sel.innerHTML = '';
+                var ph = document.createElement('option');
+                ph.value = '';
+                ph.textContent = 'Choose new owner…';
+                ph.disabled = true;
+                ph.selected = true;
+                sel.appendChild(ph);
+                (ctx.members || []).forEach(function (m) {
+                    var opt = document.createElement('option');
+                    opt.value = m.email;
+                    opt.textContent = (m.name || m.email) + ' <' + m.email + '>' +
+                        (m.hasAccount ? '' : ' (needs CARE account to own)');
+                    opt.disabled = !m.hasAccount;
+                    sel.appendChild(opt);
+                });
+                overlayEl.style.display = 'block';
+            })
+            .catch(function (e) { alert(e.message || String(e)); });
+    });
+}
+
+$(document).on('click', '#transferOwnerSubmit', function () {
+    var pidEl = document.getElementById('transferProjectId');
+    if (!pidEl) return;
+    var pid = pidEl.value;
+    var sel = document.getElementById('transferOwnerSelect');
+    var email = sel ? sel.value : '';
+    var msg = document.getElementById('transferOwnerMessage');
+    if (msg) msg.style.display = 'none';
+    if (!email) {
+        if (msg) {
+            msg.style.display = 'block';
+            msg.textContent = 'Choose a member who already has a CARE account.';
+            msg.style.color = '#c00';
+        }
+        return;
+    }
+    fetch('/project/' + pid + '/owner', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ ownerEmail: email })
+    }).then(function (res) {
+        return res.json().then(function (d) {
+            if (!res.ok) throw new Error(d.message || 'Transfer failed');
+            closeTransferOwnerOverlay();
+            return fetch('/projects', { headers: { 'Accept': 'application/json' } });
+        });
+    }).then(function (r) {
+        if (!r || !r.ok) return;
+        return r.json();
+    }).then(function (data) {
+        if (!data) return;
+        if ($.fn.DataTable.isDataTable('#organisationProjectsTable')) {
+            $('#organisationProjectsTable').DataTable().destroy();
+        }
+        renderOrganisationProjects(data.organisationProjects || [], data.organisationMeta || {});
+        if ($.fn.DataTable.isDataTable('#myProjectsTable')) {
+            $('#myProjectsTable').DataTable().ajax.reload(null, false);
+        }
+    }).catch(function (e) {
+        if (msg) {
+            msg.style.display = 'block';
+            msg.textContent = e.message;
+            msg.style.color = '#c00';
+        } else {
+            alert(e.message || String(e));
+        }
+    });
+});
 
 function renderSharedProjects(data) {
     $('#sharedProjectsTable').DataTable({
         data: data,
         columns: [
-            { data: 'title', title: 'Title', defaultContent: '' },
+            {
+                data: 'title',
+                title: 'Title',
+                defaultContent: '',
+                render: function (data, type, row) {
+                    return renderEvalTitleCell(data, type, row);
+                }
+            },
             {
                 data: 'status',
                 title: 'Status',
                 width: '12%',
+                className: 'eval-status-col',
                 render: function(data, type, row) {
                     if (data == "done") {
-                        return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
+                        return '<span class="eval-status-label">Complete</span>';
                     }
                     if (data == "inProgress") {
-                        return "In progress";
+                        return '<span class="eval-status-label">In progress</span>';
                     }
                     if (data == "todo") {
-                        return "To do";
+                        return '<span class="eval-status-label">To do</span>';
                     }
-                    return "Unknown"
+                    return '<span class="eval-status-label">Unknown</span>';
                 }
             },
-            { data: 'owner', title: 'Owner', defaultContent: '' },
+            { data: 'owner', title: 'Owner', defaultContent: '', width: '12%' },
             {
                 data: 'lastModified',
                 title: 'Last modified',
@@ -327,12 +718,6 @@ function renderSharedProjects(data) {
                     // Format the date nicely (e.g., "April 18, 2024 14:36:41")
                     return date.toLocaleString();
                 }
-            },
-            {
-                title: 'Actions',
-                render: function (data, type, row) {
-                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>'
-                }
             }
         ],
         order: [[0, 'asc']], // Sort by title ascending by default
@@ -340,15 +725,6 @@ function renderSharedProjects(data) {
         buttons: [
             //'copy', 'csv', 'excel', 'pdf', 'print'
         ]
-    });
-
-    $('#sharedProjectsTable').on('click', '.editBtn', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/projectDetails";
-    });
-    $('#sharedProjectsTable').on('click', '.viewOutput', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/";
     });
 }
 // Function to open share overlay
@@ -361,26 +737,43 @@ function closeShareOverlay() {
     document.getElementById("shareOverlay").style.display = "none";
 }
 
-// Function to get shared users of a project
-function getSharedUsers(projectId) {
-    return fetch(`/project/${projectId}/sharedUsers`)
-        .then(response => response.json())
-        .catch(error => console.error("Error fetching shared users:", error));
+function closeTransferOwnerOverlay() {
+    var o = document.getElementById('transferOwnerOverlay');
+    if (o) o.style.display = 'none';
 }
 
-function renderSharedUsers(sharedUsers) {
-    const sharedEmailsTable = $('#sharedEmailsTable').DataTable();
-
-    // Clear existing data
-    sharedEmailsTable.clear();
-
-    // Add new data
-    sharedUsers.sharedUsers.forEach(email => {
-        sharedEmailsTable.row.add([email, '<button class="deleteBtn" data-email="' + email + '">Remove share</button>']);
-    });
-
-    // Redraw the table
-    sharedEmailsTable.draw();
-}
+$(document).on('change', '#orgShareCheckbox', function () {
+    var checkboxEl = this;
+    updateOrgShareToggleLabel();
+    var overlay = document.getElementById('shareOverlay');
+    if (!overlay) return;
+    var projectId = overlay.getAttribute('data-projectid');
+    if (!projectId) return;
+    var checked = checkboxEl.checked;
+    fetch('/project/' + projectId + '/organisation-share', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ sharedWithOrganisation: checked })
+    })
+        .then(function (res) {
+            if (!res.ok) {
+                return res.json().then(function (d) {
+                    throw new Error(d.message || 'Update failed');
+                });
+            }
+            return res.json();
+        })
+        .then(function () {
+            if ($.fn.DataTable.isDataTable('#myProjectsTable')) {
+                $('#myProjectsTable').DataTable().ajax.reload(null, false);
+            }
+            clearShareOverlayMessage();
+        })
+        .catch(function (e) {
+            showShareOverlayMessage(e.message || String(e), true);
+            checkboxEl.checked = !checked;
+            updateOrgShareToggleLabel();
+        });
+});
 </script>
 <%- include('../partials/footer') %>

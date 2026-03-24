@@ -166,6 +166,24 @@ li {
 .light-blue h1, .light-blue h2, .light-blue h3, .light-blue h4 {
   color: var(--color-dark-blue);
 }
+
+/*
+ * water.css sets strong { color: var(--text-bright) } (white) for dark theme.
+ * On white / light-grey content blocks that makes emphasis invisible — force readable blue.
+ */
+.main-content .content-block.white strong,
+.main-content .content-block.light-blue strong,
+.main-content .content-block.yellow strong {
+  color: var(--color-dark-blue);
+  font-weight: 600;
+}
+
+/* Plain tables (not only DataTables) on light blocks — thead inherits water grey */
+.main-content .content-block.light-blue thead th,
+.main-content .content-block.white thead th {
+  color: var(--color-dark-blue);
+  font-weight: 600;
+}
 .yellow {
   background-color: var(--color-light-grey);
   color: black;
@@ -350,6 +368,316 @@ tbody tr:nth-child(2n) td {
     color: #000;
     text-decoration: none;
     cursor: pointer;
+}
+
+/* Projects dashboard (/projects): vertically centre header and body cells */
+#myProjectsTable thead th,
+#myProjectsTable tbody td,
+#sharedProjectsTable thead th,
+#sharedProjectsTable tbody td,
+#organisationProjectsTable thead th,
+#organisationProjectsTable tbody td,
+#topRisksTable thead th,
+#topRisksTable tbody td {
+    vertical-align: middle;
+}
+
+/* My evaluations: status column (text only) */
+table.dataTable td.eval-status-col {
+    vertical-align: middle;
+}
+.eval-status-label {
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    line-height: 1.2;
+}
+
+/* Evaluation title → assessment */
+a.eval-title-link {
+    color: var(--color-dark-blue);
+    font-weight: 600;
+    text-decoration: none;
+}
+a.eval-title-link:hover {
+    text-decoration: underline;
+}
+a.eval-title-link:focus {
+    outline: 2px solid var(--color-dark-blue);
+    outline-offset: 2px;
+}
+
+/* My evaluations: sharing column (Share button or clickable icons) */
+table.dataTable td.eval-shares-col {
+    vertical-align: middle;
+    text-align: center;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+button.eval-share-open.eval-share-open--icons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0.25rem 0.35rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    border-radius: 4px;
+    line-height: 1;
+}
+button.eval-share-open.eval-share-open--icons:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+button.eval-share-open.eval-share-open--icons:focus {
+    outline: 2px solid var(--color-dark-blue);
+    outline-offset: 2px;
+}
+button.eval-share-open.eval-share-open--icons:focus:not(:focus-visible) {
+    outline: none;
+}
+button.eval-share-open.eval-share-open--icons:focus-visible {
+    outline: 2px solid var(--color-dark-blue);
+    outline-offset: 2px;
+}
+table.dataTable td.eval-shares-col .eval-share-open.btn {
+    white-space: nowrap;
+    padding-inline: 0.65rem;
+}
+.eval-share-icons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+.eval-share-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.12rem;
+    color: var(--color-dark-blue);
+    opacity: 0.92;
+    min-width: 1.75rem;
+}
+.eval-share-stack:hover {
+    opacity: 1;
+}
+.eval-share-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+.eval-share-below {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: inherit;
+}
+.eval-share-svg {
+    display: block;
+}
+.eval-share-none {
+    color: #999;
+    font-size: 1rem;
+    cursor: default;
+}
+
+/* Share evaluation modal (Drive-style single column) */
+.share-access-toggle:focus-within {
+    outline: 2px solid var(--color-dark-blue);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+.overlay .share-overlay-panel {
+    display: block;
+    width: min(96vw, 52rem);
+    max-width: 100%;
+    margin: 8vh auto;
+    padding: 1.5rem 1.75rem 1.75rem;
+    box-sizing: border-box;
+    border-radius: 0;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+.share-overlay-title {
+    margin: 0 2rem 0.35rem 0;
+    font-size: 1.35rem;
+    line-height: 1.3;
+}
+.share-overlay-lead {
+    margin: 0 2rem 1rem 0;
+    color: var(--color-dark-blue);
+    opacity: 0.9;
+}
+.share-overlay-message {
+    margin-bottom: 0.75rem;
+}
+.share-access-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+}
+.share-access-table thead th {
+    text-align: left;
+    font-weight: 600;
+    padding: 0.5rem 0.35rem 0.65rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    color: var(--color-dark-blue);
+}
+.share-access-table .share-access-col-action {
+    width: 11rem;
+    text-align: right;
+    padding-left: 1rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.share-access-table .share-access-col-action--toggle {
+    vertical-align: middle;
+}
+.share-access-table tbody td {
+    padding: 0.65rem 0.35rem;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.share-access-row--org td {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+}
+.share-access-subhead-row td {
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-dark-blue);
+    padding-top: 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    background: transparent;
+}
+.share-access-who {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+}
+.share-access-avatar {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--color-dark-blue);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.share-access-avatar--org {
+    border-radius: 0.35rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.share-access-primary {
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    word-break: break-all;
+}
+.share-access-secondary {
+    margin-top: 0.15rem;
+    color: #555;
+}
+.share-access-hint {
+    margin: 0.35rem 0 0;
+    max-width: 36rem;
+    line-height: 1.35;
+}
+.share-access-org-name {
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    opacity: 0.92;
+}
+.share-access-muted {
+    color: #666;
+}
+.share-access-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    justify-content: flex-end;
+    width: 100%;
+}
+.share-access-toggle-ui {
+    width: 2.25rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    background: #ccc;
+    position: relative;
+    transition: background 0.15s ease;
+}
+.share-access-toggle-ui::after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: #fff;
+    top: 0.125rem;
+    left: 0.125rem;
+    transition: transform 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.share-access-toggle input:checked + .share-access-toggle-ui {
+    background: var(--color-dark-blue);
+}
+.share-access-toggle input:checked + .share-access-toggle-ui::after {
+    transform: translateX(1rem);
+}
+.share-access-toggle-text {
+    font-weight: 600;
+    min-width: 1.75rem;
+    text-align: right;
+    font-size: 0.9rem;
+}
+.share-access-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.65rem;
+    align-items: stretch;
+    margin-top: 0.25rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.share-access-add .inputText {
+    flex: 1 1 12rem;
+    min-width: 0;
+    min-height: 2.5rem;
+    box-sizing: border-box;
+}
+.share-access-add .btn {
+    flex: 0 0 auto;
+}
+.share-access-table .share-access-remove.btn {
+    white-space: nowrap;
+}
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 /*
  * Buttons
@@ -764,5 +1092,151 @@ a:hover {
   .main-content {
     width: 100%;
     margin-left: 0; /* Sidebar and main content take full width on smaller screens */
+  }
+}
+
+/* Organisation page: add member — wider email + role controls */
+.org-add-member-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: flex-end;
+}
+.org-add-member-form__label-text {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+.org-add-member-form__email {
+  flex: 1 1 26rem;
+  min-width: min(100%, 18rem);
+  max-width: 42rem;
+}
+.org-add-member-form__role {
+  flex: 0 0 auto;
+  min-width: 13rem;
+  width: 15rem;
+}
+.org-add-member-form .inputText,
+.org-add-member-form select.input {
+  width: 100%;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+/* Organisation subscription form (stacked field rows: label | control | hint) */
+.sub-form-wrap {
+  max-width: 56rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sub-form-wrap__back {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.sub-form {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 1.5rem;
+}
+
+.sub-form__row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 12rem) minmax(12rem, 1fr) minmax(11rem, 16rem);
+  gap: 0.75rem 1.5rem;
+  align-items: start;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-light-grey);
+}
+
+.sub-form__row:last-of-type {
+  border-bottom: none;
+}
+
+.sub-form__label {
+  margin: 0;
+  padding-top: 0.45rem;
+  font-weight: 600;
+  font-size: var(--font-size-16);
+  line-height: var(--line-height-16);
+  /* Explicit blue: water.css uses light/white for strong and heading-like weights on body text */
+  color: var(--color-dark-blue);
+}
+
+.content-block.white .sub-form__label,
+.content-block.white .sub-form__label strong {
+  color: var(--color-dark-blue);
+}
+
+.content-block.white .sub-form__hint strong {
+  color: var(--color-dark-grey);
+}
+
+/* DataTables on light-blue / white: thead inherits water --text-main (too light on pale backgrounds) */
+.content-block.light-blue table.dataTable > thead > tr > th,
+.content-block.white table.dataTable > thead > tr > th {
+  color: var(--color-dark-blue);
+  font-weight: 600;
+}
+
+.content-block.light-blue table.dataTable > tbody > tr > td,
+.content-block.white table.dataTable > tbody > tr > td {
+  color: var(--color-dark-grey);
+}
+
+.content-block.light-blue table.dataTable tbody td strong,
+.content-block.white table.dataTable tbody td strong {
+  color: inherit;
+}
+
+.sub-form__control {
+  min-width: 0;
+}
+
+.sub-form__control .input,
+.sub-form__control .inputText,
+.sub-form__control select.input {
+  width: 100%;
+  max-width: 28rem;
+  box-sizing: border-box;
+}
+
+.sub-form__hint {
+  margin: 0;
+  padding-top: 0.35rem;
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-14);
+  color: var(--color-dark-grey);
+}
+
+.sub-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--color-light-grey);
+}
+
+@media screen and (max-width: 900px) {
+  .sub-form__row {
+    grid-template-columns: 1fr;
+    gap: 0.35rem 0;
+  }
+
+  .sub-form__hint {
+    padding-top: 0;
+    padding-bottom: 0.25rem;
+  }
+
+  .sub-form__control .input,
+  .sub-form__control .inputText,
+  .sub-form__control select.input {
+    max-width: 100%;
   }
 }

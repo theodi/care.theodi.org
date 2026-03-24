@@ -1,10 +1,20 @@
 const Project = require('../models/project'); // Import your Project model
 const projectController = require('../controllers/project');
+const OrganisationMembership = require('../models/organisationMembership');
+const OrganisationSubscription = require('../models/organisationSubscription');
+const {
+  findActiveMembershipsForEmail,
+  normalizeMemberEmail,
+  isSubscriptionActive,
+} = require('../lib/organisationEntitlements');
 
 const pages = require('../pages.json');
 
 const loadProject = async (req, res, next) => {
     res.locals.pages = pages;
+    if (req.path.startsWith('/subscriptions') || req.path.startsWith('/organisation')) {
+        return next();
+    }
     if (req.params.id) {
         if (req.params.id !== req.session.projectId) {
             req.session.projectId = req.params.id;
@@ -72,9 +82,20 @@ const checkProjectAccess = async (req, res, next) => {
         }
 
         // Check if the project is shared with the user
-        const sharedWithUser = project.sharedWith.find(user => user.user === userEmail);
+        const sharedWithUser = (project.sharedWith || []).find(user => user.user === userEmail);
         if (sharedWithUser) {
             return next(); // Project is shared with the user, allow access
+        }
+
+        if (project.sharedWithOrganisation && project.organisationSubscriptionId) {
+            const memberships = await findActiveMembershipsForEmail(userEmail);
+            const sid = project.organisationSubscriptionId.toString();
+            const inOrg = memberships.some(
+                (m) => m.subscriptionId && m.subscriptionId._id.toString() === sid
+            );
+            if (inOrg) {
+                return next();
+            }
         }
 
         // If neither the owner nor shared with the user, deny access
@@ -116,4 +137,49 @@ const checkProjectOwner = async(req, res, next) => {
     }
 }
 
-module.exports = { loadProject, checkProjectAccess, checkProjectOwner };
+const checkOrgAdminCanTransferProjectOwner = async (req, res, next) => {
+    try {
+        const projectId = req.params.id;
+
+        const project = await Project.findById(projectId);
+        if (!project) {
+            const error = new Error("Project not found");
+            error.status = 404;
+            throw error;
+        }
+        if (!project.sharedWithOrganisation || !project.organisationSubscriptionId) {
+            const error = new Error("Owner transfer is only available for organisation-shared evaluations");
+            error.status = 400;
+            throw error;
+        }
+        const sub = await OrganisationSubscription.findById(project.organisationSubscriptionId);
+        if (!sub || !isSubscriptionActive(sub)) {
+            const error = new Error("Organisation subscription is not active");
+            error.status = 403;
+            throw error;
+        }
+        const userEmail = req.session.passport.user.email;
+        const emailLower = normalizeMemberEmail(userEmail);
+        const adminMembership = await OrganisationMembership.findOne({
+            subscriptionId: project.organisationSubscriptionId,
+            emailLower,
+            role: 'admin',
+        });
+        if (!adminMembership) {
+            const error = new Error("Unauthorized access");
+            error.status = 403;
+            throw error;
+        }
+        res.locals.projectForOwnerTransfer = project;
+        next();
+    } catch (error) {
+        return next(error);
+    }
+};
+
+module.exports = {
+    loadProject,
+    checkProjectAccess,
+    checkProjectOwner,
+    checkOrgAdminCanTransferProjectOwner,
+};

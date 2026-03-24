@@ -41,6 +41,12 @@
 				<ul>
 				<% if(user) { %>
                     <li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">Evaluations dashboard</a></li>
+					<% if (typeof isCareStaff !== 'undefined' && isCareStaff) { %>
+					<li><a href="/subscriptions" class="toggle-link <% if (page.link === '/subscriptions' || page.link === '/subscriptions/new') { %>selected<% } %>">Org subscriptions</a></li>
+					<% } %>
+					<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
+					<li><a href="/organisation" class="toggle-link <% if (page.link === '/organisation') { %>selected<% } %>">Organisation</a></li>
+					<% } %>
 					<% if (user.authMethod === 'google') { %>
                         <li><a href="/auth/local/reset-password">View/change local password</a></li>
 					<% } %>

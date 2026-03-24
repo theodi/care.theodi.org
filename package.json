@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node scripts/run-unit-tests.cjs",
+    "fix-org-membership-indexes": "node scripts/fix-organisation-membership-indexes.cjs",
     "test-ai": "node scripts/test-ai.js"
   },
   "repository": {

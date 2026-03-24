@@ -18,7 +18,18 @@ async function ensureAuthenticated(req, res, next) {
     res.redirect('/login'); // Redirect to login page if not authenticated
 }
 
-const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
+const OrganisationMembership = require('../models/organisationMembership');
+const User = require('../models/user');
+const {
+  findActiveMembershipsForEmail,
+  normalizeMemberEmail,
+} = require('../lib/organisationEntitlements');
+const {
+    loadProject,
+    checkProjectAccess,
+    checkProjectOwner,
+    checkOrgAdminCanTransferProjectOwner,
+} = require('../middleware/project');
 const { checkLimit } = require('../middleware/hubspot');
 const { updateToolStatistics } = require('../controllers/hubspot');
 
@@ -70,7 +81,7 @@ router.get('/:id/sharedUsers', ensureAuthenticated, checkProjectAccess, async (r
         }
 
         // Extract shared users from the project
-        const sharedUsers = project.sharedWith.map(user => user.user);
+        const sharedUsers = (project.sharedWith || []).map(user => user.user);
 
         // Return shared users
         res.json({ sharedUsers });
@@ -93,6 +104,9 @@ router.post('/:id/sharedUsers', ensureAuthenticated, checkProjectOwner, async (r
             return res.status(404).json({ message: "Project not found" });
         }
 
+        if (!project.sharedWith) {
+            project.sharedWith = [];
+        }
         // Add the new shared user to the project
         project.sharedWith.push({ user: email });
 
@@ -121,7 +135,7 @@ router.delete('/:id/sharedUsers/:userId', ensureAuthenticated, checkProjectOwner
         }
 
         // Find the index of the shared user in the sharedWith array
-        const index = project.sharedWith.findIndex(user => user.user === userId);
+        const index = (project.sharedWith || []).findIndex(user => user.user === userId);
 
         // If the shared user is found, remove it from the array
         if (index !== -1) {
@@ -133,6 +147,88 @@ router.delete('/:id/sharedUsers/:userId', ensureAuthenticated, checkProjectOwner
         }
     } catch (error) {
         res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+router.patch('/:id/organisation-share', ensureAuthenticated, checkProjectOwner, async (req, res, next) => {
+    try {
+        const { sharedWithOrganisation } = req.body;
+        if (typeof sharedWithOrganisation !== 'boolean') {
+            return res.status(400).json({ message: 'sharedWithOrganisation must be a boolean' });
+        }
+        const project = await Project.findById(req.params.id);
+        if (!project) {
+            return res.status(404).json({ message: 'Project not found' });
+        }
+        const userEmail = req.session.passport.user.email;
+        if (sharedWithOrganisation) {
+            const memberships = await findActiveMembershipsForEmail(userEmail);
+            if (!memberships.length) {
+                return res.status(403).json({ message: 'No active organisation membership' });
+            }
+            const subId = memberships[0].subscriptionId._id;
+            project.organisationSubscriptionId = subId;
+            project.sharedWithOrganisation = true;
+        } else {
+            project.sharedWithOrganisation = false;
+        }
+        await project.save();
+        res.json({
+            message: 'Updated',
+            sharedWithOrganisation: project.sharedWithOrganisation,
+            organisationSubscriptionId: project.organisationSubscriptionId,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.patch('/:id/owner', ensureAuthenticated, checkOrgAdminCanTransferProjectOwner, async (req, res, next) => {
+    try {
+        const { ownerUserId, ownerEmail } = req.body;
+        const project = res.locals.projectForOwnerTransfer;
+        let targetEmailLower = null;
+        let newOwnerId = null;
+
+        if (ownerEmail && String(ownerEmail).trim()) {
+            targetEmailLower = normalizeMemberEmail(ownerEmail);
+            const targetUser = await User.findOne({
+                email: new RegExp(`^${targetEmailLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+            });
+            if (!targetUser) {
+                return res.status(400).json({
+                    message:
+                        'New owner must have a CARE account and use the same email as their organisation membership',
+                });
+            }
+            newOwnerId = targetUser._id;
+        } else if (ownerUserId && mongoose.isValidObjectId(ownerUserId)) {
+            const targetUser = await User.findById(ownerUserId);
+            if (!targetUser) {
+                return res.status(400).json({ message: 'User not found' });
+            }
+            newOwnerId = targetUser._id;
+            targetEmailLower = normalizeMemberEmail(targetUser.email);
+        } else {
+            return res.status(400).json({ message: 'Provide ownerEmail or ownerUserId' });
+        }
+
+        if (!targetEmailLower) {
+            return res.status(400).json({ message: 'Invalid owner email' });
+        }
+
+        const targetMembership = await OrganisationMembership.findOne({
+            subscriptionId: project.organisationSubscriptionId,
+            emailLower: targetEmailLower,
+        });
+        if (!targetMembership) {
+            return res.status(400).json({ message: 'New owner must be a member of the organisation' });
+        }
+        project.owner = newOwnerId;
+        await project.save();
+        res.json({ message: 'Owner updated', owner: newOwnerId });
+    } catch (error) {
+        next(error);
     }
 });
 
@@ -297,7 +393,11 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
 router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
     const id = req.params.id;
     try {
-        const updatedProject = await Project.findByIdAndUpdate(id, req.body, { new: false });
+        const payload = { ...req.body };
+        delete payload.owner;
+        delete payload.organisationSubscriptionId;
+        delete payload.sharedWithOrganisation;
+        const updatedProject = await Project.findByIdAndUpdate(id, payload, { new: false });
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });
         }

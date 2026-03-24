@@ -1,0 +1,79 @@
+const express = require('express');
+const router = express.Router();
+const organisationController = require('../controllers/organisation');
+
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  const accept = req.get('Accept') || '';
+  if (accept.includes('application/json')) {
+    const error = new Error('Unauthorized access');
+    error.status = 401;
+    return next(error);
+  }
+  res.redirect('/');
+}
+
+router.get('/', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const ctx = await organisationController.getOrganisationContext(userId);
+    const accept = req.get('Accept') || '';
+    if (accept.includes('application/json')) {
+      if (!ctx) {
+        return res.status(404).json({ message: 'No organisation membership' });
+      }
+      return res.json(ctx);
+    }
+    const page = {
+      title: 'Organisation',
+      link: '/organisation',
+    };
+    res.locals.page = page;
+    res.locals.organisation = ctx;
+    res.render('pages/organisation');
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/members', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const passportUser = req.session.passport && req.session.passport.user;
+    const userId = passportUser && passportUser.id;
+    if (userId == null || userId === '') {
+      const e = new Error(
+        'Your session has no user id (try signing out and signing in again).'
+      );
+      e.status = 401;
+      throw e;
+    }
+    if (!req.body || typeof req.body !== 'object') {
+      const e = new Error(
+        'Expected a JSON body — set Content-Type: application/json and send { "email", "membershipRole" }.'
+      );
+      e.status = 400;
+      throw e;
+    }
+    const { email, membershipRole, role } = req.body;
+    const result = await organisationController.addMember(
+      userId,
+      email,
+      membershipRole || role
+    );
+    res.status(201).json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete('/members/:membershipId', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const requesterId = req.session.passport.user.id;
+    const result = await organisationController.removeMember(requesterId, req.params.membershipId);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+module.exports = router;
