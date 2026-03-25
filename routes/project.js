@@ -45,6 +45,7 @@ router.get('/:id/completeAssessment', ensureAuthenticated, checkProjectAccess, l
         };
 
         res.locals.page = page;
+        res.locals.layoutScanHeader = true;
         res.render('pages/completeAssessment', { project: project });
     } catch (error) {
         next(error); // Pass error to error handling middleware
@@ -257,6 +258,7 @@ router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, a
             }
 
             res.locals.page = page;
+            res.locals.layoutScanHeader = true;
             res.render('pages/scan', { project: project });
         }
     } catch (error) {
@@ -365,6 +367,7 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
                 title: "Project evaluation"
             };
             res.locals.page = page;
+            res.locals.layoutScanHeader = true;
             res.render('pages/project', { project: project });
         }
     } catch (error) {

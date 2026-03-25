@@ -41,17 +41,9 @@
 				<ul>
 				<% if(user) { %>
                     <li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">Evaluations dashboard</a></li>
-					<% if (typeof isCareStaff !== 'undefined' && isCareStaff) { %>
-					<li><a href="/subscriptions" class="toggle-link <% if (page.link === '/subscriptions' || page.link === '/subscriptions/new') { %>selected<% } %>">Org subscriptions</a></li>
-					<% } %>
 					<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
 					<li><a href="/organisation" class="toggle-link <% if (page.link === '/organisation') { %>selected<% } %>">Organisation</a></li>
 					<% } %>
-					<% if (user.authMethod === 'google') { %>
-                        <li><a href="/auth/local/reset-password">View/change local password</a></li>
-					<% } %>
-                    <li><a href="/glossary" id="glossary-link" class="toggle-link <% if (page.link === '/glossary') { %>selected<% } %>">Glossary</a></li>
-                    <li><a href="/about" id="privacy-link" class="toggle-link <% if (page.link === '/about') { %>selected<% } %>">Your privacy</a></li>
 					<li>
 						<a style="padding: 0;" class="toggle-link <% if (page.link === '/profile') { %>selected<% } %>" href="/profile"><%= user ? (user.displayName || (user.first_name && user.last_name ? user.first_name + ' ' + user.last_name : user.email)) : 'Guest' %></a>
 						<form style="display: inline-flex;" id="logout_form" action="/logout" method="post">
@@ -59,8 +51,6 @@
 						</form>
 					</li>
 				<% } else { %>
-                    <li><a href="/glossary" id="glossary-link" class="toggle-link <% if (page.link === '/glossary') { %>selected<% } %>">Glossary</a></li>
-                    <li><a href="/about" id="privacy-link" class="toggle-link <% if (page.link === '/about') { %>selected<% } %>">Your privacy</a></li>
 					<li><a href="/auth/django" class="toggle-link">Login</a></li>
 				<% } %>
 				</ul>

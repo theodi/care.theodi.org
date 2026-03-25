@@ -1,4 +1,3 @@
-<%- include('../partials/header') %>
 <section class="content-block light-blue">
   <h1>Profile information</h1>
   <p>
@@ -13,6 +12,23 @@
     <b>ODI membership as part of company?:</b> <%= hs && hs.companyMembership != null ? hs.companyMembership : '—' %><br>
     <b>ODI membership type: </b> <%= hs && hs.membershipType != null ? hs.membershipType : '—' %> <br>
   </p>
+  <h2>Organisation subscription (CARE)</h2>
+  <p>
+    <% const co = typeof careOrganisationMembership !== 'undefined' ? careOrganisationMembership : null; %>
+    <% if (co && co.isMember) { %>
+      <b>Status:</b> Active — your sign-in email is on an organisation subscription.<br>
+      <b>Organisation:</b>
+      <% if (co.organisationName) { %><%= co.organisationName %><% } else if (co.emailDomain) { %>@<%= co.emailDomain %><% } else { %>—<% } %><br>
+      <% if (co.organisationName && co.emailDomain) { %>
+      <span class="small">Email domain: @<%= co.emailDomain %></span><br>
+      <% } %>
+      <b>Your role:</b> <%= co.isAdmin ? 'Admin (can manage members and sharing)' : 'Member' %><br>
+      <a href="/organisation">Open organisation page</a>
+    <% } else { %>
+      <b>Status:</b> Not on an active organisation subscription in CARE.<br>
+      <span class="small">Organisation access uses your account email. If your organisation uses CARE, ask an admin to add you; you will see shared evaluations once your subscription is active.</span>
+    <% } %>
+  </p>
 </section>
 
 <section class="content-block white">
@@ -22,8 +38,6 @@
   </form>
   <p id="errorMessage" style="color: red;"></p> <!-- Error message element -->
 </section>
-
-<%- include('../partials/footer') %>
 
 <script>
   function confirmDelete() {

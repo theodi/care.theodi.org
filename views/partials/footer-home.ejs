@@ -39,6 +39,19 @@
     .footer a {
         color: white;
     }
+    .footer__section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0 0 0.75rem;
+        color: #fff;
+    }
+    .footer__section-title:not(:first-child) {
+        margin-top: 1.75rem;
+    }
+    .footer a.footer-link--current {
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+    }
         /* Container styling */
     footer.container {
         display: flex;
@@ -78,18 +91,26 @@
             4th Floor, Kings Place, 90 York Way, London N1 9AG
         </address>
         <p class="footer__copyright">
-            <span>© The Open Data Institute. 2024</span>
+            <span>© The Open Data Institute. <%= new Date().getFullYear() %></span>
         </p>
     </div>
     <div class="column">
         <div class="footer__main-navigation">
+            <h3 class="footer__section-title">CARE Tool:</h3>
             <ul>
-            <li><a href="https://theodi.org/our-policies/" target="_blank">Our policies</a></li>
-            <li><a href="https://theodi.org/about-the-odi/contact-us/" target="_blank">Contact us</a></li>
-            <li><a href="https://theodi.org/about-the-odi/press-and-media/" target="_blank">Press and media</a></li>
-            <li><a href="https://theodi.org/insights/guides/the-odi-brand-book/" target="_blank">The ODI brand book</a></li>
-            <li><a href="https://theodi.org/about-the-odi/work-with-us/" target="_blank">Work with us</a></li>
-            <li><a href="https://theodi.org/sign-up-to-the-week-in-data/" target="_blank">Sign up to The Week in Data</a></li>
+                <li><a href="/glossary" id="glossary-link"<% if (typeof page !== 'undefined' && page && page.link === '/glossary') { %> class="footer-link--current"<% } %>>Glossary</a></li>
+                <li><a href="/about" id="privacy-link"<% if (typeof page !== 'undefined' && page && page.link === '/about') { %> class="footer-link--current"<% } %>>Your privacy</a></li>
+                <% if (user && user.authMethod === 'google') { %>
+                <li><a href="/auth/local/reset-password">View/change local password</a></li>
+                <% } %>
+                <% if (typeof isCareStaff !== 'undefined' && isCareStaff) { %>
+                <li><a href="/subscriptions"<% if (typeof page !== 'undefined' && page && (page.link === '/subscriptions' || page.link === '/subscriptions/new')) { %> class="footer-link--current"<% } %>>Org subscriptions</a></li>
+                <% } %>
+            </ul>
+            <h3 class="footer__section-title">Open Data Institute:</h3>
+            <ul>
+                <li><a href="https://theodi.org/our-policies/" target="_blank" rel="noopener noreferrer">Our policies</a></li>
+                <li><a href="https://theodi.org/about-the-odi/contact-us/" target="_blank" rel="noopener noreferrer">Contact us</a></li>
             </ul>
         </div>
     </div>

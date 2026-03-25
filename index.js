@@ -45,6 +45,15 @@ const { getHubspotProfile, updateToolStatistics } = require('./controllers/hubsp
 const app = express();
 const port = process.env.PORT || 3080;
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+const expressLayouts = require('express-ejs-layouts');
+app.use(expressLayouts);
+app.set('layout', 'layout');
+
+app.use(function(req, res, next) {
+  res.locals.layoutScanHeader = false;
+  next();
+});
 
 // Middleware for logging
 const logger = require('morgan');
@@ -193,7 +202,7 @@ app.get('/about', function(req, res) {
   };
   res.locals.page = page;
   res.locals.aiPrivacy = getAiPrivacyDisclosure();
-  res.render('pages/about');
+  res.render('pages/about', { layout: false });
 });
 
 app.get('/glossary', function(req, res) {
@@ -231,7 +240,7 @@ app.get('/glossary', function(req, res) {
                   link: "/glossary"
                 };
                 res.locals.page = page;
-                res.render('pages/glossary', { data: glossaryData });
+                res.render('pages/glossary', { data: glossaryData, layout: false });
             }
         });
     }
@@ -241,6 +250,9 @@ app.get('/profile', ensureAuthenticated, async (req, res, next) => {
   try {
     res.locals.userProfile = await retrieveOrCreateUser(res.locals.user);
     res.locals.userProfile.hubspot = await getHubspotProfile(res.locals.userProfile.id);
+    res.locals.careOrganisationMembership = await getUserOrganisationMetaByEmail(
+      res.locals.userProfile.email
+    );
     const page = {
       title: "Profile page",
       link: "/profile"
