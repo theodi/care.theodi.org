@@ -22,6 +22,8 @@ Unintended consequences can have both positive and negative impacts. Consider th
 
 For each unintended outcome, suggest the impact and likelihood (high, medium or low) of the outcome as well as the role that the organisation should play (act, influence or monitor). Also add mitigating actions to each unintended outcome with a description and stakeholder. Finally create a list of all stakeholders impacted by the project and involved in the actions.
 
+{{orgContext}}
+
 Your response should be in the format of undeclared JSON conforming to the following schema:
 
 {{schema}}
