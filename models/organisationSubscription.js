@@ -13,6 +13,28 @@ const organisationSubscriptionSchema = new mongoose.Schema(
     hubspotCompanyId: String,
     hubspotDealId: String,
     lastHubSpotSyncAt: Date,
+    /** Admin-configured AI (merged over server env in /assistant when members use organisation AI). */
+    organisationAi: {
+      enabled: { type: Boolean, default: false },
+      provider: String,
+      apiKey: String,
+      model: String,
+      baseURL: String,
+      maxTokens: Number,
+      openaiApiVersion: String,
+      useApiKeyHeader: { type: Boolean, default: false },
+      anthropicBaseUrl: String,
+      googleBaseUrl: String,
+      disableStructuredOutput: { type: Boolean, default: false },
+      openaiUseLegacyMaxTokens: { type: Boolean, default: false },
+    },
+    /** Optional per-stage text appended to AI user prompts when members opt in. */
+    organisationScanContext: {
+      completeAssessment: { type: String, default: '' },
+      intendedConsequences: { type: String, default: '' },
+      unintendedConsequences: { type: String, default: '' },
+      stakeholders: { type: String, default: '' },
+    },
   },
   { collection: 'OrganisationSubscriptions', timestamps: true }
 );

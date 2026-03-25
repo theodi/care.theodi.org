@@ -4,9 +4,17 @@ const path = require('path');
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/project');
+const User = require('../models/user');
+const OrganisationSubscription = require('../models/organisationSubscription');
 
 const { chatCompletion } = require('../services/aiChat');
 const { parseModelJsonResponse } = require('../services/parseAIJson');
+const { findMembershipForEmail } = require('../lib/organisationEntitlements');
+const { orgAiToRuntimeOverrides } = require('../lib/organisationAiConfig');
+const {
+  getScanContextForMessageId,
+  replaceOrgContextPlaceholder,
+} = require('../lib/organisationScanContext');
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
 
@@ -27,8 +35,11 @@ router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProje
         const merge = req.query.merge === 'true'; // Convert to boolean
         const schema = require('../public/data/schemas/partials/'+messageId+'.json');
         projectData.schema = JSON.stringify(schema);
-        const message = await populateMessage(messageId, projectData);;
-        const response = await getAIReponse(message, messageId, schema);
+        const message = await populateMessage(messageId, projectData);
+        const orgContext = await resolveOrganisationScanContextAppend(req, messageId);
+        const userPrompt = replaceOrgContextPlaceholder(message, orgContext);
+        const orgOverrides = await resolveOrganisationAiOverrides(req);
+        const response = await getAIReponse(userPrompt, messageId, schema, orgOverrides);
         const parsedResponse = parseModelJsonResponse(response);
 
         // Check if the messageId is "completeAssessment"
@@ -116,9 +127,54 @@ async function populateMessage(messageId, data) {
     return populatedText;
 }
 
-async function getAIReponse(message, messageId, rawSchema) {
+/**
+ * When aiSource=built_in (or builtin), use only server env config.
+ * Otherwise use organisation AI overrides if the user has a configured org; else env only.
+ */
+function includeOrgContextRequested(req) {
+  const q = req.query && req.query.includeOrgContext;
+  if (q == null || q === '') return false;
+  const s = String(q).toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes';
+}
+
+async function resolveOrganisationScanContextAppend(req, messageId) {
+  if (!includeOrgContextRequested(req)) return '';
+  const passportUser = req.session.passport && req.session.passport.user;
+  const userId = passportUser && passportUser.id;
+  if (!userId) return '';
+  const user = await User.findById(userId);
+  if (!user || !user.email) return '';
+  const m = await findMembershipForEmail(user.email);
+  if (!m || !m.subscriptionId) return '';
+  const subId = m.subscriptionId._id || m.subscriptionId;
+  const sub = await OrganisationSubscription.findById(subId);
+  return getScanContextForMessageId(sub && sub.organisationScanContext, messageId);
+}
+
+async function resolveOrganisationAiOverrides(req) {
+    const raw = (req.query && req.query.aiSource) || '';
+    const src = String(raw).toLowerCase().replace(/-/g, '_');
+    if (src === 'built_in' || src === 'builtin' || src === 'default_env') {
+        return {};
+    }
+    const passportUser = req.session.passport && req.session.passport.user;
+    const userId = passportUser && passportUser.id;
+    if (!userId) return {};
+    const user = await User.findById(userId);
+    if (!user || !user.email) return {};
+    const m = await findMembershipForEmail(user.email);
+    if (!m || !m.subscriptionId) return {};
+    const subId = m.subscriptionId._id || m.subscriptionId;
+    const sub = await OrganisationSubscription.findById(subId);
+    const ov = orgAiToRuntimeOverrides(sub && sub.organisationAi);
+    return ov || {};
+}
+
+async function getAIReponse(message, messageId, rawSchema, orgOverrides) {
     const rawClone = JSON.parse(JSON.stringify(rawSchema));
     return chatCompletion([{ role: 'user', content: message }], {
+        ...orgOverrides,
         structuredResponse: {
             schemaName: `care_${messageId}`,
             rawSchema: rawClone,

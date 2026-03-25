@@ -22,6 +22,8 @@ Using this context suggest some stakeholders (e.g. roles, teams or organisations
 
  For each stakeholder, indicate whether they are an internal stakeholder (part of the organisation or project team) or an external stakeholder (outside the organisation or project team).
 
+ {{orgContext}}
+
  Your response should be in the format of undeclared JSON conforming to the following schema:
 
  {{schema}}

@@ -72,10 +72,450 @@
       </tbody>
     </table>
   </div>
+
+  <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
+  <div class="content-block white org-ai-content-block">
+    <h2>Organisation AI</h2>
+    <p class="small">Configure a model for all organisation members. They use it by default on evaluation steps; each step can switch to CARE built-in. Choose a provider first, then complete the fields shown. Keys are stored on the subscription and are only editable by admins.</p>
+    <div id="orgAiMessage" class="alert" style="display:none;"></div>
+    <form id="orgAiConfigForm" class="org-ai-config-form">
+      <label class="org-ai-config-form__check">
+        <input type="checkbox" id="orgAiEnabled" name="enabled" value="1"/>
+        Use organisation AI for members (when off, everyone uses server defaults only)
+      </label>
+      <div id="orgAiFields" class="org-ai-config-form__fields" style="display:none;">
+        <label class="org-ai-config-form__row org-ai-config-form__row--provider">
+          <span class="org-ai-config-form__label-text">Provider <span class="org-ai-req">(required)</span></span>
+          <select id="orgAiProvider" class="input inputText" aria-describedby="orgAiProviderHint">
+            <option value="">Choose a provider…</option>
+            <option value="openai">OpenAI (official API)</option>
+            <option value="openai_compatible">OpenAI-compatible (Groq, LiteLLM, proxy, …)</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="google">Google (Gemini)</option>
+            <option value="gemini">Gemini (alias)</option>
+            <option value="azure_openai">Azure OpenAI</option>
+            <option value="azure">Azure (alias)</option>
+          </select>
+        </label>
+        <p id="orgAiProviderHint" class="small org-ai-provider-hint" role="note" hidden></p>
+
+        <div class="org-ai-field-group" data-org-ai-providers="openai openai_compatible anthropic google gemini azure_openai azure">
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">API key <span class="org-ai-req">(required)</span></span>
+            <input type="password" id="orgAiApiKey" class="input inputText" autocomplete="off" placeholder="Leave blank to keep existing key"/>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="openai openai_compatible anthropic google gemini azure_openai azure">
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">Model <span class="org-ai-req">(required)</span></span>
+            <input type="text" id="orgAiModel" class="input inputText" placeholder="e.g. gpt-4o-mini, claude-3-5-sonnet-20241022, gemini-1.5-flash"/>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="openai_compatible azure_openai azure">
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">Base URL <span class="org-ai-req">(required)</span></span>
+            <input type="url" id="orgAiBaseURL" class="input inputText" placeholder="https://… (deployment or proxy endpoint)"/>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="openai openai_compatible anthropic google gemini azure_openai azure">
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">Max output tokens <span class="org-ai-opt">(optional)</span></span>
+            <input type="number" id="orgAiMaxTokens" class="input inputText" min="1" step="1" placeholder="8192"/>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="openai_compatible azure_openai azure">
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">OpenAI API version <span class="org-ai-opt">(optional)</span></span>
+            <input type="text" id="orgAiOpenaiApiVersion" class="input inputText" placeholder="Azure: api-version value"/>
+          </label>
+          <label class="org-ai-config-form__row org-ai-config-form__row--check">
+            <input type="checkbox" id="orgAiUseApiKeyHeader" value="1"/>
+            <span>Send key as <code>api-key</code> header (typical for Azure)</span>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="anthropic">
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">Anthropic API base URL <span class="org-ai-opt">(optional)</span></span>
+            <input type="url" id="orgAiAnthropicBaseUrl" class="input inputText" placeholder="Default: https://api.anthropic.com"/>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="google gemini">
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">Google AI base URL <span class="org-ai-opt">(optional)</span></span>
+            <input type="url" id="orgAiGoogleBaseUrl" class="input inputText" placeholder="Default generativelanguage.googleapis.com"/>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="openai openai_compatible anthropic google gemini azure_openai azure">
+          <label class="org-ai-config-form__row org-ai-config-form__row--check">
+            <input type="checkbox" id="orgAiDisableStructured" value="1"/>
+            <span>Disable structured output (plain completion + JSON parse only)</span>
+          </label>
+        </div>
+        <div class="org-ai-field-group" data-org-ai-providers="openai openai_compatible azure_openai azure">
+          <label class="org-ai-config-form__row org-ai-config-form__row--check">
+            <input type="checkbox" id="orgAiLegacyMaxTokens" value="1"/>
+            <span>OpenAI legacy <code>max_tokens</code> parameter</span>
+          </label>
+        </div>
+      </div>
+      <div class="org-ai-config-form__actions" id="orgAiActions" style="display:none;">
+        <button type="submit" class="btn btn-primary" id="orgAiSaveBtn">Save AI settings</button>
+        <button type="button" class="btn btn-primary" id="orgAiTestSaved" style="display:none;">Test saved configuration</button>
+        <button type="button" class="transparent" id="orgAiTestForm">Test form values (without saving)</button>
+      </div>
+    </form>
+    <div id="orgAiTestResult" class="org-ai-test-result" hidden>
+      <h4>Test result</h4>
+      <pre id="orgAiTestResultPre" class="org-ai-test-result__pre"></pre>
+    </div>
+  </div>
+
+  <div class="content-block light-blue org-scan-context-section">
+    <h2>Extra guidance for scan steps</h2>
+    <p class="small">Separate from the model settings above. Optional text per AI-assisted step; members choose whether to add it to the prompt. Works with <strong>CARE built-in</strong> or <strong>organisation</strong> AI—whichever they select on that step.</p>
+    <div id="orgScanContextMessage" class="alert" style="display:none;"></div>
+    <form id="orgScanContextForm" class="org-scan-context-form" autocomplete="off">
+      <div class="org-scan-context-form__field">
+        <label class="org-scan-context-form__label" for="orgScanCtx_completeAssessment">Complete scan (initial assessment)</label>
+        <textarea id="orgScanCtx_completeAssessment" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder="e.g. sector-specific definitions, policies to respect…"></textarea>
+      </div>
+      <div class="org-scan-context-form__field">
+        <label class="org-scan-context-form__label" for="orgScanCtx_intendedConsequences">Intended consequences</label>
+        <textarea id="orgScanCtx_intendedConsequences" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder=""></textarea>
+      </div>
+      <div class="org-scan-context-form__field">
+        <label class="org-scan-context-form__label" for="orgScanCtx_unintendedConsequences">Unintended consequences</label>
+        <textarea id="orgScanCtx_unintendedConsequences" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder=""></textarea>
+      </div>
+      <div class="org-scan-context-form__field">
+        <label class="org-scan-context-form__label" for="orgScanCtx_stakeholders">Stakeholders</label>
+        <textarea id="orgScanCtx_stakeholders" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder=""></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary" id="orgScanContextSaveBtn">Save scan context</button>
+    </form>
+  </div>
+  <% } %>
+
   <% } %>
 </div>
 <% if (organisation && organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
 <script>
+(function () {
+  function showOrgAiMsg(text, isError) {
+    var el = document.getElementById('orgAiMessage');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#c00' : '';
+  }
+  var PROVIDER_HINTS = {
+    openai: 'Official OpenAI API: API key and model id (e.g. gpt-4o-mini). Base URL is not used.',
+    openai_compatible: 'Groq, LiteLLM, local proxies, etc. Base URL, API key, and model are required.',
+    anthropic: 'Anthropic Claude: API key and model id. Optional: custom API base URL.',
+    google: 'Google Gemini (Google AI): API key and model id. Optional: custom API base URL.',
+    gemini: 'Same wire format as Google Gemini.',
+    azure_openai: 'Azure OpenAI: resource endpoint as Base URL, API key, deployment name as model, and usually API version.',
+    azure: 'Same as Azure OpenAI.'
+  };
+
+  function providerShowsGroup(el, p) {
+    var list = (el.getAttribute('data-org-ai-providers') || '').trim().split(/\s+/).filter(Boolean);
+    return p && list.indexOf(p) !== -1;
+  }
+
+  function syncOrgAiProviderUI() {
+    var p = document.getElementById('orgAiProvider').value;
+    document.querySelectorAll('#orgAiFields .org-ai-field-group').forEach(function (el) {
+      el.style.display = providerShowsGroup(el, p) ? 'block' : 'none';
+    });
+    var hint = document.getElementById('orgAiProviderHint');
+    if (hint) {
+      if (!p) {
+        hint.textContent = 'Select a provider to see the fields required for that service.';
+      } else {
+        hint.textContent = PROVIDER_HINTS[p] || '';
+      }
+      hint.hidden = !hint.textContent;
+    }
+  }
+
+  /** Last masked config from GET / PUT — drives “Test saved” visibility (persisted state only). */
+  var lastServerOrgAiCfg = null;
+
+  function orgAiHasTestSavedEligible(cfg) {
+    if (!cfg || !cfg.enabled || !cfg.apiKeySet || !cfg.provider || !cfg.model) return false;
+    var p = String(cfg.provider);
+    if (p === 'openai_compatible' || p === 'azure_openai' || p === 'azure') {
+      return !!(cfg.baseURL && String(cfg.baseURL).trim());
+    }
+    return true;
+  }
+
+  function syncOrgAiActionButtons() {
+    var enabledChk = document.getElementById('orgAiEnabled');
+    var wrap = document.getElementById('orgAiActions');
+    var saveBtn = document.getElementById('orgAiSaveBtn');
+    var testFormBtn = document.getElementById('orgAiTestForm');
+    var testSavedBtn = document.getElementById('orgAiTestSaved');
+    if (!enabledChk || !wrap) return;
+    var on = enabledChk.checked;
+    if (!on) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = '';
+    if (saveBtn) saveBtn.style.display = '';
+    if (testFormBtn) testFormBtn.style.display = '';
+    if (testSavedBtn) {
+      testSavedBtn.style.display = orgAiHasTestSavedEligible(lastServerOrgAiCfg) ? '' : 'none';
+    }
+  }
+
+  function toggleOrgAiFields() {
+    var on = document.getElementById('orgAiEnabled') && document.getElementById('orgAiEnabled').checked;
+    var box = document.getElementById('orgAiFields');
+    if (box) {
+      box.style.display = on ? 'block' : 'none';
+      if (on) syncOrgAiProviderUI();
+    }
+    syncOrgAiActionButtons();
+  }
+
+  function fillOrgAiForm(cfg) {
+    if (!cfg) return;
+    lastServerOrgAiCfg = cfg;
+    document.getElementById('orgAiEnabled').checked = !!cfg.enabled;
+    document.getElementById('orgAiProvider').value = cfg.provider ? String(cfg.provider) : '';
+    document.getElementById('orgAiModel').value = cfg.model || '';
+    document.getElementById('orgAiBaseURL').value = cfg.baseURL || '';
+    document.getElementById('orgAiMaxTokens').value = cfg.maxTokens != null ? cfg.maxTokens : '';
+    document.getElementById('orgAiOpenaiApiVersion').value = cfg.openaiApiVersion || '';
+    document.getElementById('orgAiUseApiKeyHeader').checked = !!cfg.useApiKeyHeader;
+    document.getElementById('orgAiAnthropicBaseUrl').value = cfg.anthropicBaseUrl || '';
+    document.getElementById('orgAiGoogleBaseUrl').value = cfg.googleBaseUrl || '';
+    document.getElementById('orgAiDisableStructured').checked = !!cfg.disableStructuredOutput;
+    document.getElementById('orgAiLegacyMaxTokens').checked = !!cfg.openaiUseLegacyMaxTokens;
+    document.getElementById('orgAiApiKey').value = '';
+    document.getElementById('orgAiApiKey').placeholder = cfg.apiKeySet
+      ? 'Leave blank to keep existing key'
+      : 'Required when enabling';
+    toggleOrgAiFields();
+    if (document.getElementById('orgAiEnabled').checked) {
+      syncOrgAiProviderUI();
+    }
+  }
+  function collectOrgAiPayload(forTestUnsaved) {
+    var enabled = document.getElementById('orgAiEnabled').checked;
+    var body = { enabled: enabled };
+    if (!enabled && !forTestUnsaved) return body;
+    if (!enabled && forTestUnsaved) {
+      body.useSaved = false;
+      return body;
+    }
+    var p = document.getElementById('orgAiProvider').value;
+    body.provider = p;
+    body.model = document.getElementById('orgAiModel').value.trim();
+    var key = document.getElementById('orgAiApiKey').value.trim();
+    if (key) body.apiKey = key;
+    if (needsBaseUrlProvider(p)) {
+      var b = document.getElementById('orgAiBaseURL').value.trim();
+      if (b) body.baseURL = b;
+    }
+    var mt = document.getElementById('orgAiMaxTokens').value.trim();
+    if (mt) body.maxTokens = parseInt(mt, 10);
+    if (p === 'openai_compatible' || p === 'azure_openai' || p === 'azure') {
+      var v = document.getElementById('orgAiOpenaiApiVersion').value.trim();
+      if (v) body.openaiApiVersion = v;
+      body.useApiKeyHeader = document.getElementById('orgAiUseApiKeyHeader').checked;
+    }
+    if (p === 'anthropic') {
+      var ab = document.getElementById('orgAiAnthropicBaseUrl').value.trim();
+      if (ab) body.anthropicBaseUrl = ab;
+    }
+    if (p === 'google' || p === 'gemini') {
+      var gb = document.getElementById('orgAiGoogleBaseUrl').value.trim();
+      if (gb) body.googleBaseUrl = gb;
+    }
+    body.disableStructuredOutput = document.getElementById('orgAiDisableStructured').checked;
+    if (['openai', 'openai_compatible', 'azure_openai', 'azure'].indexOf(p) !== -1) {
+      body.openaiUseLegacyMaxTokens = document.getElementById('orgAiLegacyMaxTokens').checked;
+    } else {
+      body.openaiUseLegacyMaxTokens = false;
+    }
+    return body;
+  }
+
+  function needsBaseUrlProvider(provider) {
+    return (
+      provider === 'openai_compatible' ||
+      provider === 'azure_openai' ||
+      provider === 'azure'
+    );
+  }
+
+  fetch('/organisation/ai-config', { headers: { Accept: 'application/json' } })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (x) {
+      if (!x.ok) throw new Error(x.d.message || 'Could not load AI config');
+      fillOrgAiForm(x.d);
+    })
+    .catch(function (e) {
+      showOrgAiMsg(e.message || String(e), true);
+      syncOrgAiActionButtons();
+    });
+  document.getElementById('orgAiEnabled').addEventListener('change', toggleOrgAiFields);
+  document.getElementById('orgAiProvider').addEventListener('change', syncOrgAiProviderUI);
+  document.getElementById('orgAiConfigForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    showOrgAiMsg('', false);
+    document.getElementById('orgAiMessage').style.display = 'none';
+    var body = collectOrgAiPayload(false);
+    if (body.enabled) {
+      if (!body.provider) {
+        showOrgAiMsg('Choose a provider before saving.', true);
+        return;
+      }
+      if (!body.model) {
+        showOrgAiMsg('Model is required.', true);
+        return;
+      }
+      if (needsBaseUrlProvider(body.provider) && !body.baseURL) {
+        showOrgAiMsg('Base URL is required for this provider.', true);
+        return;
+      }
+    }
+    fetch('/organisation/ai-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.message || res.statusText);
+          fillOrgAiForm(data.config);
+          showOrgAiMsg(data.message || 'Saved', false);
+        });
+      })
+      .catch(function (e) {
+        showOrgAiMsg(e.message || String(e), true);
+      });
+  });
+  function runOrgAiTest(payload) {
+    var pre = document.getElementById('orgAiTestResultPre');
+    var wrap = document.getElementById('orgAiTestResult');
+    pre.textContent = 'Running…';
+    wrap.hidden = false;
+    fetch('/organisation/ai-config/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.message || res.statusText);
+          pre.textContent = JSON.stringify(data, null, 2);
+        });
+      })
+      .catch(function (e) {
+        pre.textContent = e.message || String(e);
+      });
+  }
+  document.getElementById('orgAiTestSaved').addEventListener('click', function () {
+    runOrgAiTest({ useSaved: true });
+  });
+  document.getElementById('orgAiTestForm').addEventListener('click', function () {
+    var body = collectOrgAiPayload(true);
+    body.useSaved = false;
+    if (!body.enabled) {
+      showOrgAiMsg('Enable organisation AI or use Test saved configuration', true);
+      return;
+    }
+    if (!body.provider) {
+      showOrgAiMsg('Choose a provider first.', true);
+      return;
+    }
+    if (!body.model) {
+      showOrgAiMsg('Model is required for a test run.', true);
+      return;
+    }
+    if (needsBaseUrlProvider(body.provider) && !body.baseURL) {
+      showOrgAiMsg('Base URL is required for this provider.', true);
+      return;
+    }
+    if (!body.apiKey) {
+      showOrgAiMsg('Enter an API key to test without saving, or use Test saved configuration', true);
+      return;
+    }
+    runOrgAiTest(body);
+  });
+})();
+
+(function () {
+  var form = document.getElementById('orgScanContextForm');
+  if (!form) return;
+  function showScanCtxMsg(text, isError) {
+    var el = document.getElementById('orgScanContextMessage');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#c00' : '';
+  }
+  var STAGE_KEYS = [
+    'completeAssessment',
+    'intendedConsequences',
+    'unintendedConsequences',
+    'stakeholders',
+  ];
+  function fillScanContextForm(d) {
+    var stages = (d && d.stages) || {};
+    STAGE_KEYS.forEach(function (key) {
+      var ta = document.getElementById('orgScanCtx_' + key);
+      if (ta) ta.value = stages[key] != null ? String(stages[key]) : '';
+    });
+  }
+  function collectScanContextPayload() {
+    var stages = {};
+    STAGE_KEYS.forEach(function (key) {
+      var ta = document.getElementById('orgScanCtx_' + key);
+      stages[key] = ta ? ta.value : '';
+    });
+    return { stages: stages };
+  }
+  fetch('/organisation/scan-context', { headers: { Accept: 'application/json' } })
+    .then(function (r) {
+      return r.json().then(function (d) {
+        return { ok: r.ok, d: d };
+      });
+    })
+    .then(function (x) {
+      if (!x.ok) throw new Error(x.d.message || 'Could not load scan context');
+      fillScanContextForm(x.d);
+    })
+    .catch(function (e) {
+      showScanCtxMsg(e.message || String(e), true);
+    });
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    showScanCtxMsg('', false);
+    document.getElementById('orgScanContextMessage').style.display = 'none';
+    fetch('/organisation/scan-context', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(collectScanContextPayload()),
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.message || res.statusText);
+          fillScanContextForm({ stages: data.stages });
+          showScanCtxMsg(data.message || 'Saved', false);
+        });
+      })
+      .catch(function (e) {
+        showScanCtxMsg(e.message || String(e), true);
+      });
+  });
+})();
+
 document.getElementById('addMemberForm').addEventListener('submit', function (ev) {
   ev.preventDefault();
   const msg = document.getElementById('orgMessage');

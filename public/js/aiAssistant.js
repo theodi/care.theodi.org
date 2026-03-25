@@ -1,5 +1,177 @@
 let responseData = {};
 let aiMessage = "";
+/** Populated CARE template; `{{orgContext}}` filled in refreshAiMessagePreview (same as server). */
+let aiMessageBase = '';
+/** Plain text for this step from GET /organisation/ai-eligibility?forMessageId=… */
+let careScanContextPlainText = null;
+
+/** Must match lib/organisationScanContext.js replaceOrgContextPlaceholder */
+const ORG_CONTEXT_PLACEHOLDER = /\{\{orgContext\}\}/g;
+
+function applyOrgContextPlaceholderPreview(baseMessage) {
+    const base = typeof baseMessage === 'string' ? baseMessage : '';
+    const t =
+        careIncludeOrgContextParam() &&
+        careScanContextPlainText != null &&
+        typeof careScanContextPlainText === 'string' &&
+        careScanContextPlainText.trim()
+            ? careScanContextPlainText.trim()
+            : '';
+    return base.replace(ORG_CONTEXT_PLACEHOLDER, t);
+}
+
+function refreshAiMessagePreview() {
+    const el = document.getElementById('aiMessage');
+    if (!el) return;
+    aiMessage = applyOrgContextPlaceholderPreview(aiMessageBase);
+    el.innerHTML = renderMessageHTML(aiMessage);
+}
+
+/** True when the preview is collapsed (CSS can hide without setting inline style). */
+function isAiMessagePreviewHidden(aiMessageEl) {
+    if (!aiMessageEl) return true;
+    const inline = aiMessageEl.style.display;
+    if (inline === 'none') return true;
+    if (inline === 'block') return false;
+    return window.getComputedStyle(aiMessageEl).display === 'none';
+}
+
+function bindAiMessageExpandControlsOnce() {
+    const scope = document.querySelector('.aiContainer');
+    if (!scope) return;
+    const expandToggle = scope.querySelector('.expandToggle');
+    const expandButton = scope.querySelector('.expandButton');
+    const aiMessageEl = scope.querySelector('#aiMessage');
+    if (!expandToggle || !expandButton || !aiMessageEl) return;
+    if (expandButton.dataset.careExpandBound === '1') return;
+    expandButton.dataset.careExpandBound = '1';
+
+    function expandPreview() {
+        aiMessageEl.style.display = 'block';
+        expandButton.textContent = '-';
+        expandToggle.style.display = 'none';
+    }
+
+    function collapsePreview() {
+        aiMessageEl.style.display = 'none';
+        expandButton.textContent = '+';
+        expandToggle.style.display = 'block';
+    }
+
+    expandToggle.addEventListener('click', function (event) {
+        event.preventDefault();
+        if (isAiMessagePreviewHidden(aiMessageEl)) expandPreview();
+    });
+
+    expandButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        if (isAiMessagePreviewHidden(aiMessageEl)) expandPreview();
+        else collapsePreview();
+    });
+}
+
+function careAiSourceParam() {
+    try {
+        if (sessionStorage.getItem('careAiSource') === 'built_in') {
+            return 'built_in';
+        }
+    } catch (e) { /* ignore */ }
+    return 'organisation';
+}
+
+function careIncludeOrgContextParam() {
+    try {
+        const v = sessionStorage.getItem('careIncludeOrgContext');
+        if (v === '0') return false;
+        return true;
+    } catch (e) {
+        return true;
+    }
+}
+
+function assistantQueryString(extra) {
+    const p = new URLSearchParams();
+    p.set('aiSource', careAiSourceParam());
+    if (careIncludeOrgContextParam()) {
+        p.set('includeOrgContext', '1');
+    }
+    if (extra && Object.prototype.hasOwnProperty.call(extra, 'merge')) {
+        p.set('merge', String(extra.merge));
+    }
+    return p.toString();
+}
+
+/**
+ * One bordered block: optional org model choice + optional org guidance (same .care-ai-source-intro styling).
+ */
+function injectCareAiStepOptions(orgAiAvailable, scanContextByStage, messageId) {
+    const pre = document.querySelector('.aiContainer .preAI');
+    if (!pre || pre.querySelector('.care-ai-source-picker')) return;
+    const hasContext = !!(scanContextByStage && messageId && scanContextByStage[messageId]);
+    if (!orgAiAvailable && !hasContext) return;
+
+    var storedSource = '';
+    try {
+        storedSource = sessionStorage.getItem('careAiSource') || '';
+    } catch (e) { /* ignore */ }
+    var useBuiltIn = storedSource === 'built_in';
+
+    var ctxStored = '';
+    try {
+        ctxStored = sessionStorage.getItem('careIncludeOrgContext') || '';
+    } catch (e) { /* ignore */ }
+    var contextOn = ctxStored !== '0';
+
+    var legendText = orgAiAvailable ? 'Choose AI provider' : 'Organisation guidance';
+    var html = '<legend class="care-ai-source-legend">' + legendText + '</legend>';
+    if (orgAiAvailable) {
+        html +=
+            '<p class="small care-ai-source-intro">Please choose which AI provider to use for this step: your organisation\'s default model, or CARE built-in (server) settings.</p>' +
+            '<div class="care-ai-source-row">' +
+            '<label class="care-ai-source-option"><input type="radio" name="careAiSource" value="organisation"' +
+            (useBuiltIn ? '' : ' checked') +
+            '> Organisational default</label> ' +
+            '<label class="care-ai-source-option"><input type="radio" name="careAiSource" value="built_in"' +
+            (useBuiltIn ? ' checked' : '') +
+            '> CARE built-in</label>' +
+            '</div>';
+    }
+    if (hasContext) {
+        if (orgAiAvailable) {
+            html += '<hr class="care-ai-source-divider" aria-hidden="true"/>';
+        }
+        html +=
+            '<label class="care-ai-source-option care-ai-source-option--block"><input type="checkbox" name="careIncludeOrgContext" value="1"' +
+            (contextOn ? ' checked' : '') +
+            '> Include organisation guidance in the AI prompt</label>';
+    }
+
+    var fieldset = document.createElement('fieldset');
+    fieldset.className = 'care-ai-source-picker';
+    fieldset.innerHTML = html;
+    var queryPreview = pre.querySelector('#aiMessageContainer');
+    if (queryPreview && queryPreview.parentNode === pre) {
+        pre.insertBefore(fieldset, queryPreview);
+    } else {
+        pre.insertBefore(fieldset, pre.firstChild);
+    }
+
+    fieldset.addEventListener('change', function (ev) {
+        var t = ev.target;
+        if (!t) return;
+        if (t.name === 'careAiSource') {
+            try {
+                sessionStorage.setItem('careAiSource', t.value);
+            } catch (e) { /* ignore */ }
+        }
+        if (t.name === 'careIncludeOrgContext') {
+            try {
+                sessionStorage.setItem('careIncludeOrgContext', t.checked ? '1' : '0');
+            } catch (e) { /* ignore */ }
+            refreshAiMessagePreview();
+        }
+    });
+}
 
 async function loadAI() {
     const form = document.getElementById("dataForm");
@@ -15,41 +187,42 @@ async function loadAI() {
     } catch (error) {
         return;
     }
+
+    var orgAiAvailable = false;
+    var scanContextByStage = {};
+    careScanContextPlainText = null;
+    try {
+        const eligUrl =
+            '/organisation/ai-eligibility?forMessageId=' + encodeURIComponent(messageId);
+        const er = await fetch(eligUrl, { headers: { Accept: 'application/json' } });
+        if (er.ok) {
+            const d = await er.json();
+            orgAiAvailable = !!d.organisationAiAvailable;
+            scanContextByStage = d.scanContextByStage && typeof d.scanContextByStage === 'object'
+                ? d.scanContextByStage
+                : {};
+            if (d.scanContextText != null && typeof d.scanContextText === 'string' && d.scanContextText.trim()) {
+                careScanContextPlainText = d.scanContextText;
+            }
+        }
+    } catch (e) {
+        orgAiAvailable = false;
+    }
+
     await addAIElements();
+    injectCareAiStepOptions(orgAiAvailable, scanContextByStage, messageId);
 
     renderMessage(projectData,message);
 
-    const expandToggle = document.querySelector('.expandToggle');
-    const aiMessage = document.getElementById('aiMessage');
-    const expandButton = document.querySelector('.expandButton');
-
-    expandToggle.addEventListener('click', function(event) {
-        event.preventDefault();
-        if (aiMessage.style.display === 'none') {
-            aiMessage.style.display = 'block';
-            expandButton.textContent = '-';
-            expandToggle.style.display = 'none';
-        }
-    });
-
-    expandButton.addEventListener('click', function(event) {
-        event.preventDefault();
-        if (aiMessage.style.display === 'none') {
-            aiMessage.style.display = 'block';
-            expandButton.textContent = '-';
-            expandToggle.style.display = 'none';
-        } else {
-            aiMessage.style.display = 'none';
-            expandButton.textContent = '+';
-            expandToggle.style.display = 'block';
-        }
-    });
+    bindAiMessageExpandControlsOnce();
 
     const runAI = document.getElementById('runAI');
-    runAI.addEventListener('click', function(event) {
-        event.preventDefault();
-        getInlineAIReponse(projectId);
-    });
+    if (runAI) {
+        runAI.addEventListener('click', function(event) {
+            event.preventDefault();
+            getInlineAIReponse(projectId);
+        });
+    }
 }
 
 async function addAIElements() {
@@ -90,9 +263,8 @@ function renderMessageHTML(messageText) {
 
 async function renderMessage(projectData,message) {
     try {
-        aiMessage = await populateMessage(message, projectData);
-        const messageHTML = renderMessageHTML(aiMessage);
-        document.getElementById("aiMessage").innerHTML = messageHTML;
+        aiMessageBase = await populateMessage(message, projectData);
+        refreshAiMessagePreview();
     } catch (error) {
         console.error("Error rendering message:", error);
     }
@@ -260,12 +432,15 @@ async function getInlineAIReponse(projectId) {
         document.querySelectorAll('.preAI').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.aiRunning').forEach(el => el.style.display = 'block');
 
-        const response = await fetch(`/assistant/${projectId}/${messageId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
+        const response = await fetch(
+            `/assistant/${projectId}/${messageId}?${assistantQueryString()}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             }
-        });
+        );
 
         if (!response.ok) {
             throw new Error('Network response was not ok');
@@ -296,12 +471,15 @@ async function getCompleteAIResponse(projectId, merge) {
         document.querySelectorAll('.aiRunning').forEach(el => el.style.display = 'block');
         document.getElementById('submitButtonContainer').style.display = 'none';
 
-        const response = await fetch(`/assistant/${projectId}/${messageId}?merge=${merge}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
+        const response = await fetch(
+            `/assistant/${projectId}/${messageId}?${assistantQueryString({ merge: merge })}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             }
-        });
+        );
 
         if (!response.ok) {
             throw new Error('Network response was not ok');

@@ -706,6 +706,163 @@ table.dataTable td.eval-shares-col .eval-share-open.btn {
     margin: 0;
 }
 
+/* Organisation page: admin AI configuration */
+.org-ai-content-block {
+    margin-top: 0;
+}
+.org-ai-config-form {
+    margin-top: 0.75rem;
+    max-width: 40rem;
+}
+.org-ai-field-group {
+    margin-bottom: 0.25rem;
+}
+.org-ai-req {
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    font-size: 0.85em;
+}
+.org-ai-opt {
+    font-weight: normal;
+    color: #555;
+    font-size: 0.85em;
+}
+.org-ai-provider-hint {
+    margin: 0 0 0.75rem;
+    padding: 0.5rem 0.65rem;
+    background: rgba(7, 37, 137, 0.06);
+    border-left: 3px solid var(--color-dark-blue);
+    color: #333;
+    line-height: 1.4;
+}
+.org-ai-config-form__row--provider {
+    margin-bottom: 0.35rem;
+}
+.org-ai-config-form__check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+}
+.org-ai-config-form__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.org-ai-config-form__row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.org-ai-config-form__row--check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: normal;
+}
+.org-ai-config-form__label-text {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-dark-blue);
+}
+.org-ai-config-form__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+.org-ai-test-result {
+    margin-top: 1rem;
+    max-width: min(100%, 48rem);
+}
+/* Organisation page: per-step prompt add-ons (light band vs white org AI config above) */
+.org-scan-context-section {
+    margin-top: 0;
+}
+
+.org-scan-context-section .org-scan-context-form {
+    margin-top: 0.75rem;
+}
+
+.org-scan-context-form__field {
+    margin-bottom: 1.25rem;
+}
+
+.org-scan-context-form__label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.org-scan-context-form__textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+.org-ai-test-result__pre {
+    background: #f4f6f8;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 0.75rem 1rem;
+    overflow: auto;
+    max-height: 22rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Scan / assessment: AI source picker (between step intro and #aiMessageContainer) */
+.care-ai-source-picker {
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    padding: 0.65rem 0.85rem;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+    background: rgba(255, 255, 255, 0.6);
+}
+.aiContainer .preAI > .care-ai-source-picker:first-child {
+    margin-top: 0;
+}
+.care-ai-source-legend {
+    font-weight: 700;
+    color: var(--color-dark-blue);
+    padding: 0 0.25rem;
+}
+.care-ai-source-intro {
+    margin: 0.35rem 0 0.5rem;
+    color: #444;
+}
+.care-ai-source-divider {
+    border: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    margin: 0.75rem 0;
+}
+.care-ai-source-row {
+    margin-bottom: 0.15rem;
+}
+.care-ai-source-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-right: 1rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+.care-ai-source-option--block {
+    display: flex;
+    margin-right: 0;
+    margin-top: 0.25rem;
+}
+
 .share-access-table .share-access-remove.btn {
     white-space: nowrap;
 }

@@ -76,4 +76,66 @@ router.delete('/members/:membershipId', ensureAuthenticated, async (req, res, ne
   }
 });
 
+router.get('/ai-eligibility', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const forMessageId =
+      typeof req.query.forMessageId === 'string' ? req.query.forMessageId : '';
+    const data = await organisationController.getAiEligibilityForUser(userId, forMessageId);
+    res.json(data);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/ai-config', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const config = await organisationController.getAiConfigAdmin(userId);
+    res.json(config);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.put('/ai-config', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.updateAiConfigAdmin(userId, req.body);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/ai-config/test', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.testAiConfigAdmin(userId, req.body || {});
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/scan-context', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const data = await organisationController.getScanContextAdmin(userId);
+    res.json(data);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.put('/scan-context', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.updateScanContextAdmin(userId, req.body);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
 module.exports = router;

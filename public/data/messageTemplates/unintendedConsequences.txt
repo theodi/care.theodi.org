@@ -16,6 +16,8 @@ Using this context suggest some unintended consequences for the project. These u
     - Secondary effects: Think about ripple effects that the project might have on other processes, systems, or stakeholders, even if they are not directly involved.
     - External factors: Take into account external factors or events that the project might interact with or influence. These could include changes in regulations, market conditions, or technological advancements.
 
+{{orgContext}}
+
 Your response should be in the format of undeclared JSON conforming to the following schema:
 
 {{schema}}
