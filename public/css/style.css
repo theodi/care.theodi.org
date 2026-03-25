@@ -378,7 +378,9 @@ tbody tr:nth-child(2n) td {
 #organisationProjectsTable thead th,
 #organisationProjectsTable tbody td,
 #topRisksTable thead th,
-#topRisksTable tbody td {
+#topRisksTable tbody td,
+#orgTopRisksTable thead th,
+#orgTopRisksTable tbody td {
     vertical-align: middle;
 }
 
@@ -665,6 +667,45 @@ table.dataTable td.eval-shares-col .eval-share-open.btn {
 .share-access-add .btn {
     flex: 0 0 auto;
 }
+
+/* Transfer ownership modal (matches share-overlay-panel) */
+.transfer-owner-body {
+    margin: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.transfer-owner-label {
+    display: block;
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    margin: 0 0 0.45rem;
+    font-size: 0.9rem;
+}
+.transfer-owner-select {
+    width: 100%;
+    max-width: 100%;
+    min-height: 2.5rem;
+    box-sizing: border-box;
+}
+.transfer-owner-hint {
+    margin: 0.5rem 0 0;
+    color: #555;
+    line-height: 1.35;
+    max-width: 36rem;
+}
+.transfer-owner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.transfer-owner-cancel {
+    margin: 0;
+}
+
 .share-access-table .share-access-remove.btn {
     white-space: nowrap;
 }

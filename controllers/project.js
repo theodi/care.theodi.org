@@ -36,9 +36,13 @@ async function getUserProjects(userId) {
             organisationProjectDocs = await Project.find({
                 sharedWithOrganisation: true,
                 organisationSubscriptionId: { $in: subscriptionIds },
-                owner: { $ne: userIdObjectId },
             });
         }
+
+        for (const project of organisationProjectDocs) {
+            addRiskScoreToProject(project);
+        }
+        const organisationMetrics = await getUserProjectMetrics(organisationProjectDocs);
 
         const schemaPath = `../public/data/schemas/project.json`;
         const schema = require(schemaPath);
@@ -60,6 +64,7 @@ async function getUserProjects(userId) {
         const organisationProjectsPromises = organisationProjectDocs.map(async (project) => {
             const owner = await User.findById(project.owner);
             const status = await getCompletionState(project._id, schema);
+            const ownerId = project.owner;
             return {
                 id: project._id,
                 title: project.title,
@@ -67,9 +72,10 @@ async function getUserProjects(userId) {
                 lastModified: project.lastModified,
                 status,
                 organisation: true,
+                ownedByCurrentUser: ownerId && ownerId.equals(userIdObjectId),
             };
         });
-        const organisationProjects = await Promise.all(organisationProjectsPromises);
+        const organisationProjectsList = await Promise.all(organisationProjectsPromises);
 
         const ownedProjectsPromises = ownedProjects.map(async project => {
             const status = await getCompletionState(project._id,schema);
@@ -97,7 +103,12 @@ async function getUserProjects(userId) {
                 topRisks: metrics.topRisks
             },
             sharedProjects: filteredSharedProjects,
-            organisationProjects,
+            organisationProjects: {
+                projects: organisationProjectsList,
+                riskCounts: organisationMetrics.riskCounts,
+                averages: organisationMetrics.averages,
+                topRisks: organisationMetrics.topRisks,
+            },
         };
     } catch (error) {
         throw error; // Propagate the error to the caller
@@ -150,6 +161,7 @@ async function getUserProjectMetrics(userProjects) {
             if (unintendedConsequence.riskScore !== null) {
                 topRisks.push({
                     projectId: project._id,
+                    evaluationTitle: project.title || '',
                     consequence: unintendedConsequence.consequence,
                     score: unintendedConsequence.riskScore,
                     level: getScoreText(unintendedConsequence.riskScore/3)
@@ -164,10 +176,16 @@ async function getUserProjectMetrics(userProjects) {
     // Get the top 5 risks
     const top5Risks = topRisks.slice(0, 5);
 
-    // Calculate averages
-    const averageLikelihood = (totalLikelihood / totalUnintendedConsequences).toFixed(2);
-    const averageImpact = (totalImpact / totalUnintendedConsequences).toFixed(2);
-    const averageRiskScore = (totalRiskScore / totalUnintendedConsequences).toFixed(2);
+    // Calculate averages (avoid NaN when there are no scored consequences)
+    const averageLikelihood = totalUnintendedConsequences > 0
+        ? (totalLikelihood / totalUnintendedConsequences).toFixed(2)
+        : '0.00';
+    const averageImpact = totalUnintendedConsequences > 0
+        ? (totalImpact / totalUnintendedConsequences).toFixed(2)
+        : '0.00';
+    const averageRiskScore = totalUnintendedConsequences > 0
+        ? (totalRiskScore / totalUnintendedConsequences).toFixed(2)
+        : '0.00';
 
     // Return risk counts, averages, and top 5 risks as a data object
     return {

@@ -55,18 +55,21 @@
 </div>
 <% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
 <div id="transferOwnerOverlay" class="overlay">
-    <div class="overlay-content">
-        <span class="close-btn" onclick="closeTransferOwnerOverlay()">&times;</span>
-        <h2>Transfer ownership</h2>
-        <p class="small">The new owner must be listed on your organisation and must already have a CARE account (evaluations are always owned by a user id).</p>
+    <div class="overlay-content share-overlay-panel">
+        <span class="close-btn" onclick="closeTransferOwnerOverlay()" aria-label="Close">&times;</span>
+        <h2 class="share-overlay-title">Transfer ownership</h2>
+        <p class="share-overlay-lead small">The new owner must be listed on your organisation and must already have a CARE account. Evaluations are always owned by a user account in CARE.</p>
+        <div id="transferOwnerMessage" class="alert share-overlay-message" style="display:none;" role="alert"></div>
         <input type="hidden" id="transferProjectId" value=""/>
-        <label for="transferOwnerSelect">New owner</label>
-        <select id="transferOwnerSelect" class="input inputText" style="width:100%; max-width: 28rem;"></select>
-        <p style="margin-top: 1rem;">
-            <button type="button" class="btn btn-primary" id="transferOwnerSubmit">Transfer</button>
-            <button type="button" class="transparent" onclick="closeTransferOwnerOverlay()">Cancel</button>
-        </p>
-        <div id="transferOwnerMessage" class="alert" style="display:none;"></div>
+        <div class="transfer-owner-body">
+            <label class="transfer-owner-label" for="transferOwnerSelect">New owner</label>
+            <select id="transferOwnerSelect" class="input inputText transfer-owner-select" aria-describedby="transferOwnerHelp"></select>
+            <p id="transferOwnerHelp" class="small transfer-owner-hint">Members without a CARE account cannot be selected until they have signed in at least once.</p>
+        </div>
+        <div class="transfer-owner-actions">
+            <button type="button" class="btn btn-primary" id="transferOwnerSubmit">Transfer ownership</button>
+            <button type="button" class="transparent transfer-owner-cancel" onclick="closeTransferOwnerOverlay()">Cancel</button>
+        </div>
     </div>
 </div>
 <% } %>
@@ -135,22 +138,77 @@
     </section>
     <table id="myProjectsTable" class="display" style="width:100%"></table>
 </div>
-<div class="content-block light-blue">
-    <h2>Evaluations shared with me</h2>
-    <table id="sharedProjectsTable" class="display" style="width:100%"></table>
-</div>
 <% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
-<div class="content-block white">
+<div class="content-block light-blue">
     <h2>Organisation evaluations</h2>
-    <p class="small">Evaluations other members have shared with the organisation.</p>
+    <p class="small">The dashboard below includes every evaluation shared with your organisation, including ones you own. The table can list the same evaluations as <strong>My evaluations</strong>; use the checkbox to show or hide yours in this table.</p>
+    <section class="dashboard">
+        <subsection class="dashboard-box">
+            <div class="dashboard-header">
+                <h2>Risks</h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="orgRiskChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box">
+            <div class="dashboard-header">
+                <h2>Stats <span class="small">(average)</span></h2>
+            </div>
+            <div class="dashboard-chart">
+                <h3>Likelihood</h3>
+                <div class="progress-bar">
+                    <div id="org-likelihood-bar" class="bar"></div>
+                </div>
+                <h3>Impact</h3>
+                <div class="progress-bar">
+                    <div id="org-impact-bar" class="bar"></div>
+                </div>
+                <h3>Risk</h3>
+                <div class="progress-bar">
+                    <div id="org-risk-bar" class="bar"></div>
+                </div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box top-risks">
+            <div class="dashboard-header">
+                <h2>Priority <span class="small">(top 5)</span></h2>
+            </div>
+            <div class="dashboard-chart">
+                <table id="orgTopRisksTable">
+                    <thead>
+                        <tr>
+                            <th>Risk</th>
+                            <th style="width: 60px;">Level</th>
+                            <th style="width: 50px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="org-topRisksTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </subsection>
+    </section>
+    <div class="org-eval-table-controls" style="margin: 1rem 0;">
+        <label class="org-eval-include-mine-label">
+            <input type="checkbox" id="includeMyOrgSharedEvaluations" value="1"/>
+            Show evaluations I own (also listed under My evaluations)
+        </label>
+    </div>
     <table id="organisationProjectsTable" class="display" style="width:100%"></table>
 </div>
 <% } %>
+<div class="content-block <%= (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) ? 'white' : 'light-blue' %>">
+    <h2>Evaluations shared with me</h2>
+    <table id="sharedProjectsTable" class="display" style="width:100%"></table>
+</div>
 </div>
 
 <script>
 
 var organisationMetaGlobal = {};
+/** Full organisation payload from last GET /projects (for table filter toggle). */
+var organisationProjectsCachedPayload = null;
 
 function escapeHtml(s) {
     return String(s == null ? '' : s)
@@ -158,6 +216,34 @@ function escapeHtml(s) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+function organisationProjectsRows(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    return payload.projects || [];
+}
+
+function organisationTableRowsForDisplay(allRows, includeMine) {
+    if (includeMine) return allRows.slice();
+    return allRows.filter(function (r) {
+        return !r.ownedByCurrentUser;
+    });
+}
+
+function refreshOrganisationDashboard(orgPayload) {
+    if (!document.getElementById('orgRiskChart')) return;
+    var p = orgPayload || {};
+    var counts = p.riskCounts || { unclassified: 0, high: 0, medium: 0, low: 0 };
+    var averages = p.averages || { likelihood: '0.00', impact: '0.00', riskScore: '0.00' };
+    var topRisks = p.topRisks || [];
+    addRiskDonut(counts, { chartId: 'orgRiskChart' });
+    addAverages(averages, {
+        likelihoodBarId: 'org-likelihood-bar',
+        impactBarId: 'org-impact-bar',
+        riskBarId: 'org-risk-bar'
+    });
+    addTopRisks(topRisks, { tableBodyId: 'org-topRisksTableBody' });
 }
 
 /** Open completed output vs project details for in-progress / todo. */
@@ -277,9 +363,11 @@ $(document).ready(function () {
         }
         renderMyProjects(data.ownedProjects.projects);
         renderSharedProjects(data.sharedProjects);
+        organisationProjectsCachedPayload = data.organisationProjects || {};
         if (typeof renderOrganisationProjects === 'function') {
-            renderOrganisationProjects(data.organisationProjects || [], organisationMetaGlobal);
+            renderOrganisationProjects(organisationProjectsCachedPayload, organisationMetaGlobal);
         }
+        refreshOrganisationDashboard(data.organisationProjects);
         addRiskDonut(data.ownedProjects.riskCounts);
         addAverages(data.ownedProjects.averages);
         addTopRisks(data.ownedProjects.topRisks);
@@ -538,9 +626,13 @@ function renderMyProjects(data) {
     });
 }
 
-function renderOrganisationProjects(data, organisationMeta) {
+function renderOrganisationProjects(payload, organisationMeta) {
     var orgTable = $('#organisationProjectsTable');
     if (!orgTable.length) return;
+    var allRows = organisationProjectsRows(payload);
+    var includeMineEl = document.getElementById('includeMyOrgSharedEvaluations');
+    var includeMine = includeMineEl ? includeMineEl.checked : false;
+    var data = organisationTableRowsForDisplay(allRows, includeMine);
     if ($.fn.DataTable.isDataTable('#organisationProjectsTable')) {
         orgTable.DataTable().destroy();
     }
@@ -627,6 +719,11 @@ function renderOrganisationProjects(data, organisationMeta) {
     });
 }
 
+$(document).on('change', '#includeMyOrgSharedEvaluations', function () {
+    if (!organisationProjectsCachedPayload) return;
+    renderOrganisationProjects(organisationProjectsCachedPayload, organisationMetaGlobal);
+});
+
 $(document).on('click', '#transferOwnerSubmit', function () {
     var pidEl = document.getElementById('transferProjectId');
     if (!pidEl) return;
@@ -661,7 +758,9 @@ $(document).on('click', '#transferOwnerSubmit', function () {
         if ($.fn.DataTable.isDataTable('#organisationProjectsTable')) {
             $('#organisationProjectsTable').DataTable().destroy();
         }
-        renderOrganisationProjects(data.organisationProjects || [], data.organisationMeta || {});
+        organisationProjectsCachedPayload = data.organisationProjects || {};
+        refreshOrganisationDashboard(data.organisationProjects);
+        renderOrganisationProjects(organisationProjectsCachedPayload, data.organisationMeta || {});
         if ($.fn.DataTable.isDataTable('#myProjectsTable')) {
             $('#myProjectsTable').DataTable().ajax.reload(null, false);
         }
