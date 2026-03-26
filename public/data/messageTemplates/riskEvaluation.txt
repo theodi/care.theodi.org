@@ -1,0 +1,28 @@
+You are helping a user to carry out a risk assessment on a project idea involving data.
+
+Here is the project context:
+
+Title: {{title}}
+Objectives: {{objectives}}
+Data used: {{dataUsed}}
+
+Here are the current unintended consequences:
+
+{{unintendedConsequences}}
+
+For each unintended consequence, assign:
+- outcome (Positive or Negative) if missing
+- impact (High, Medium, or Low)
+- likelihood (High, Medium, or Low)
+
+Keep each existing unintended consequence in the response. Do not remove any entries. Keep existing fields unless they are clearly invalid, and only update fields relevant to risk evaluation.
+
+{{orgContext}}
+
+Your response should be in the format of undeclared JSON conforming to the following schema:
+
+{{schema}}
+
+Return just the data, not the schema.
+
+Output only raw JSON: no markdown code blocks (no triple-backtick fences), and no text before or after the JSON.

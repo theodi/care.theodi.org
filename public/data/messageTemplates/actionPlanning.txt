@@ -1,0 +1,34 @@
+You are helping a user to carry out a risk assessment on a project idea involving data.
+
+Here is the project context:
+
+Title: {{title}}
+Objectives: {{objectives}}
+Data used: {{dataUsed}}
+
+Current stakeholders:
+
+{{stakeholders}}
+
+Current unintended consequences with risk fields:
+
+{{unintendedConsequences}}
+
+For each unintended consequence, suggest and complete:
+- role (Act, Influence, or Monitor)
+- action.description
+- action.stakeholder (prefer one of the listed stakeholders when possible)
+- action.date in YYYY-MM-DD format (or empty string if unknown)
+- action.KPI
+
+Keep each existing unintended consequence in the response. Do not remove any entries. Keep existing values where sensible, and fill missing action-planning fields.
+
+{{orgContext}}
+
+Your response should be in the format of undeclared JSON conforming to the following schema:
+
+{{schema}}
+
+Return just the data, not the schema.
+
+Output only raw JSON: no markdown code blocks (no triple-backtick fences), and no text before or after the JSON.

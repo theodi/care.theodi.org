@@ -255,6 +255,63 @@ async function addAIElements() {
     aiContainer.appendChild(postAI);
 
 }
+
+function getCompleteAssessmentStepLabels() {
+    return {
+        intendedConsequences: 'Intended consequences',
+        unintendedConsequences: 'Unintended consequences',
+        stakeholders: 'Stakeholders',
+        riskEvaluation: 'Risk evaluation',
+        actionPlanning: 'Action planning',
+    };
+}
+
+function renderCompleteAssessmentStatusTable(runState) {
+    const outcomesTable = document.getElementById('outcomesTable');
+    if (!outcomesTable) return;
+    const labels = getCompleteAssessmentStepLabels();
+    const order = [
+        'intendedConsequences',
+        'unintendedConsequences',
+        'stakeholders',
+        'riskEvaluation',
+        'actionPlanning',
+    ];
+    const byId = {};
+    ((runState && runState.steps) || []).forEach(function (s) { byId[s.id] = s; });
+    outcomesTable.innerHTML = '';
+
+    const headerRow = document.createElement('tr');
+    const c1 = document.createElement('th');
+    c1.textContent = 'Step';
+    const c2 = document.createElement('th');
+    c2.textContent = 'Status';
+    headerRow.appendChild(c1);
+    headerRow.appendChild(c2);
+    outcomesTable.appendChild(headerRow);
+
+    order.forEach(function (id) {
+        const s = byId[id] || { status: 'pending' };
+        let statusText = 'Waiting';
+        if (s.status === 'running') statusText = 'Processing';
+        if (s.status === 'done') {
+            if (typeof s.count === 'number') {
+                statusText = 'Complete (' + s.count + ' identified)';
+            } else {
+                statusText = 'Complete';
+            }
+        }
+        if (s.status === 'failed') statusText = 'Failed';
+        const row = document.createElement('tr');
+        const stepCell = document.createElement('td');
+        stepCell.textContent = labels[id] || id;
+        const statusCell = document.createElement('td');
+        statusCell.textContent = statusText;
+        row.appendChild(stepCell);
+        row.appendChild(statusCell);
+        outcomesTable.appendChild(row);
+    });
+}
 function renderMessageHTML(messageText) {
     // Replace line breaks with <br> tags
     const htmlText = messageText.replace(/\n/g, "<br>");
@@ -470,56 +527,65 @@ async function getCompleteAIResponse(projectId, merge) {
         document.querySelectorAll('.mergeOverwrite').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.aiRunning').forEach(el => el.style.display = 'block');
         document.getElementById('submitButtonContainer').style.display = 'none';
+        renderCompleteAssessmentProgress([
+            { id: 'intendedConsequences', status: 'running' },
+            { id: 'unintendedConsequences', status: 'pending' },
+            { id: 'stakeholders', status: 'pending' },
+            { id: 'riskEvaluation', status: 'pending' },
+            { id: 'actionPlanning', status: 'pending' },
+        ]);
 
-        const response = await fetch(
-            `/assistant/${projectId}/${messageId}?${assistantQueryString({ merge: merge })}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+        const response = await fetch(`/assistant/${projectId}/completeAssessment/start`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ merge: merge })
+        });
 
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
 
-        const responseData = await response.json();
+        const startData = await response.json();
+        const runId = startData && startData.runId;
+        if (!runId) {
+            throw new Error('Could not start complete assessment run');
+        }
+
+        document.getElementById('assessmentStatus').innerText = 'running';
+        document.getElementById('assessmentError').innerText = '';
+        document.getElementById('addSelectedButton').style.display = 'none'
+        document.querySelectorAll('.postAI').forEach(el => el.style.display = 'block');
+        renderCompleteAssessmentStatusTable(startData);
+
+        let responseData = startData;
+        for (;;) {
+            await new Promise(function (resolve) { setTimeout(resolve, 1000); });
+            const statusResponse = await fetch(
+                `/assistant/${projectId}/completeAssessment/status/${encodeURIComponent(runId)}`,
+                { headers: { 'Accept': 'application/json' } }
+            );
+            if (!statusResponse.ok) {
+                throw new Error('Failed to fetch assessment progress');
+            }
+            responseData = await statusResponse.json();
+            renderCompleteAssessmentStatusTable(responseData);
+            if (responseData.status === 'completed' || responseData.status === 'failed') {
+                break;
+            }
+        }
 
         // Hide aiRunning elements
         document.querySelectorAll('.aiRunning').forEach(el => el.style.display = 'none');
-
-        // Populate assessment status
-        document.getElementById('assessmentStatus').innerText = 'success';
-
-        const outcomesTable = document.getElementById('outcomesTable');
-        // Clear previous content
-        outcomesTable.innerHTML = '';
-
-        document.getElementById('addSelectedButton').style.display = 'none'
-
-        // Populate table with data
-        const outcomes = [
-            { type: 'Intended Consequences', count: responseData.intendedConsequencesCount },
-            { type: 'Unintended Consequences', count: responseData.unintendedConsequencesCount },
-            { type: 'Stakeholders', count: responseData.stakeholdersCount }
-        ];
-
-        outcomes.forEach(outcome => {
-            const row = document.createElement('tr');
-            const cell1 = document.createElement('td');
-            cell1.textContent = outcome.type;
-            const cell2 = document.createElement('td');
-            cell2.textContent = outcome.count;
-            row.appendChild(cell1);
-            row.appendChild(cell2);
-            outcomesTable.appendChild(row);
-        });
-
-        // Show postAI elements
-        document.querySelectorAll('.postAI').forEach(el => el.style.display = 'block');
         document.getElementById('submitButtonContainer').style.display = 'block';
+        if (responseData.status === 'failed') {
+            document.getElementById('assessmentStatus').innerText = 'failed';
+            document.getElementById('assessmentError').innerText = responseData.error || 'Assessment failed';
+        } else {
+            document.getElementById('assessmentStatus').innerText = 'success';
+        }
     } catch (error) {
         // Hide aiRunning elements
         document.querySelectorAll('.aiRunning').forEach(el => el.style.display = 'none');
