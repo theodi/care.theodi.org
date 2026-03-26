@@ -13,7 +13,7 @@
 </div>
 <div class="flexcontainer">
     <div class="sidebar">
-        <% if (typeof project !== 'undefined') { %>
+        <% if (typeof project !== 'undefined' && project && project._id && typeof pages !== 'undefined' && Array.isArray(pages)) { %>
             <nav class="projectProgress">
                 <h1>Current evaluation</h1>
                 <div class="projectTitle"><%= project.title %></div>

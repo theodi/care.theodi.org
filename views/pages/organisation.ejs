@@ -259,15 +259,18 @@
     var testSavedBtn = document.getElementById('orgAiTestSaved');
     if (!enabledChk || !wrap) return;
     var on = enabledChk.checked;
-    if (!on) {
-      wrap.style.display = 'none';
-      return;
-    }
-    wrap.style.display = '';
+    var canSaveDisable = !!(lastServerOrgAiCfg && lastServerOrgAiCfg.enabled);
+    var showActions = on || canSaveDisable;
+
+    wrap.style.display = showActions ? '' : 'none';
+    if (!showActions) return;
+
     if (saveBtn) saveBtn.style.display = '';
-    if (testFormBtn) testFormBtn.style.display = '';
+
+    // Testing options only make sense when the checkbox is enabled.
+    if (testFormBtn) testFormBtn.style.display = on ? '' : 'none';
     if (testSavedBtn) {
-      testSavedBtn.style.display = orgAiHasTestSavedEligible(lastServerOrgAiCfg) ? '' : 'none';
+      testSavedBtn.style.display = on && orgAiHasTestSavedEligible(lastServerOrgAiCfg) ? '' : 'none';
     }
   }
 

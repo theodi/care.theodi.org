@@ -178,12 +178,17 @@ app.get('/', function(req, res) {
 });
 
 app.get('/new', ensureAuthenticated, checkLimit, function(req, res, next) {
+  // Always start a brand-new evaluation from /new (no existing id in session).
+  delete req.session.projectId;
+  res.locals.project = undefined;
   const page = {
     title: "Project details",
     link: "projectDetails"
   };
   res.locals.page = page;
-  res.render('pages/scan', { project: '' });
+  res.locals.layoutScanHeader = true;
+  // New evaluations do not have an id yet; render scan page without sidebar context.
+  res.render('pages/scan');
 });
 
 app.get('/examples', ensureAuthenticated, function(req, res) {

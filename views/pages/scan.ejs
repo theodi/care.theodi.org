@@ -1,5 +1,5 @@
 <!-- views/profile.ejs -->
-<form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
+<form id="dataForm" data-project-id="<%= (typeof project !== 'undefined' && project) ? project._id : '' %>">
 </form>
 
 <%- include('../partials/scan-footer') %>
