@@ -16,12 +16,16 @@ Using this context suggest some unintended consequences for the project. These u
     - Secondary effects: Think about ripple effects that the project might have on other processes, systems, or stakeholders, even if they are not directly involved.
     - External factors: Take into account external factors or events that the project might interact with or influence. These could include changes in regulations, market conditions, or technological advancements.
 
+You may also be given a JSON block listing existing unintended consequences that have already been recorded for this project. Treat those as already collected answers: do not repeat or lightly rephrase them. Only suggest additional, distinct unintended consequences that are not already present.
+
+Return a maximum of 10 unintended consequences total, including both positive and negative where reasonable for the project context, and generally aim for 7–10 high‑value items. Prefer distinct, high-value items.
+
 {{orgContext}}
 
 Your response should be in the format of undeclared JSON conforming to the following schema:
 
 {{schema}}
 
-Return just the data, not the schemgit a.
+Return just the data, not the schema.
 
 Output only raw JSON: no markdown code blocks (no triple-backtick fences), and no text before or after the JSON.

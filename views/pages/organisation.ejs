@@ -139,6 +139,23 @@
             <input type="url" id="orgAiAnthropicBaseUrl" class="input inputText" placeholder="Default: https://api.anthropic.com"/>
           </label>
         </div>
+        <div class="org-ai-field-group" data-org-ai-providers="anthropic">
+          <label class="org-ai-config-form__row org-ai-config-form__row--check">
+            <input type="checkbox" id="orgAiReasoningEnabled" value="1"/>
+            <span>Enable extended reasoning (Anthropic only)</span>
+          </label>
+          <label class="org-ai-config-form__row">
+            <span class="org-ai-config-form__label-text">Reasoning depth</span>
+            <select id="orgAiReasoningLevel" class="input inputText">
+              <option value="minimal">Minimal</option>
+              <option value="standard" selected>Standard</option>
+              <option value="extensive">Extensive</option>
+            </select>
+          </label>
+          <p class="small">
+            Extensive allows Claude to spend more tokens on internal reasoning. It does not guarantee longer or better answers, only more flexibility for complex cases.
+          </p>
+        </div>
         <div class="org-ai-field-group" data-org-ai-providers="google gemini">
           <label class="org-ai-config-form__row">
             <span class="org-ai-config-form__label-text">Google AI base URL <span class="org-ai-opt">(optional)</span></span>
@@ -298,6 +315,14 @@
     document.getElementById('orgAiGoogleBaseUrl').value = cfg.googleBaseUrl || '';
     document.getElementById('orgAiDisableStructured').checked = !!cfg.disableStructuredOutput;
     document.getElementById('orgAiLegacyMaxTokens').checked = !!cfg.openaiUseLegacyMaxTokens;
+    var rEn = document.getElementById('orgAiReasoningEnabled');
+    var rLev = document.getElementById('orgAiReasoningLevel');
+    if (rEn) rEn.checked = !!cfg.reasoningEnabled;
+    if (rLev) {
+      var v = cfg.reasoningLevel || 'standard';
+      if (['minimal', 'standard', 'extensive'].indexOf(v) === -1) v = 'standard';
+      rLev.value = v;
+    }
     document.getElementById('orgAiApiKey').value = '';
     document.getElementById('orgAiApiKey').placeholder = cfg.apiKeySet
       ? 'Leave blank to keep existing key'
@@ -334,6 +359,12 @@
     if (p === 'anthropic') {
       var ab = document.getElementById('orgAiAnthropicBaseUrl').value.trim();
       if (ab) body.anthropicBaseUrl = ab;
+      var rEn = document.getElementById('orgAiReasoningEnabled');
+      var rLev = document.getElementById('orgAiReasoningLevel');
+      body.reasoningEnabled = !!(rEn && rEn.checked);
+      if (rLev && rLev.value) {
+        body.reasoningLevel = rLev.value;
+      }
     }
     if (p === 'google' || p === 'gemini') {
       var gb = document.getElementById('orgAiGoogleBaseUrl').value.trim();

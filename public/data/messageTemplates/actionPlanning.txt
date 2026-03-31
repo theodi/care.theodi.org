@@ -14,6 +14,8 @@ Current unintended consequences with risk fields:
 
 {{unintendedConsequences}}
 
+You may also be given a JSON block listing existing unintended consequences, their risk fields, and any existing action-planning details that have already been recorded for this project. Treat those as already collected answers: keep every existing unintended consequence in the response and do not remove or duplicate any entries.
+
 For each unintended consequence, suggest and complete:
 - role (Act, Influence, or Monitor)
 - action.description

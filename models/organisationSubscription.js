@@ -27,6 +27,12 @@ const organisationSubscriptionSchema = new mongoose.Schema(
       googleBaseUrl: String,
       disableStructuredOutput: { type: Boolean, default: false },
       openaiUseLegacyMaxTokens: { type: Boolean, default: false },
+      reasoningEnabled: { type: Boolean, default: false },
+      reasoningLevel: {
+        type: String,
+        enum: ['minimal', 'standard', 'extensive'],
+        default: 'standard',
+      },
     },
     /** Optional per-stage text appended to AI user prompts when members opt in. */
     organisationScanContext: {

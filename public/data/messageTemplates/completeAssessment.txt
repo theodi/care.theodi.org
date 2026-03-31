@@ -20,7 +20,15 @@ Unintended consequences can have both positive and negative impacts. Consider th
     - Secondary effects: Think about ripple effects that the project might have on other processes, systems, or stakeholders, even if they are not directly involved.
     - External factors: Take into account external factors or events that the project might interact with or influence. These could include changes in regulations, market conditions, or technological advancements.
 
+You may also be given JSON blocks listing existing intended consequences, unintended consequences, and stakeholders that have already been recorded for this project. Treat those as already collected answers: do not repeat or lightly rephrase them. Only suggest additional, distinct items that are not already present.
+
 For each unintended outcome, suggest the impact and likelihood (high, medium or low) of the outcome as well as the role that the organisation should play (act, influence or monitor). Also add mitigating actions to each unintended outcome with a description and stakeholder. Finally create a list of all stakeholders impacted by the project and involved in the actions.
+
+Keep the result concise and focused:
+- intendedConsequences: maximum 10 items (generally aim for 7–10)
+- unintendedConsequences: maximum 10 items total (generally aim for 7–10)
+- stakeholders: maximum 10 items (generally aim for 7–10)
+Prefer distinct, non-overlapping suggestions and avoid near-duplicates.
 
 {{orgContext}}
 

@@ -66,18 +66,10 @@ async function populateBlankArrays() {
             const property = properties[propertyName];
             // Check if the property is an array
             if (property.type === 'array') {
-                // Check if the property is not already defined in projectData
-                if (projectData[propertyName].length < 1) {
-
-                    // If the array items are objects with properties defined, populate with blank objects
-                    if (property.items && property.items.type === 'object' && property.items.properties) {
-                        const blankObject = {};
-                        // Populate the blank object with blank properties based on schema
-                        Object.keys(property.items.properties).forEach(prop => {
-                            blankObject[prop] = '';
-                        });
-                        projectData[propertyName].push(blankObject);
-                    }
+                // Ensure array fields exist, but do not inject blank entries.
+                // Blank nested objects can fail backend validation on save.
+                if (!Array.isArray(projectData[propertyName])) {
+                    projectData[propertyName] = [];
                 }
             }
         });

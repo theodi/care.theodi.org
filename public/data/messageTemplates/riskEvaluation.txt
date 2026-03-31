@@ -10,6 +10,8 @@ Here are the current unintended consequences:
 
 {{unintendedConsequences}}
 
+You may also be given a JSON block listing existing unintended consequences and their risk-evaluation fields that have already been recorded for this project. Treat those as already collected answers: keep every existing unintended consequence in the response and do not remove or duplicate any entries.
+
 For each unintended consequence, assign:
 - outcome (Positive or Negative) if missing
 - impact (High, Medium, or Low)

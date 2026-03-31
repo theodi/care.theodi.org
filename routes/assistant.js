@@ -19,6 +19,14 @@ const {
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
 
 const completeAssessmentRuns = new Map();
+const assistantStepRuns = new Map();
+const COMPLETE_ASSESSMENT_STEP_ORDER = [
+    'intendedConsequences',
+    'unintendedConsequences',
+    'stakeholders',
+    'riskEvaluation',
+    'actionPlanning',
+];
 
 // Middleware to ensure user is authenticated
 async function ensureAuthenticated(req, res, next) {
@@ -26,6 +34,120 @@ async function ensureAuthenticated(req, res, next) {
       return next();
     }
     res.redirect('/login'); // Redirect to login page if not authenticated
+}
+
+function includeExistingStepDataRequested(req) {
+    const q = req.query && req.query.includeExisting;
+    if (q == null || q === '') {
+        // Default: include existing step data in prompts.
+        return true;
+    }
+    const s = String(q).toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes';
+}
+
+function buildExistingStepContext(messageId, projectData) {
+    const sections = [];
+    const existingIntended = Array.isArray(projectData.intendedConsequences)
+        ? projectData.intendedConsequences
+        : [];
+    const existingUnintended = Array.isArray(projectData.unintendedConsequences)
+        ? projectData.unintendedConsequences
+        : [];
+    const existingStakeholders = Array.isArray(projectData.stakeholders)
+        ? projectData.stakeholders
+        : [];
+
+    if (messageId === 'intendedConsequences') {
+        if (existingIntended.length > 0) {
+            sections.push(
+                'Existing intended consequences already recorded for this project (JSON):\n' +
+                JSON.stringify(existingIntended, null, 2) +
+                '\n\nWhen suggesting new intended consequences, avoid repeating or lightly rephrasing any of these. Focus on additional, distinct ideas only.'
+            );
+        }
+    } else if (messageId === 'unintendedConsequences') {
+        if (existingUnintended.length > 0) {
+            sections.push(
+                'Existing unintended consequences already recorded for this project (JSON):\n' +
+                JSON.stringify(existingUnintended, null, 2) +
+                '\n\nWhen suggesting new unintended consequences, avoid repeating or lightly rephrasing any of these. Focus on additional, distinct outcomes only.'
+            );
+        }
+        if (existingIntended.length > 0) {
+            sections.push(
+                'For context, here are the existing intended consequences for this project (JSON):\n' +
+                JSON.stringify(existingIntended, null, 2)
+            );
+        }
+    } else if (messageId === 'stakeholders') {
+        if (existingStakeholders.length > 0) {
+            sections.push(
+                'Existing stakeholders already recorded for this project (JSON):\n' +
+                JSON.stringify(existingStakeholders, null, 2) +
+                '\n\nWhen suggesting additional stakeholders, avoid repeating or lightly rephrasing any of these. Focus on additional, distinct stakeholders only.'
+            );
+        }
+    }
+
+    if (sections.length === 0) {
+        return '';
+    }
+
+    return (
+        '\n\n---\n\n' +
+        'The following JSON shows existing data that has already been collected for this step. Do not duplicate it; only suggest new, distinct items:\n\n' +
+        sections.join('\n\n') +
+        '\n'
+    );
+}
+
+function appendExistingStepContext(message, messageId, projectData, includeExisting) {
+    if (!includeExisting || !projectData || !messageId) {
+        return message;
+    }
+    const extra = buildExistingStepContext(messageId, projectData);
+    if (!extra) {
+        return message;
+    }
+    return `${message}\n\n${extra}`;
+}
+
+function normalizeParsedResponseForStep(messageId, parsedResponse) {
+    const payload = parsedResponse && typeof parsedResponse === 'object' ? parsedResponse : {};
+    if (messageId === 'intendedConsequences') {
+        const src = Array.isArray(payload.intendedConsequences) ? payload.intendedConsequences : [];
+        return {
+            intendedConsequences: src
+                .map((item) => (item && typeof item === 'object' ? item.consequence : item))
+                .filter((v) => typeof v === 'string' && v.trim() !== '')
+                .map((consequence) => ({ consequence: consequence.trim() })),
+        };
+    }
+    if (messageId === 'unintendedConsequences') {
+        const src = Array.isArray(payload.unintendedConsequences) ? payload.unintendedConsequences : [];
+        return {
+            unintendedConsequences: src
+                .map((item) => (item && typeof item === 'object' ? item.consequence : item))
+                .filter((v) => typeof v === 'string' && v.trim() !== '')
+                .map((consequence) => ({ consequence: consequence.trim() })),
+        };
+    }
+    if (messageId === 'stakeholders') {
+        const src = Array.isArray(payload.stakeholders) ? payload.stakeholders : [];
+        return {
+            stakeholders: src
+                .map((item) => {
+                    if (!item || typeof item !== 'object') return null;
+                    const stakeholder = typeof item.stakeholder === 'string' ? item.stakeholder.trim() : '';
+                    const type = typeof item.type === 'string' ? item.type.trim() : '';
+                    if (!stakeholder) return null;
+                    return { stakeholder, type };
+                })
+                .filter(Boolean),
+        };
+    }
+    return payload;
 }
 
 router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
@@ -42,12 +164,14 @@ router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProje
 
         const schema = require('../public/data/schemas/partials/'+messageId+'.json');
         projectData.schema = JSON.stringify(schema);
-        const message = await populateMessage(messageId, projectData);
+        const includeExisting = includeExistingStepDataRequested(req);
+        const baseMessage = await populateMessage(messageId, projectData);
+        const message = appendExistingStepContext(baseMessage, messageId, projectData, includeExisting);
         const orgContext = await resolveOrganisationScanContextAppend(req, messageId);
         const userPrompt = replaceOrgContextPlaceholder(message, orgContext);
         const orgOverrides = await resolveOrganisationAiOverrides(req);
         const response = await getAIReponse(userPrompt, messageId, schema, orgOverrides);
-        const parsedResponse = parseModelJsonResponse(response);
+        const parsedResponse = normalizeParsedResponseForStep(messageId, parseModelJsonResponse(response));
         return res.json(parsedResponse);
     } catch (error) {
         console.error(error);
@@ -64,16 +188,11 @@ router.post('/:id/completeAssessment/start', ensureAuthenticated, checkProjectAc
         const state = {
             runId,
             projectId: String(projectData._id),
+            merge,
             status: 'running',
             startedAt: new Date().toISOString(),
             finishedAt: null,
-            steps: [
-                { id: 'intendedConsequences', status: 'pending', count: null },
-                { id: 'unintendedConsequences', status: 'pending', count: null },
-                { id: 'stakeholders', status: 'pending', count: null },
-                { id: 'riskEvaluation', status: 'pending', count: null },
-                { id: 'actionPlanning', status: 'pending', count: null },
-            ],
+            steps: COMPLETE_ASSESSMENT_STEP_ORDER.map((id) => ({ id, status: 'pending', count: null })),
             counts: {
                 intendedConsequencesCount: (projectData.intendedConsequences || []).length,
                 unintendedConsequencesCount: (projectData.unintendedConsequences || []).length,
@@ -140,6 +259,162 @@ router.get('/:id/completeAssessment/status/:runId', ensureAuthenticated, checkPr
     });
 });
 
+router.post('/:id/completeAssessment/retry/:runId/:stepId', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+    try {
+        const state = completeAssessmentRuns.get(req.params.runId);
+        if (!state || state.projectId !== String(req.params.id)) {
+            return res.status(404).json({ message: 'Run not found' });
+        }
+        if (state.status === 'running') {
+            return res.status(409).json({ message: 'Run is already in progress' });
+        }
+
+        const stepId = req.params.stepId;
+        const startIndex = COMPLETE_ASSESSMENT_STEP_ORDER.indexOf(stepId);
+        if (startIndex === -1) {
+            return res.status(400).json({ message: 'Invalid stepId' });
+        }
+
+        const currentSteps = Array.isArray(state.steps) && state.steps.length
+            ? state.steps.map((s) => ({ ...s }))
+            : COMPLETE_ASSESSMENT_STEP_ORDER.map((id) => ({ id, status: 'pending', count: null }));
+
+        for (let i = startIndex; i < COMPLETE_ASSESSMENT_STEP_ORDER.length; i += 1) {
+            const id = COMPLETE_ASSESSMENT_STEP_ORDER[i];
+            const step = currentSteps.find((s) => s.id === id);
+            if (step) {
+                step.status = 'pending';
+                step.count = null;
+                delete step.error;
+                delete step.thinking;
+            }
+        }
+
+        state.status = 'running';
+        state.error = null;
+        state.finishedAt = null;
+        state.steps = currentSteps;
+
+        const projectData = res.locals.project;
+        runCompleteAssessmentPipeline(
+            req,
+            projectData,
+            state.merge !== false,
+            (progress) => {
+                const current = completeAssessmentRuns.get(req.params.runId);
+                if (!current) return;
+                current.steps = progress.steps;
+                current.counts = progress.counts;
+                if (progress.error) {
+                    current.error = progress.error;
+                }
+            },
+            { startIndex, progressSteps: currentSteps }
+        )
+            .then((summary) => {
+                const current = completeAssessmentRuns.get(req.params.runId);
+                if (!current) return;
+                current.status = summary.status || 'completed';
+                current.finishedAt = new Date().toISOString();
+                current.steps = summary.steps;
+                current.counts = {
+                    intendedConsequencesCount: summary.intendedConsequencesCount,
+                    unintendedConsequencesCount: summary.unintendedConsequencesCount,
+                    stakeholdersCount: summary.stakeholdersCount,
+                };
+            })
+            .catch((error) => {
+                const current = completeAssessmentRuns.get(req.params.runId);
+                if (!current) return;
+                current.status = 'failed';
+                current.finishedAt = new Date().toISOString();
+                current.error = error && error.message ? error.message : 'Retry failed';
+            });
+
+        return res.json({
+            runId: state.runId,
+            status: state.status,
+            steps: state.steps,
+            counts: state.counts,
+            error: state.error,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+router.post('/:id/:messageId/start', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+    try {
+        const projectData = res.locals.project;
+        const messageId = req.params.messageId;
+        if (!messageId || messageId === 'completeAssessment') {
+            return res.status(400).json({ message: 'Invalid messageId for single-step run' });
+        }
+
+        const runId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        const state = {
+            runId,
+            projectId: String(projectData._id),
+            messageId,
+            status: 'running',
+            thinking: '',
+            result: null,
+            error: null,
+            startedAt: new Date().toISOString(),
+            finishedAt: null,
+        };
+        assistantStepRuns.set(runId, state);
+
+        runAssistantSingleStep(req, projectData, messageId, (delta) => {
+            const current = assistantStepRuns.get(runId);
+            if (!current) return;
+            current.thinking += delta;
+        })
+            .then((result) => {
+                const current = assistantStepRuns.get(runId);
+                if (!current) return;
+                current.status = 'completed';
+                current.result = result;
+                current.finishedAt = new Date().toISOString();
+            })
+            .catch((error) => {
+                const current = assistantStepRuns.get(runId);
+                if (!current) return;
+                current.status = 'failed';
+                current.error = error && error.message ? error.message : 'Run failed';
+                current.finishedAt = new Date().toISOString();
+            });
+
+        return res.json({
+            runId: state.runId,
+            status: state.status,
+            messageId: state.messageId,
+            thinking: state.thinking,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+router.get('/:id/:messageId/status/:runId', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+    const state = assistantStepRuns.get(req.params.runId);
+    if (!state || state.projectId !== String(req.params.id) || state.messageId !== req.params.messageId) {
+        return res.status(404).json({ message: 'Run not found' });
+    }
+    return res.json({
+        runId: state.runId,
+        status: state.status,
+        messageId: state.messageId,
+        thinking: state.thinking,
+        result: state.result,
+        error: state.error,
+        startedAt: state.startedAt,
+        finishedAt: state.finishedAt,
+    });
+});
+
 function mergeOrOverwriteArray(existing, incoming, merge) {
     const base = Array.isArray(existing) ? existing : [];
     const add = Array.isArray(incoming) ? incoming : [];
@@ -187,21 +462,25 @@ function stepCountFor(stepId, latest) {
     return (latest.unintendedConsequences || []).length;
 }
 
-async function runCompleteAssessmentPipeline(req, initialProjectData, merge = true, onProgress) {
-    const stepOrder = [
-        'intendedConsequences',
-        'unintendedConsequences',
-        'stakeholders',
-        'riskEvaluation',
-        'actionPlanning',
-    ];
+async function runCompleteAssessmentPipeline(req, initialProjectData, merge = true, onProgress, options = {}) {
+    const stepOrder = COMPLETE_ASSESSMENT_STEP_ORDER;
     const orgOverrides = await resolveOrganisationAiOverrides(req);
-    const progress = [];
+    const progress = Array.isArray(options.progressSteps) && options.progressSteps.length
+        ? options.progressSteps.map((s) => ({ ...s }))
+        : stepOrder.map((id) => ({ id, status: 'pending', count: null }));
+    const startIndex = Number.isInteger(options.startIndex) ? options.startIndex : 0;
     let projectData = initialProjectData;
 
-    for (const stepId of stepOrder) {
-        const step = { id: stepId, status: 'running' };
-        progress.push(step);
+    for (let i = startIndex; i < stepOrder.length; i += 1) {
+        const stepId = stepOrder[i];
+        let step = progress.find((s) => s.id === stepId);
+        if (!step) {
+            step = { id: stepId, status: 'pending', count: null };
+            progress.push(step);
+        }
+        step.status = 'running';
+        delete step.error;
+        step.thinking = '';
         if (typeof onProgress === 'function') {
             onProgress({
                 steps: progress.map((s) => ({ ...s })),
@@ -215,11 +494,32 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
         try {
             const schema = require('../public/data/schemas/partials/' + stepId + '.json');
             projectData.schema = JSON.stringify(schema);
-            const message = await populateMessage(stepId, projectData);
+            const includeExisting = includeExistingStepDataRequested(req);
+            const baseMessage = await populateMessage(stepId, projectData);
+            const message = appendExistingStepContext(baseMessage, stepId, projectData, includeExisting);
             const orgContext = await resolveOrganisationScanContextAppend(req, stepId);
             const userPrompt = replaceOrgContextPlaceholder(message, orgContext);
-            const response = await getAIReponse(userPrompt, stepId, schema, orgOverrides);
-            const parsedResponse = parseModelJsonResponse(response);
+            const response = await getAIReponse(
+                userPrompt,
+                stepId,
+                schema,
+                orgOverrides,
+                (evt) => {
+                    if (!evt || evt.type !== 'thinking_delta' || !evt.text) return;
+                    step.thinking = (step.thinking || '') + evt.text;
+                    if (typeof onProgress === 'function') {
+                        onProgress({
+                            steps: progress.map((s) => ({ ...s })),
+                            counts: {
+                                intendedConsequencesCount: (projectData.intendedConsequences || []).length,
+                                unintendedConsequencesCount: (projectData.unintendedConsequences || []).length,
+                                stakeholdersCount: (projectData.stakeholders || []).length,
+                            },
+                        });
+                    }
+                }
+            );
+            const parsedResponse = normalizeParsedResponseForStep(stepId, parseModelJsonResponse(response));
             await applyStepResult(projectData, stepId, parsedResponse, merge);
             step.status = 'done';
 
@@ -267,6 +567,30 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
         unintendedConsequencesCount,
         stakeholdersCount,
     };
+}
+
+async function runAssistantSingleStep(req, projectData, messageId, onThinkingDelta) {
+    const schema = require('../public/data/schemas/partials/' + messageId + '.json');
+    projectData.schema = JSON.stringify(schema);
+    const includeExisting = includeExistingStepDataRequested(req);
+    const baseMessage = await populateMessage(messageId, projectData);
+    const message = appendExistingStepContext(baseMessage, messageId, projectData, includeExisting);
+    const orgContext = await resolveOrganisationScanContextAppend(req, messageId);
+    const userPrompt = replaceOrgContextPlaceholder(message, orgContext);
+    const orgOverrides = await resolveOrganisationAiOverrides(req);
+    const response = await getAIReponse(
+        userPrompt,
+        messageId,
+        schema,
+        orgOverrides,
+        (evt) => {
+            if (!evt || evt.type !== 'thinking_delta' || !evt.text) return;
+            if (typeof onThinkingDelta === 'function') {
+                onThinkingDelta(evt.text);
+            }
+        }
+    );
+    return normalizeParsedResponseForStep(messageId, parseModelJsonResponse(response));
 }
 
 async function completeAssessment(parsedResponse, projectData, merge = true) {
@@ -382,10 +706,17 @@ async function resolveOrganisationAiOverrides(req) {
     return ov || {};
 }
 
-async function getAIReponse(message, messageId, rawSchema, orgOverrides) {
+async function getAIReponse(message, messageId, rawSchema, orgOverrides, streamObserver) {
     const rawClone = JSON.parse(JSON.stringify(rawSchema));
+    const streamingForAnthropic =
+      orgOverrides &&
+      orgOverrides.provider === 'anthropic' &&
+      typeof orgOverrides.anthropicThinkingBudget === 'number' &&
+      orgOverrides.anthropicThinkingBudget > 0 &&
+      typeof streamObserver === 'function';
     return chatCompletion([{ role: 'user', content: message }], {
         ...orgOverrides,
+        streamObserver: streamingForAnthropic ? streamObserver : undefined,
         structuredResponse: {
             schemaName: `care_${messageId}`,
             rawSchema: rawClone,

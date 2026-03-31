@@ -18,7 +18,11 @@ We have also defined the following intended consequences of the project:
 
  {{unintendedConsequences}}
 
+You may also be given a JSON block listing existing stakeholders that have already been recorded for this project. Treat those as already collected answers: do not repeat or lightly rephrase them. Only suggest additional, distinct stakeholders that are not already present.
+
 Using this context suggest some stakeholders (e.g. roles, teams or organisations) that are involved in, or impacted by the project.
+
+Return a maximum of 10 stakeholders total, and generally aim for 7–10 high‑value stakeholders. Keep entries specific and non-duplicative.
 
  For each stakeholder, indicate whether they are an internal stakeholder (part of the organisation or project team) or an external stakeholder (outside the organisation or project team).
 

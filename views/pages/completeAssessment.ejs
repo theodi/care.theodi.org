@@ -1,8 +1,4 @@
 <style>
-    .mergeOverwrite {
-        display: none;
-        text-align: center;
-    }
     table {
         width: auto;
         margin-left: auto;
@@ -41,12 +37,6 @@
             </div>
         </div>
     </subsection>
-    <subsection class="mergeOverwrite">
-        <h2>Existing data detected</h2>
-        <p>Your project already contains some data. Do you want to merge the new AI data with the existing data, or overwrite it?</p>
-        <button class="btn btn-primary mergeButton" id="merge">Merge</button>
-        <button class="btn btn-primary mergeButton" id="overwrite">Overwrite</button>
-    </subsection>
 </section>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
     <div id="submitButtonContainer" class="content-block light-blue proceed">
@@ -82,19 +72,8 @@ document.addEventListener("DOMContentLoaded", function () {
     yesButton.addEventListener("click", function(event) {
         event.preventDefault(); // Prevent default form submission
         if (projectId) {
-            checkExistingData(projectId);
+            getCompleteAIResponse(projectId);
         }
-    });
-
-    // Add event listeners to merge/overwrite buttons
-    document.getElementById("merge").addEventListener("click", function(event) {
-        event.preventDefault();
-        getCompleteAIResponse(projectId, true);
-    });
-
-    document.getElementById("overwrite").addEventListener("click", function(event) {
-        event.preventDefault();
-        getCompleteAIResponse(projectId, false);
     });
 });
 
