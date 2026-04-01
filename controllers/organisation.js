@@ -12,6 +12,13 @@ const {
   findMembershipForEmail,
 } = require('../lib/organisationEntitlements');
 const {
+  isOrganisationAdmin,
+  canManageLicenses,
+  canManageAiModel,
+  canManagePromptScanContext,
+  membershipCapabilities,
+} = require('../lib/organisationPermissions');
+const {
   validateOrgAiUpdate,
   mergeOrgAiIntoSubscription,
   maskOrgAiForClient,
@@ -40,6 +47,9 @@ async function enrichMemberRows(members) {
       name: u ? u.name : null,
       hasAccount: !!u,
       role: m.role,
+      licenseAdmin: !!m.licenseAdmin,
+      aiModelAdmin: !!m.aiModelAdmin,
+      promptAdmin: !!m.promptAdmin,
     };
   });
   return Promise.all(lookups);
@@ -74,20 +84,18 @@ async function getOrganisationContext(userId) {
       subscriptionActive: active,
     },
     myRole: membership.role,
+    myMembership: membershipCapabilities(membership),
     members,
   };
 }
 
-async function findRequesterAdminMembership(requesterUserId) {
+async function findRequesterActiveOrgMembership(requesterUserId) {
   const user = await User.findById(requesterUserId);
   if (!user) return null;
   const emailLower = normalizeMemberEmail(user.email);
   const memberships = await OrganisationMembership.find({ emailLower }).populate('subscriptionId');
   return (
-    memberships.find(
-      (m) =>
-        m.role === 'admin' && m.subscriptionId && isSubscriptionActive(m.subscriptionId)
-    ) || null
+    memberships.find((m) => m.subscriptionId && isSubscriptionActive(m.subscriptionId)) || null
   );
 }
 
@@ -99,11 +107,14 @@ function membershipToJson(m) {
     id,
     emailLower: m.emailLower,
     role: m.role,
+    licenseAdmin: !!m.licenseAdmin,
+    aiModelAdmin: !!m.aiModelAdmin,
+    promptAdmin: !!m.promptAdmin,
     subscriptionId: sid,
   };
 }
 
-async function addMember(requesterUserId, email, roleInput) {
+async function addMember(requesterUserId, body) {
   const idStr =
     requesterUserId != null && requesterUserId !== ''
       ? String(requesterUserId)
@@ -115,9 +126,9 @@ async function addMember(requesterUserId, email, roleInput) {
   }
   const addedByUserId = new mongoose.Types.ObjectId(idStr);
 
-  const requester = await findRequesterAdminMembership(requesterUserId);
-  if (!requester || requester.role !== 'admin') {
-    const err = new Error('Only organisation admins can add people');
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManageLicenses(requester)) {
+    const err = new Error('You do not have permission to manage licensed users');
     err.status = 403;
     throw err;
   }
@@ -127,8 +138,32 @@ async function addMember(requesterUserId, email, roleInput) {
     err.status = 403;
     throw err;
   }
-  const role = roleInput === 'admin' ? 'admin' : 'member';
-  const trimmed = String(email == null ? '' : email).trim();
+
+  const membershipRoleInput =
+    body && (body.membershipRole != null ? body.membershipRole : body.role);
+  const wantsAdmin = membershipRoleInput === 'admin';
+  if (wantsAdmin && !isOrganisationAdmin(requester)) {
+    const err = new Error('Only organisation admins can assign organisation admin role');
+    err.status = 403;
+    throw err;
+  }
+
+  let licenseAdmin = !!(body && body.licenseAdmin);
+  let aiModelAdmin = !!(body && body.aiModelAdmin);
+  let promptAdmin = !!(body && body.promptAdmin);
+  if (!isOrganisationAdmin(requester)) {
+    licenseAdmin = false;
+    aiModelAdmin = false;
+    promptAdmin = false;
+  }
+  if (wantsAdmin) {
+    licenseAdmin = false;
+    aiModelAdmin = false;
+    promptAdmin = false;
+  }
+
+  const role = wantsAdmin ? 'admin' : 'member';
+  const trimmed = String(body && body.email != null ? body.email : '').trim();
   if (!trimmed) {
     const err = new Error('Email is required');
     err.status = 400;
@@ -160,23 +195,26 @@ async function addMember(requesterUserId, email, roleInput) {
     subscriptionId: sub._id,
     emailLower,
     role,
+    licenseAdmin,
+    aiModelAdmin,
+    promptAdmin,
     addedByUserId,
   });
   return {
-    message: role === 'admin' ? 'Admin added' : 'Member added',
+    message: role === 'admin' ? 'Organisation admin added' : 'Licensed user added',
     membership: membershipToJson(membership),
   };
 }
 
-async function removeMember(requesterUserId, membershipId) {
+async function updateMembership(requesterUserId, membershipId, body) {
   if (!mongoose.isValidObjectId(membershipId)) {
     const err = new Error('Invalid membership id');
     err.status = 400;
     throw err;
   }
-  const requester = await findRequesterAdminMembership(requesterUserId);
-  if (!requester || requester.role !== 'admin') {
-    const err = new Error('Only organisation admins can remove members');
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !isOrganisationAdmin(requester)) {
+    const err = new Error('Only organisation admins can change roles and permissions');
     err.status = 403;
     throw err;
   }
@@ -195,6 +233,82 @@ async function removeMember(requesterUserId, membershipId) {
     err.status = 404;
     throw err;
   }
+
+  const roleInput = body && (body.membershipRole != null ? body.membershipRole : body.role);
+  let nextRole = target.role;
+  if (roleInput === 'admin' || roleInput === 'member') {
+    nextRole = roleInput;
+  }
+
+  let nextLicense = !!target.licenseAdmin;
+  let nextAi = !!target.aiModelAdmin;
+  let nextPrompt = !!target.promptAdmin;
+  if (body && body.licenseAdmin !== undefined) nextLicense = !!body.licenseAdmin;
+  if (body && body.aiModelAdmin !== undefined) nextAi = !!body.aiModelAdmin;
+  if (body && body.promptAdmin !== undefined) nextPrompt = !!body.promptAdmin;
+
+  if (nextRole === 'admin') {
+    nextLicense = false;
+    nextAi = false;
+    nextPrompt = false;
+  }
+
+  if (target.role === 'admin' && nextRole === 'member') {
+    const adminCount = await OrganisationMembership.countDocuments({
+      subscriptionId: sub._id,
+      role: 'admin',
+    });
+    if (adminCount <= 1) {
+      const err = new Error('Cannot demote the last organisation admin');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  target.role = nextRole;
+  target.licenseAdmin = nextLicense;
+  target.aiModelAdmin = nextAi;
+  target.promptAdmin = nextPrompt;
+  await target.save();
+
+  return {
+    message: 'Membership updated',
+    membership: membershipToJson(target),
+  };
+}
+
+async function removeMember(requesterUserId, membershipId) {
+  if (!mongoose.isValidObjectId(membershipId)) {
+    const err = new Error('Invalid membership id');
+    err.status = 400;
+    throw err;
+  }
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManageLicenses(requester)) {
+    const err = new Error('You do not have permission to remove licensed users');
+    err.status = 403;
+    throw err;
+  }
+  const sub = requester.subscriptionId;
+  if (!isSubscriptionActive(sub)) {
+    const err = new Error('Subscription is not active');
+    err.status = 403;
+    throw err;
+  }
+  const target = await OrganisationMembership.findOne({
+    _id: membershipId,
+    subscriptionId: sub._id,
+  });
+  if (!target) {
+    const err = new Error('Member not found');
+    err.status = 404;
+    throw err;
+  }
+  if (target.role === 'admin' && !isOrganisationAdmin(requester)) {
+    const err = new Error('Only organisation admins can remove an organisation admin');
+    err.status = 403;
+    throw err;
+  }
   if (target.role === 'admin') {
     const adminCount = await OrganisationMembership.countDocuments({
       subscriptionId: sub._id,
@@ -207,7 +321,7 @@ async function removeMember(requesterUserId, membershipId) {
     }
   }
   await OrganisationMembership.deleteOne({ _id: target._id });
-  return { message: 'Member removed' };
+  return { message: 'Licensed user removed' };
 }
 
 const SMOKE_STRUCTURE_SCHEMA_TEST = {
@@ -241,9 +355,9 @@ async function getAiEligibilityForUser(userId, forMessageId) {
 }
 
 async function getAiConfigAdmin(requesterUserId) {
-  const requester = await findRequesterAdminMembership(requesterUserId);
-  if (!requester || requester.role !== 'admin') {
-    const err = new Error('Only organisation admins can view AI configuration');
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManageAiModel(requester)) {
+    const err = new Error('You do not have permission to view organisation AI configuration');
     err.status = 403;
     throw err;
   }
@@ -259,9 +373,9 @@ async function getAiConfigAdmin(requesterUserId) {
 }
 
 async function updateAiConfigAdmin(requesterUserId, body) {
-  const requester = await findRequesterAdminMembership(requesterUserId);
-  if (!requester || requester.role !== 'admin') {
-    const err = new Error('Only organisation admins can update AI configuration');
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManageAiModel(requester)) {
+    const err = new Error('You do not have permission to update organisation AI configuration');
     err.status = 403;
     throw err;
   }
@@ -287,9 +401,9 @@ async function updateAiConfigAdmin(requesterUserId, body) {
  * Run the same smoke checks as scripts/test-ai.js against optional overrides or saved org config.
  */
 async function testAiConfigAdmin(requesterUserId, body) {
-  const requester = await findRequesterAdminMembership(requesterUserId);
-  if (!requester || requester.role !== 'admin') {
-    const err = new Error('Only organisation admins can test AI configuration');
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManageAiModel(requester)) {
+    const err = new Error('You do not have permission to test organisation AI configuration');
     err.status = 403;
     throw err;
   }
@@ -384,9 +498,9 @@ async function testAiConfigAdmin(requesterUserId, body) {
 }
 
 async function getScanContextAdmin(requesterUserId) {
-  const requester = await findRequesterAdminMembership(requesterUserId);
-  if (!requester || requester.role !== 'admin') {
-    const err = new Error('Only organisation admins can view scan context');
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManagePromptScanContext(requester)) {
+    const err = new Error('You do not have permission to view organisation scan guidance');
     err.status = 403;
     throw err;
   }
@@ -405,9 +519,9 @@ async function getScanContextAdmin(requesterUserId) {
 }
 
 async function updateScanContextAdmin(requesterUserId, body) {
-  const requester = await findRequesterAdminMembership(requesterUserId);
-  if (!requester || requester.role !== 'admin') {
-    const err = new Error('Only organisation admins can update scan context');
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManagePromptScanContext(requester)) {
+    const err = new Error('You do not have permission to update organisation scan guidance');
     err.status = 403;
     throw err;
   }
@@ -438,6 +552,7 @@ async function updateScanContextAdmin(requesterUserId, body) {
 module.exports = {
   getOrganisationContext,
   addMember,
+  updateMembership,
   removeMember,
   normalizeEmailDomain,
   emailMatchesDomain,

@@ -49,18 +49,27 @@ router.post('/members', ensureAuthenticated, async (req, res, next) => {
     }
     if (!req.body || typeof req.body !== 'object') {
       const e = new Error(
-        'Expected a JSON body — set Content-Type: application/json and send { "email", "membershipRole" }.'
+        'Expected a JSON body — set Content-Type: application/json and send at least { "email" }; optional: membershipRole, licenseAdmin, aiModelAdmin, promptAdmin (organisation admins only).'
       );
       e.status = 400;
       throw e;
     }
-    const { email, membershipRole, role } = req.body;
-    const result = await organisationController.addMember(
-      userId,
-      email,
-      membershipRole || role
-    );
+    const result = await organisationController.addMember(userId, req.body || {});
     res.status(201).json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch('/members/:membershipId', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const requesterId = req.session.passport.user.id;
+    const result = await organisationController.updateMembership(
+      requesterId,
+      req.params.membershipId,
+      req.body || {}
+    );
+    res.json(result);
   } catch (e) {
     next(e);
   }

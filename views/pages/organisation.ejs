@@ -16,72 +16,131 @@
     <p>
       Domain: <strong>@<%= organisation.subscription.emailDomain %></strong><br/>
       Plan: <strong><%= organisation.subscription.planTier %></strong><br/>
-      Seats: <strong><%= organisation.subscription.seatUsed %> / <%= organisation.subscription.seatLimit %></strong><br/>
+      Licensed users: <strong><%= organisation.subscription.seatUsed %> / <%= organisation.subscription.seatLimit %></strong> <span class="small">(seat limit)</span><br/>
       Subscription: <strong><%= organisation.subscription.subscriptionActive ? 'Active' : 'Expired' %></strong>
       (until <%= new Date(organisation.subscription.endDate).toLocaleDateString() %>)
     </p>
     <div id="orgMessage" class="alert" style="display:none;"></div>
-
-    <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
-    <h3>Add admin or member</h3>
-    <p>Work email on your organisation domain. No CARE account required until they sign in. You must keep at least one admin.</p>
-    <form id="addMemberForm" class="org-add-member-form">
-      <label class="org-add-member-form__email"><span class="org-add-member-form__label-text">Email</span> <input type="email" name="email" required class="input inputText" placeholder="name@<%= organisation.subscription.emailDomain %>"/></label>
-      <label class="org-add-member-form__role"><span class="org-add-member-form__label-text">Role</span>
-        <select name="membershipRole" id="addMemberMembershipRole" class="input inputText" required>
-          <option value="member">Member</option>
-          <option value="admin">Admin</option>
-        </select>
-      </label>
-      <button type="submit" class="btn btn-primary">Add</button>
-    </form>
-    <% } %>
   </div>
 
   <div class="content-block light-blue">
-    <h2>Members</h2>
-    <table class="display" style="width:100%" id="membersTable">
+    <h2>Licensed users</h2>
+    <table class="display" style="width:100%" id="licensedUsersTable">
       <thead>
         <tr>
           <th>Name</th>
           <th>Email</th>
           <th>CARE account</th>
-          <th>Role</th>
-          <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %><th></th><% } %>
+          <th>Additional permissions</th>
+          <% if (organisation.myMembership.isOrganisationAdmin || (organisation.subscription.subscriptionActive && organisation.myMembership.canManageLicenses)) { %><th></th><% } %>
         </tr>
       </thead>
       <tbody>
-        <% organisation.members.forEach(function(m) { %>
+        <% organisation.members.forEach(function(m) {
+          var canRemoveThis = false;
+          if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageLicenses) {
+            if (m.role !== 'admin') canRemoveThis = true;
+            else if (organisation.myMembership.isOrganisationAdmin && orgAdminCount > 1) canRemoveThis = true;
+          }
+        %>
         <tr data-membership-id="<%= m.membershipId %>">
           <td><%= m.name || '—' %></td>
           <td><%= m.email %></td>
           <td><%= m.hasAccount ? 'Yes' : 'Not yet' %></td>
-          <td><%= m.role %></td>
-          <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
           <td>
-            <% var canRemove = (m.role !== 'admin') || (orgAdminCount > 1); %>
-            <% if (canRemove) { %>
-            <button type="button" class="removeMemberBtn" data-membership-id="<%= m.membershipId %>">Remove</button>
-            <% } else { %>
-            —
+            <% var accessParts = [];
+            if (m.role === 'admin') {
+              accessParts.push('Organisation admin (full access)');
+            } else {
+              if (m.licenseAdmin) accessParts.push('License manager');
+              if (m.aiModelAdmin) accessParts.push('AI model admin');
+              if (m.promptAdmin) accessParts.push('Prompt manager');
+              if (accessParts.length === 0) accessParts.push('—');
+            }
+            var accessSummary = accessParts.join(' · ');
+            %>
+            <%= accessSummary %>
+          </td>
+          <% if (organisation.myMembership.isOrganisationAdmin || (organisation.subscription.subscriptionActive && organisation.myMembership.canManageLicenses)) { %>
+          <td class="org-licensed-users__actions">
+            <% if (organisation.myMembership.isOrganisationAdmin) { %>
+            <button type="button" class="transparent orgEditAccessBtn"
+              data-membership-id="<%= m.membershipId %>"
+              data-email="<%= m.email %>"
+              data-role="<%= m.role %>"
+              data-license-admin="<%= m.licenseAdmin ? 'true' : 'false' %>"
+              data-ai-model-admin="<%= m.aiModelAdmin ? 'true' : 'false' %>"
+              data-prompt-admin="<%= m.promptAdmin ? 'true' : 'false' %>"
+            >Edit</button>
             <% } %>
+            <% if (canRemoveThis) { %>
+            <button type="button" class="transparent removeMemberBtn" data-membership-id="<%= m.membershipId %>">Remove</button>
+            <% } %>
+            <% if (!organisation.myMembership.isOrganisationAdmin && !canRemoveThis) { %>—<% } %>
           </td>
           <% } %>
         </tr>
         <% }); %>
       </tbody>
     </table>
+    <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageLicenses) { %>
+    <p class="org-licensed-users__add-bar">
+      <button type="button" class="transparent" id="orgAddLicensedUserBtn">Add licensed user</button>
+    </p>
+    <% } %>
   </div>
 
-  <% if (organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
+  <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageLicenses) { %>
+  <dialog id="orgAccessEditDialog" class="org-access-edit-dialog" data-is-org-admin="<%= organisation.myMembership.isOrganisationAdmin ? 'true' : 'false' %>">
+    <div class="content-block white">
+      <h2 id="orgAccessDialogTitle" style="margin-top:0;">Add licensed user</h2>
+      <p class="small" id="orgAccessEditForEmail" style="display:none;"></p>
+      <div id="orgAccessEditModalMsg" class="alert" style="display:none;"></div>
+      <form id="orgAccessEditForm" class="sub-form" data-mode="add" novalidate>
+        <input type="hidden" id="orgAccessEditMembershipId" value=""/>
+        <div id="orgAccessEmailRow" class="sub-form__row">
+          <label class="sub-form__label" for="orgAccessAddEmail">Email</label>
+          <div class="sub-form__control">
+            <input type="email" id="orgAccessAddEmail" class="input inputText" autocomplete="email" placeholder="name@<%= organisation.subscription.emailDomain %>"/>
+            <p class="sub-form__hint">Address must be on <strong>@<%= organisation.subscription.emailDomain %></strong>.</p>
+          </div>
+        </div>
+        <div id="orgAccessRoleRow" class="sub-form__row">
+          <label class="sub-form__label" for="orgAccessEditRole">Access level</label>
+          <div class="sub-form__control">
+            <select id="orgAccessEditRole" class="input inputText" required>
+              <option value="member">Licensed user</option>
+              <option value="admin">Organisation admin (full access)</option>
+            </select>
+            <p class="sub-form__hint">Organisation admins have every permission. Licensed users may have one or more delegated roles below.</p>
+          </div>
+        </div>
+        <div id="orgAccessEditDelegatedWrap" class="sub-form__row">
+          <span class="sub-form__label">Delegated permissions</span>
+          <div class="sub-form__control org-access-edit-delegated">
+            <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditLicenseAdmin"/> License manager — manage who is assigned a seat</label>
+            <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditAiModelAdmin"/> AI model admin — organisation AI provider and model settings</label>
+            <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditPromptAdmin"/> Prompt manager — extra guidance for scan steps</label>
+          </div>
+        </div>
+        <div class="sub-form__actions">
+          <button type="submit" class="btn btn-primary" id="orgAccessDialogSubmit">Add</button>
+          <button type="button" class="transparent" id="orgAccessEditCancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+  <% } %>
+
+  <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageAiModel) { %>
   <div class="content-block white org-ai-content-block">
     <h2>Organisation AI</h2>
-    <p class="small">Configure a model for all organisation members. They use it by default on evaluation steps; each step can switch to CARE built-in. Choose a provider first, then complete the fields shown. Keys are stored on the subscription and are only editable by admins.</p>
+    <p class="small">Configure a model for all licensed users in the organisation. They use it by default on evaluation steps; each step can switch to CARE built-in. Choose a provider first, then complete the fields shown. Keys are stored on the subscription. Only organisation admins and AI model admins can change these settings.</p>
     <div id="orgAiMessage" class="alert" style="display:none;"></div>
     <form id="orgAiConfigForm" class="org-ai-config-form">
       <label class="org-ai-config-form__check">
         <input type="checkbox" id="orgAiEnabled" name="enabled" value="1"/>
-        Use organisation AI for members (when off, everyone uses server defaults only)
+        Use organisation AI for licensed users (when off, everyone uses server defaults only)
       </label>
       <div id="orgAiFields" class="org-ai-config-form__fields" style="display:none;">
         <label class="org-ai-config-form__row org-ai-config-form__row--provider">
@@ -186,10 +245,12 @@
       <pre id="orgAiTestResultPre" class="org-ai-test-result__pre"></pre>
     </div>
   </div>
+  <% } %>
 
+  <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManagePromptScanContext) { %>
   <div class="content-block light-blue org-scan-context-section">
     <h2>Extra guidance for scan steps</h2>
-    <p class="small">Separate from the model settings above. Optional text per AI-assisted step; members choose whether to add it to the prompt. Works with <strong>CARE built-in</strong> or <strong>organisation</strong> AI—whichever they select on that step.</p>
+    <p class="small">Separate from the model settings above. Optional text per AI-assisted step; licensed users choose whether to add it to the prompt. Works with <strong>CARE built-in</strong> or <strong>organisation</strong> AI—whichever they select on that step. Only organisation admins and prompt admins can edit this text.</p>
     <div id="orgScanContextMessage" class="alert" style="display:none;"></div>
     <form id="orgScanContextForm" class="org-scan-context-form" autocomplete="off">
       <div class="org-scan-context-form__field">
@@ -215,9 +276,11 @@
 
   <% } %>
 </div>
-<% if (organisation && organisation.subscription.subscriptionActive && organisation.myRole === 'admin') { %>
+<% if (organisation) { %>
 <script>
 (function () {
+  var aiForm = document.getElementById('orgAiConfigForm');
+  if (!aiForm) return;
   function showOrgAiMsg(text, isError) {
     var el = document.getElementById('orgAiMessage');
     if (!el) return;
@@ -550,35 +613,207 @@
   });
 })();
 
-document.getElementById('addMemberForm').addEventListener('submit', function (ev) {
-  ev.preventDefault();
-  const msg = document.getElementById('orgMessage');
-  const form = ev.target;
-  const email = form.elements.email.value.trim();
-  const membershipRole = form.elements.membershipRole.value;
-  msg.style.display = 'none';
-  fetch('/organisation/members', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ email, membershipRole }),
-  }).then(function (res) {
-    return res.json().then(function (data) {
-      if (!res.ok) throw new Error(data.message || res.statusText);
-      window.location.reload();
+(function () {
+  document.querySelectorAll('.removeMemberBtn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-membership-id');
+      if (!confirm('Remove this licensed user from the organisation?')) return;
+      var msg = document.getElementById('orgMessage');
+      msg.style.display = 'none';
+      fetch('/organisation/members/' + encodeURIComponent(id), {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok) throw new Error(data.message || res.statusText);
+            window.location.reload();
+          });
+        })
+        .catch(function (e) {
+          msg.style.display = 'block';
+          msg.textContent = e.message;
+          msg.style.color = '#c00';
+        });
     });
-  }).catch(function (e) {
-    msg.style.display = 'block';
-    msg.textContent = e.message;
-    msg.style.color = '#c00';
   });
-});
-document.querySelectorAll('.removeMemberBtn').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    const id = btn.getAttribute('data-membership-id');
-    if (!confirm('Remove this member from the organisation?')) return;
-    const msg = document.getElementById('orgMessage');
-    msg.style.display = 'none';
-    fetch('/organisation/members/' + encodeURIComponent(id), { method: 'DELETE', headers: { Accept: 'application/json' } })
+})();
+
+(function () {
+  var dialog = document.getElementById('orgAccessEditDialog');
+  var form = document.getElementById('orgAccessEditForm');
+  if (!dialog || !form) return;
+
+  var isOrgAdmin = dialog.getAttribute('data-is-org-admin') === 'true';
+  var roleSel = document.getElementById('orgAccessEditRole');
+  var wrap = document.getElementById('orgAccessEditDelegatedWrap');
+  var roleRow = document.getElementById('orgAccessRoleRow');
+  var emailRow = document.getElementById('orgAccessEmailRow');
+  var modalMsg = document.getElementById('orgAccessEditModalMsg');
+  var pageMsg = document.getElementById('orgMessage');
+  var titleEl = document.getElementById('orgAccessDialogTitle');
+  var forEmailEl = document.getElementById('orgAccessEditForEmail');
+  var submitBtn = document.getElementById('orgAccessDialogSubmit');
+  var addEmailInput = document.getElementById('orgAccessAddEmail');
+
+  function showModalMsg(text, isError) {
+    if (!modalMsg) return;
+    modalMsg.style.display = 'block';
+    modalMsg.textContent = text;
+    modalMsg.style.color = isError ? '#c00' : '';
+  }
+  function hideModalMsg() {
+    if (!modalMsg) return;
+    modalMsg.style.display = 'none';
+    modalMsg.textContent = '';
+    modalMsg.style.color = '';
+  }
+
+  function refreshSingleSectionClass() {
+    if (!form || !roleSel) return;
+    var mode = form.getAttribute('data-mode');
+    if (mode === 'add' && !isOrgAdmin) {
+      form.classList.add('org-access-edit--single-section');
+      return;
+    }
+    form.classList.toggle('org-access-edit--single-section', roleSel.value === 'admin');
+  }
+
+  function syncDelegatedVisibility() {
+    if (!wrap || !roleSel || !form) return;
+    wrap.style.display = roleSel.value === 'admin' ? 'none' : '';
+    refreshSingleSectionClass();
+  }
+  if (roleSel) roleSel.addEventListener('change', syncDelegatedVisibility);
+
+  function openAddModal() {
+    hideModalMsg();
+    form.setAttribute('data-mode', 'add');
+    document.getElementById('orgAccessEditMembershipId').value = '';
+    if (titleEl) titleEl.textContent = 'Add licensed user';
+    if (submitBtn) submitBtn.textContent = 'Add';
+    if (forEmailEl) {
+      forEmailEl.style.display = 'none';
+      forEmailEl.textContent = '';
+    }
+    if (emailRow) emailRow.style.display = '';
+    if (addEmailInput) addEmailInput.value = '';
+    if (isOrgAdmin) {
+      if (roleRow) roleRow.style.display = '';
+      roleSel.value = 'member';
+      document.getElementById('orgAccessEditLicenseAdmin').checked = false;
+      document.getElementById('orgAccessEditAiModelAdmin').checked = false;
+      document.getElementById('orgAccessEditPromptAdmin').checked = false;
+      syncDelegatedVisibility();
+    } else {
+      if (roleRow) roleRow.style.display = 'none';
+      if (wrap) wrap.style.display = 'none';
+      roleSel.value = 'member';
+      form.classList.add('org-access-edit--single-section');
+    }
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+  }
+
+  function openEditModal(btn) {
+    hideModalMsg();
+    form.setAttribute('data-mode', 'edit');
+    if (titleEl) titleEl.textContent = 'Edit access';
+    if (submitBtn) submitBtn.textContent = 'Save';
+    if (emailRow) emailRow.style.display = 'none';
+    if (roleRow) roleRow.style.display = '';
+    var id = btn.getAttribute('data-membership-id');
+    var email = btn.getAttribute('data-email') || '';
+    document.getElementById('orgAccessEditMembershipId').value = id;
+    if (forEmailEl) {
+      forEmailEl.style.display = 'block';
+      forEmailEl.textContent = email ? 'User: ' + email : '';
+    }
+    roleSel.value = btn.getAttribute('data-role') === 'admin' ? 'admin' : 'member';
+    document.getElementById('orgAccessEditLicenseAdmin').checked =
+      btn.getAttribute('data-license-admin') === 'true';
+    document.getElementById('orgAccessEditAiModelAdmin').checked =
+      btn.getAttribute('data-ai-model-admin') === 'true';
+    document.getElementById('orgAccessEditPromptAdmin').checked =
+      btn.getAttribute('data-prompt-admin') === 'true';
+    syncDelegatedVisibility();
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+  }
+
+  var addBtn = document.getElementById('orgAddLicensedUserBtn');
+  if (addBtn) addBtn.addEventListener('click', openAddModal);
+
+  document.querySelectorAll('.orgEditAccessBtn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      openEditModal(btn);
+    });
+  });
+
+  var cancelBtn = document.getElementById('orgAccessEditCancel');
+  if (cancelBtn) cancelBtn.addEventListener('click', function () {
+    dialog.close();
+  });
+  dialog.addEventListener('click', function (ev) {
+    if (ev.target === dialog) dialog.close();
+  });
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    hideModalMsg();
+    var mode = form.getAttribute('data-mode');
+    if (pageMsg) pageMsg.style.display = 'none';
+
+    if (mode === 'add') {
+      var email = addEmailInput ? addEmailInput.value.trim() : '';
+      if (!email) {
+        showModalMsg('Email is required.', true);
+        return;
+      }
+      var payload = { email: email, membershipRole: 'member' };
+      if (isOrgAdmin) {
+        payload.membershipRole = roleSel.value;
+        if (roleSel.value === 'member') {
+          payload.licenseAdmin = document.getElementById('orgAccessEditLicenseAdmin').checked;
+          payload.aiModelAdmin = document.getElementById('orgAccessEditAiModelAdmin').checked;
+          payload.promptAdmin = document.getElementById('orgAccessEditPromptAdmin').checked;
+        }
+      }
+      showModalMsg('Adding…', false);
+      fetch('/organisation/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok) throw new Error(data.message || res.statusText);
+            window.location.reload();
+          });
+        })
+        .catch(function (e) {
+          hideModalMsg();
+          showModalMsg(e.message || String(e), true);
+        });
+      return;
+    }
+
+    var id = document.getElementById('orgAccessEditMembershipId').value;
+    var body = {
+      membershipRole: roleSel.value,
+      licenseAdmin: document.getElementById('orgAccessEditLicenseAdmin').checked,
+      aiModelAdmin: document.getElementById('orgAccessEditAiModelAdmin').checked,
+      promptAdmin: document.getElementById('orgAccessEditPromptAdmin').checked,
+    };
+    if (roleSel.value === 'admin') {
+      body.licenseAdmin = false;
+      body.aiModelAdmin = false;
+      body.promptAdmin = false;
+    }
+    showModalMsg('Saving…', false);
+    fetch('/organisation/members/' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+    })
       .then(function (res) {
         return res.json().then(function (data) {
           if (!res.ok) throw new Error(data.message || res.statusText);
@@ -586,11 +821,10 @@ document.querySelectorAll('.removeMemberBtn').forEach(function (btn) {
         });
       })
       .catch(function (e) {
-        msg.style.display = 'block';
-        msg.textContent = e.message;
-        msg.style.color = '#c00';
+        hideModalMsg();
+        showModalMsg(e.message || String(e), true);
       });
   });
-});
+})();
 </script>
 <% } %>

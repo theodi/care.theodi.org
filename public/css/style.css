@@ -1407,6 +1407,79 @@ a:hover {
   min-width: 13rem;
   width: 15rem;
 }
+.org-add-delegated-perms {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0;
+}
+.org-add-delegated-perms__chk {
+  display: block;
+  font-weight: normal;
+}
+.org-access-edit-dialog {
+  max-width: min(48rem, calc(100vw - 2rem));
+  width: min(48rem, calc(100vw - 2rem));
+  max-height: min(92vh, 52rem);
+  border: none;
+  padding: 0;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+}
+.org-access-edit-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+.org-access-edit-dialog .content-block {
+  margin-bottom: 0;
+  max-height: min(88vh, 50rem);
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+  box-sizing: border-box;
+}
+.org-access-edit-delegated {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.org-licensed-users__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  white-space: normal;
+}
+
+/* Modal form rows only have label + control (hint lives inside control); drop the unused third grid column. */
+.org-access-edit-dialog .sub-form__row {
+  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+}
+.org-access-edit-dialog .sub-form__control .input,
+.org-access-edit-dialog .sub-form__control .inputText,
+.org-access-edit-dialog .sub-form__control select.input {
+  max-width: 100%;
+}
+
+/*
+ * Form order: hidden input, .sub-form__row, .sub-form__row, .sub-form__actions.
+ * :last-of-type on .sub-form__row never matches (last div is .sub-form__actions), so the last
+ * field row kept border-bottom while .sub-form__actions added border-top — double line.
+ */
+.org-access-edit-dialog .sub-form__row:nth-last-child(2) {
+  border-bottom: none;
+}
+
+/* Organisation admin: delegated row hidden — only one visible row before actions; avoid row bottom + actions top */
+.org-access-edit-dialog #orgAccessEditForm.org-access-edit--single-section > .sub-form__row:first-of-type {
+  border-bottom: none;
+}
+
+@media screen and (max-width: 900px) {
+  .org-access-edit-dialog .sub-form__row {
+    grid-template-columns: 1fr;
+  }
+}
 .org-add-member-form .inputText,
 .org-add-member-form select.input {
   width: 100%;

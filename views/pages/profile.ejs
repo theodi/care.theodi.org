@@ -22,7 +22,8 @@
       <% if (co.organisationName && co.emailDomain) { %>
       <span class="small">Email domain: @<%= co.emailDomain %></span><br>
       <% } %>
-      <b>Your role:</b> <%= co.isAdmin ? 'Admin (can manage members and sharing)' : 'Member' %><br>
+      <b>Your access:</b>
+      <% if (co.isAdmin) { %>Organisation admin (full access)<% } else { %>Licensed user<% var bits = []; if (co.licenseAdmin) bits.push('license admin'); if (co.aiModelAdmin) bits.push('AI model admin'); if (co.promptAdmin) bits.push('prompt admin'); if (bits.length) { %> — <%= bits.join(', ') %><% } %><% } %><br>
       <a href="/organisation">Open organisation page</a>
     <% } else { %>
       <b>Status:</b> Not on an active organisation subscription in CARE.<br>

@@ -173,19 +173,25 @@ async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLow
     const existing = await OrganisationMembership.findOne({ subscriptionId, emailLower });
     if (existing) {
       existing.role = 'admin';
+      existing.licenseAdmin = false;
+      existing.aiModelAdmin = false;
+      existing.promptAdmin = false;
       await existing.save();
     } else {
       await OrganisationMembership.create({
         subscriptionId,
         emailLower,
         role: 'admin',
+        licenseAdmin: false,
+        aiModelAdmin: false,
+        promptAdmin: false,
         addedByUserId: addedByOid,
       });
     }
   }
   await OrganisationMembership.updateMany(
     { subscriptionId, role: 'admin', emailLower: { $nin: adminEmailLowers } },
-    { $set: { role: 'member' } }
+    { $set: { role: 'member', licenseAdmin: false, aiModelAdmin: false, promptAdmin: false } }
   );
 }
 
