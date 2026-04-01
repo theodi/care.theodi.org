@@ -24,8 +24,10 @@ router.get('/', ensureAuthenticated, async (req, res, next) => {
       }
       return res.json(ctx);
     }
+    const orgName =
+      ctx && ctx.subscription && String(ctx.subscription.organisationName || '').trim();
     const page = {
-      title: 'Organisation',
+      title: orgName || 'Organisation',
       link: '/organisation',
     };
     res.locals.page = page;

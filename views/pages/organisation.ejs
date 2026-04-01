@@ -1,6 +1,7 @@
-<div class="main-content">
+<link href="/lib/DataTables/datatables.min.css" rel="stylesheet">
+<div class="main-content organisation-page">
   <section class="page-title container white">
-    <h1 style="text-align: center;"><%= page.title %></h1>
+    <h1><%= page.title %></h1>
     <input type="hidden" value="<%= page.link %>" id="pageId"/>
   </section>
 
@@ -12,20 +13,22 @@
   <% } else { %>
   <% var orgAdminCount = organisation.members.filter(function(m) { return m.role === 'admin'; }).length; %>
   <div class="content-block white">
-    <h2><%= organisation.subscription.organisationName %></h2>
-    <p>
-      Domain: <strong>@<%= organisation.subscription.emailDomain %></strong><br/>
-      Plan: <strong><%= organisation.subscription.planTier %></strong><br/>
-      Licensed users: <strong><%= organisation.subscription.seatUsed %> / <%= organisation.subscription.seatLimit %></strong> <span class="small">(seat limit)</span><br/>
-      Subscription: <strong><%= organisation.subscription.subscriptionActive ? 'Active' : 'Expired' %></strong>
-      (until <%= new Date(organisation.subscription.endDate).toLocaleDateString() %>)
-    </p>
+    <div class="organisation-page__summary">
+      <p>
+        Domain: <strong>@<%= organisation.subscription.emailDomain %></strong><br/>
+        Plan: <strong><%= organisation.subscription.planTier %></strong><br/>
+        Licensed users: <strong><%= organisation.subscription.seatUsed %> / <%= organisation.subscription.seatLimit %></strong> <span class="small">(seat limit)</span><br/>
+        Subscription: <strong><%= organisation.subscription.subscriptionActive ? 'Active' : 'Expired' %></strong>
+        (until <%= new Date(organisation.subscription.endDate).toLocaleDateString() %>)
+      </p>
+    </div>
     <div id="orgMessage" class="alert" style="display:none;"></div>
   </div>
 
   <div class="content-block light-blue">
     <h2>Licensed users</h2>
-    <table class="display" style="width:100%" id="licensedUsersTable">
+    <div class="org-dt-wrap org-licensed-users-dt">
+    <table class="display org-dt-table" style="width:100%" id="licensedUsersTable">
       <thead>
         <tr>
           <th>Name</th>
@@ -83,6 +86,7 @@
         <% }); %>
       </tbody>
     </table>
+    </div>
     <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageLicenses) { %>
     <p class="org-licensed-users__add-bar">
       <button type="button" class="transparent" id="orgAddLicensedUserBtn">Add licensed user</button>
@@ -250,34 +254,375 @@
   <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManagePromptScanContext) { %>
   <div class="content-block light-blue org-scan-context-section">
     <h2>Extra guidance for scan steps</h2>
-    <p class="small">Separate from the model settings above. Optional text per AI-assisted step; licensed users choose whether to add it to the prompt. Works with <strong>CARE built-in</strong> or <strong>organisation</strong> AI—whichever they select on that step. Only organisation admins and prompt admins can edit this text.</p>
+    <p class="small">Separate from the model settings above. Define a <strong>title</strong> and <strong>guidance text</strong>, then choose which AI-assisted steps it applies to. You can reuse the same text on several steps. Licensed users choose whether to include organisation guidance in the prompt. Works with <strong>CARE built-in</strong> or <strong>organisation</strong> AI. Only organisation admins and prompt admins can edit this.</p>
     <div id="orgScanContextMessage" class="alert" style="display:none;"></div>
-    <form id="orgScanContextForm" class="org-scan-context-form" autocomplete="off">
-      <div class="org-scan-context-form__field">
-        <label class="org-scan-context-form__label" for="orgScanCtx_completeAssessment">Complete scan (initial assessment)</label>
-        <textarea id="orgScanCtx_completeAssessment" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder="e.g. sector-specific definitions, policies to respect…"></textarea>
-      </div>
-      <div class="org-scan-context-form__field">
-        <label class="org-scan-context-form__label" for="orgScanCtx_intendedConsequences">Intended consequences</label>
-        <textarea id="orgScanCtx_intendedConsequences" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder=""></textarea>
-      </div>
-      <div class="org-scan-context-form__field">
-        <label class="org-scan-context-form__label" for="orgScanCtx_unintendedConsequences">Unintended consequences</label>
-        <textarea id="orgScanCtx_unintendedConsequences" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder=""></textarea>
-      </div>
-      <div class="org-scan-context-form__field">
-        <label class="org-scan-context-form__label" for="orgScanCtx_stakeholders">Stakeholders</label>
-        <textarea id="orgScanCtx_stakeholders" class="input inputText org-scan-context-form__textarea" rows="5" maxlength="12000" placeholder=""></textarea>
-      </div>
-      <button type="submit" class="btn btn-primary" id="orgScanContextSaveBtn">Save scan context</button>
-    </form>
+
+    <h3 class="org-scan-guidance__subhead">Guidance blocks</h3>
+    <div class="org-dt-wrap org-scan-guidance-dt">
+    <table class="display org-scan-guidance__table org-dt-table" style="width:100%" id="orgScanGuidanceTable">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Applied to steps</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="orgScanGuidanceTableBody"></tbody>
+    </table>
+    </div>
+    <p class="small" id="orgScanGuidanceEmpty" style="display:none;">No guidance blocks yet. Use <strong>Add guidance</strong> to create a block.</p>
+    <p class="org-licensed-users__add-bar org-scan-guidance__add-bar">
+      <button type="button" class="transparent" id="orgAddScanGuidanceBtn">Add guidance</button>
+    </p>
+
+    <h3 class="org-scan-guidance__subhead">Step coverage</h3>
+    <p class="small">The table below shows which scan steps currently have at least one guidance block applied.</p>
+    <table class="display org-scan-guidance-coverage" style="width:100%" id="orgScanGuidanceCoverageTable">
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="orgScanGuidanceCoverageBody"></tbody>
+    </table>
   </div>
+
+  <dialog id="orgScanGuidanceDialog" class="org-access-edit-dialog org-scan-guidance-dialog">
+    <div class="content-block white">
+      <h2 id="orgScanGuidanceDialogTitle" style="margin-top:0;">Add guidance</h2>
+      <div id="orgScanGuidanceModalMsg" class="alert" style="display:none;"></div>
+      <form id="orgScanGuidanceModalForm" class="sub-form" novalidate>
+        <div class="sub-form__row">
+          <label class="sub-form__label" for="orgScanGuidanceTitle">Title</label>
+          <div class="sub-form__control">
+            <input type="text" id="orgScanGuidanceTitle" class="input inputText" maxlength="200" placeholder="e.g. NHS data handling" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="sub-form__row">
+          <label class="sub-form__label" for="orgScanGuidanceContent">Guidance text</label>
+          <div class="sub-form__control">
+            <textarea id="orgScanGuidanceContent" class="input inputText org-scan-context-form__textarea" rows="6" maxlength="12000" placeholder="Policies, definitions, or instructions to inject into the prompt…"></textarea>
+          </div>
+        </div>
+        <div class="sub-form__row">
+          <span class="sub-form__label">Apply to steps</span>
+          <div class="sub-form__control">
+            <div id="orgScanGuidanceStageChecks" class="org-scan-guidance-stages__grid org-scan-guidance-stages__grid--modal"></div>
+          </div>
+        </div>
+        <div class="sub-form__actions">
+          <button type="submit" class="btn btn-primary" id="orgScanGuidanceDialogSubmit">Add</button>
+          <button type="button" class="transparent" id="orgScanGuidanceDialogCancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
   <% } %>
+
+  <dialog id="orgColumnFilterDialog" class="org-access-edit-dialog org-column-filter-dialog">
+    <div class="content-block white">
+      <h2 id="orgColumnFilterDialogTitle" style="margin-top:0;">Column filter</h2>
+      <p class="small" id="orgColumnFilterDialogLead"></p>
+      <form id="orgColumnFilterForm" class="sub-form">
+        <input type="hidden" id="orgColumnFilterWhich" value=""/>
+        <div class="sub-form__row">
+          <span class="sub-form__label" id="orgColumnFilterChecksLabel">Match any of</span>
+          <div class="sub-form__control">
+            <fieldset id="orgColumnFilterFieldset" class="org-column-filter-checks"></fieldset>
+          </div>
+        </div>
+        <div class="sub-form__actions">
+          <button type="submit" class="btn btn-primary">Apply</button>
+          <button type="button" class="transparent" id="orgColumnFilterClear">Clear filter</button>
+          <button type="button" class="transparent" id="orgColumnFilterCancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 
   <% } %>
 </div>
 <% if (organisation) { %>
+<script src="/lib/DataTables/datatables.min.js"></script>
 <script>
+(function () {
+  if (!Array.isArray(window.__orgLicensedPermFilters)) {
+    window.__orgLicensedPermFilters = [];
+  }
+  if (!Array.isArray(window.__orgGuidanceStepsFilters)) {
+    window.__orgGuidanceStepsFilters = [];
+  }
+
+  if (typeof jQuery !== 'undefined' && jQuery.fn.dataTable && !window.__orgColFilterSearchRegistered) {
+    window.__orgColFilterSearchRegistered = true;
+    jQuery.fn.dataTable.ext.search.push(function (settings, data /*, dataIndex */) {
+      var tbl = settings.nTable;
+      if (!tbl || !tbl.id) return true;
+      if (tbl.id === 'licensedUsersTable') {
+        var f = window.__orgLicensedPermFilters;
+        if (!f || f.length === 0) return true;
+        var cell = data[3] != null ? String(data[3]) : '';
+        for (var i = 0; i < f.length; i++) {
+          if (f[i] && cell.indexOf(f[i]) !== -1) return true;
+        }
+        return false;
+      }
+      if (tbl.id === 'orgScanGuidanceTable') {
+        var g = window.__orgGuidanceStepsFilters;
+        if (!g || g.length === 0) return true;
+        var cell1 = data[1] != null ? String(data[1]) : '';
+        for (var j = 0; j < g.length; j++) {
+          if (g[j] && cell1.indexOf(g[j]) !== -1) return true;
+        }
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function orgDataTableBaseConfig(extra) {
+    var o = {
+      layout: {
+        topStart: null,
+        topEnd: 'search',
+        bottomStart: ['pageLength', 'info'],
+        bottomEnd: 'paging',
+      },
+      pageLength: 10,
+      lengthMenu: [
+        [10, 25, 50, 100, -1],
+        [10, 25, 50, 100, 'All'],
+      ],
+      order: [[0, 'asc']],
+      autoWidth: false,
+      language: {
+        search: 'Search:',
+        lengthMenu: 'Show _MENU_ rows',
+        info: 'Showing _START_ to _END_ of _TOTAL_',
+        infoEmpty: 'No rows',
+        zeroRecords: 'No matching rows',
+        paginate: { next: 'Next', previous: 'Previous' },
+      },
+    };
+    if (extra && extra.columnDefs) {
+      o.columnDefs = extra.columnDefs;
+    }
+    if (extra && extra.layout) {
+      for (var lk in extra.layout) {
+        if (Object.prototype.hasOwnProperty.call(extra.layout, lk)) {
+          o.layout[lk] = extra.layout[lk];
+        }
+      }
+    }
+    if (extra && extra.initComplete) {
+      var userInit = extra.initComplete;
+      o.initComplete = function () {
+        userInit.call(this);
+      };
+    }
+    return o;
+  }
+
+  function orgAttachColumnFilterBtn(api, colIdx, which) {
+    var $th = jQuery(api.column(colIdx).header());
+    $th.addClass('org-dt-th-filterable');
+    var $host = $th.find('.dt-column-header');
+    if (!$host.length) {
+      $host = $th;
+    }
+    $host.find('.org-dt-col-filter-btn').remove();
+    var $btn = jQuery(
+      '<button type="button" class="org-dt-col-filter-btn" data-org-filter-which="' +
+        which +
+        '" aria-label="Filter this column" title="Filter">' +
+        '<svg class="org-dt-filter-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="org-dt-filter-icon-shape" d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>' +
+        '</button>'
+    );
+    $host.append($btn);
+  }
+
+  function orgUpdateColFilterBtnActive(which, active) {
+    jQuery('.org-dt-col-filter-btn[data-org-filter-which="' + which + '"]').toggleClass(
+      'org-dt-col-filter-btn--active',
+      !!active
+    );
+  }
+
+  function populateOrgColumnFilterChecks(which) {
+    var fs = document.getElementById('orgColumnFilterFieldset');
+    if (!fs) return;
+    fs.innerHTML = '';
+    var current =
+      which === 'licensedUsers'
+        ? window.__orgLicensedPermFilters || []
+        : window.__orgGuidanceStepsFilters || [];
+    var chosen = {};
+    current.forEach(function (x) {
+      if (x) chosen[x] = true;
+    });
+    function addRow(value, labelText, rowIdx) {
+      var idSafe = String(value).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+      var id = 'orgColFilt_' + which + '_' + rowIdx + '_' + idSafe;
+      var lab = document.createElement('label');
+      lab.className = 'org-column-filter-checks__row';
+      var inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.value = value;
+      inp.id = id;
+      inp.checked = !!chosen[value];
+      lab.appendChild(inp);
+      lab.appendChild(document.createTextNode(' ' + labelText));
+      fs.appendChild(lab);
+    }
+    if (which === 'licensedUsers') {
+      var permOpts = [
+        { v: 'Organisation admin (full access)', t: 'Organisation admin (full access)' },
+        { v: 'License manager', t: 'License manager' },
+        { v: 'AI model admin', t: 'AI model admin' },
+        { v: 'Prompt manager', t: 'Prompt manager' },
+        { v: '—', t: 'No extra permissions' },
+      ];
+      permOpts.forEach(function (row, i) {
+        addRow(row.v, row.t, i);
+      });
+    } else if (which === 'guidance') {
+      (window.__orgGuidanceStageOptionsForFilter || []).forEach(function (row, i) {
+        addRow(row.value, row.text, i);
+      });
+    }
+  }
+
+  function collectOrgColumnFilterChecks() {
+    var fs = document.getElementById('orgColumnFilterFieldset');
+    if (!fs) return [];
+    var out = [];
+    fs.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      if (cb.checked && cb.value) out.push(cb.value);
+    });
+    return out;
+  }
+
+  function uncheckOrgColumnFilterFieldset() {
+    var fs = document.getElementById('orgColumnFilterFieldset');
+    if (!fs) return;
+    fs.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = false;
+    });
+  }
+
+  function openOrgColumnFilterDialog(which) {
+    var dlg = document.getElementById('orgColumnFilterDialog');
+    if (!dlg) return;
+    document.getElementById('orgColumnFilterWhich').value = which;
+    var titleEl = document.getElementById('orgColumnFilterDialogTitle');
+    var leadEl = document.getElementById('orgColumnFilterDialogLead');
+    if (which === 'licensedUsers') {
+      titleEl.textContent = 'Filter: Additional permissions';
+      leadEl.textContent =
+        'Tick any permissions that a row may include. Rows are shown if they match at least one tick (OR). Leave none ticked to show everyone.';
+    } else {
+      titleEl.textContent = 'Filter: Applied to steps';
+      leadEl.textContent =
+        'Tick any steps. Rows are shown if they apply to at least one ticked step (OR). Leave none ticked to show all blocks.';
+    }
+    populateOrgColumnFilterChecks(which);
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+  }
+
+  window.__orgDtBaseConfig = orgDataTableBaseConfig;
+  window.__orgGuidanceStageOptionsForFilter = [];
+  window.__orgAttachGuidanceColumnFilter = function (dtApi) {
+    orgAttachColumnFilterBtn(dtApi, 1, 'guidance');
+    orgUpdateColFilterBtnActive(
+      'guidance',
+      (window.__orgGuidanceStepsFilters || []).length > 0
+    );
+  };
+
+  if (typeof jQuery !== 'undefined') {
+    jQuery(document).on('click', '.org-dt-col-filter-btn', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var which = jQuery(this).attr('data-org-filter-which');
+      if (which) openOrgColumnFilterDialog(which);
+    });
+  }
+
+  var filterDlg = document.getElementById('orgColumnFilterDialog');
+  var filterForm = document.getElementById('orgColumnFilterForm');
+  var filterClear = document.getElementById('orgColumnFilterClear');
+  var filterCancel = document.getElementById('orgColumnFilterCancel');
+  if (filterForm && filterDlg) {
+    filterForm.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var which = document.getElementById('orgColumnFilterWhich').value;
+      var picked = collectOrgColumnFilterChecks();
+      if (which === 'licensedUsers' && window.__orgDtLicensed) {
+        window.__orgLicensedPermFilters = picked;
+        window.__orgDtLicensed.column(3).search('', false, true);
+        window.__orgDtLicensed.draw();
+        orgUpdateColFilterBtnActive('licensedUsers', picked.length > 0);
+      } else if (which === 'guidance' && window.__orgDtGuidance) {
+        window.__orgGuidanceStepsFilters = picked;
+        window.__orgDtGuidance.column(1).search('', false, true);
+        window.__orgDtGuidance.draw();
+        orgUpdateColFilterBtnActive('guidance', picked.length > 0);
+      }
+      filterDlg.close();
+    });
+    if (filterClear) {
+      filterClear.addEventListener('click', function () {
+        var which = document.getElementById('orgColumnFilterWhich').value;
+        if (which === 'licensedUsers' && window.__orgDtLicensed) {
+          window.__orgLicensedPermFilters = [];
+          window.__orgDtLicensed.column(3).search('', false, true);
+          window.__orgDtLicensed.draw();
+          orgUpdateColFilterBtnActive('licensedUsers', false);
+        } else if (which === 'guidance' && window.__orgDtGuidance) {
+          window.__orgGuidanceStepsFilters = [];
+          window.__orgDtGuidance.column(1).search('', false, true);
+          window.__orgDtGuidance.draw();
+          orgUpdateColFilterBtnActive('guidance', false);
+        }
+        uncheckOrgColumnFilterFieldset();
+        filterDlg.close();
+      });
+    }
+    if (filterCancel) {
+      filterCancel.addEventListener('click', function () {
+        filterDlg.close();
+      });
+    }
+    filterDlg.addEventListener('click', function (ev) {
+      if (ev.target === filterDlg) filterDlg.close();
+    });
+  }
+
+  var $lu = typeof jQuery !== 'undefined' ? jQuery('#licensedUsersTable') : null;
+  if ($lu && $lu.length && jQuery.fn.DataTable) {
+    var thCount = $lu.find('thead th').length;
+    var defs = [];
+    if (thCount >= 5) {
+      defs.push({ targets: thCount - 1, orderable: false, searchable: false });
+    }
+    var dtLu = $lu.DataTable(
+      orgDataTableBaseConfig({
+        columnDefs: defs,
+        initComplete: function () {
+          this.api().column(3).search('', false, true);
+          orgAttachColumnFilterBtn(this.api(), 3, 'licensedUsers');
+          orgUpdateColFilterBtnActive(
+            'licensedUsers',
+            (window.__orgLicensedPermFilters || []).length > 0
+          );
+        },
+      })
+    );
+    window.__orgDtLicensed = dtLu;
+  }
+})();
+
 (function () {
   var aiForm = document.getElementById('orgAiConfigForm');
   if (!aiForm) return;
@@ -548,8 +893,15 @@
 })();
 
 (function () {
-  var form = document.getElementById('orgScanContextForm');
-  if (!form) return;
+  var dialog = document.getElementById('orgScanGuidanceDialog');
+  var modalForm = document.getElementById('orgScanGuidanceModalForm');
+  if (!dialog || !modalForm) return;
+
+  var labels = {};
+  var stageKeys = [];
+  var items = [];
+  var editIndex = null;
+
   function showScanCtxMsg(text, isError) {
     var el = document.getElementById('orgScanContextMessage');
     if (!el) return;
@@ -557,27 +909,369 @@
     el.textContent = text;
     el.style.color = isError ? '#c00' : '';
   }
-  var STAGE_KEYS = [
-    'completeAssessment',
-    'intendedConsequences',
-    'unintendedConsequences',
-    'stakeholders',
-  ];
-  function fillScanContextForm(d) {
-    var stages = (d && d.stages) || {};
-    STAGE_KEYS.forEach(function (key) {
-      var ta = document.getElementById('orgScanCtx_' + key);
-      if (ta) ta.value = stages[key] != null ? String(stages[key]) : '';
+
+  function showModalMsg(text, isError) {
+    var el = document.getElementById('orgScanGuidanceModalMsg');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#c00' : '';
+  }
+
+  function hideModalMsg() {
+    var el = document.getElementById('orgScanGuidanceModalMsg');
+    if (!el) return;
+    el.style.display = 'none';
+    el.textContent = '';
+    el.style.color = '';
+  }
+
+  function labelFor(key) {
+    return (labels && labels[key]) || key;
+  }
+
+  function syncGuidanceStepsFilterOptions() {
+    window.__orgGuidanceStageOptionsForFilter = stageKeys.map(function (k) {
+      var lab = labelFor(k);
+      return { value: lab, text: lab };
     });
   }
-  function collectScanContextPayload() {
-    var stages = {};
-    STAGE_KEYS.forEach(function (key) {
-      var ta = document.getElementById('orgScanCtx_' + key);
-      stages[key] = ta ? ta.value : '';
-    });
-    return { stages: stages };
+
+  function rebuildGuidanceDataTable() {
+    if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+    var $t = jQuery('#orgScanGuidanceTable');
+    if (!$t.length) return;
+    if (jQuery.fn.DataTable.isDataTable($t)) {
+      $t.DataTable().destroy();
+    }
+    if ($t.find('tbody tr').length === 0) {
+      window.__orgDtGuidance = null;
+      return;
+    }
+    var base = typeof window.__orgDtBaseConfig === 'function' ? window.__orgDtBaseConfig : null;
+    if (!base) return;
+    var dt = $t.DataTable(
+      base({
+        columnDefs: [{ targets: 2, orderable: false, searchable: false }],
+        initComplete: function () {
+          if (typeof window.__orgAttachGuidanceColumnFilter === 'function') {
+            window.__orgAttachGuidanceColumnFilter(this.api());
+          }
+        },
+      })
+    );
+    window.__orgDtGuidance = dt;
+    dt.column(1).search('', false, true);
+    dt.draw();
   }
+
+  function renderStageCheckboxes() {
+    var host = document.getElementById('orgScanGuidanceStageChecks');
+    if (!host) return;
+    host.innerHTML = '';
+    stageKeys.forEach(function (key) {
+      var id = 'orgScanGuidanceStage_' + key;
+      var wrap = document.createElement('label');
+      wrap.className = 'org-scan-guidance-stages__chk';
+      var inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.value = key;
+      inp.id = id;
+      wrap.appendChild(inp);
+      wrap.appendChild(document.createTextNode(' ' + labelFor(key)));
+      host.appendChild(wrap);
+    });
+  }
+
+  function selectedStagesFromEditor() {
+    var out = [];
+    document.querySelectorAll('#orgScanGuidanceStageChecks input[type="checkbox"]').forEach(function (cb) {
+      if (cb.checked) out.push(cb.value);
+    });
+    return out;
+  }
+
+  function setEditorStages(stages) {
+    var set = {};
+    (stages || []).forEach(function (s) {
+      set[s] = true;
+    });
+    document.querySelectorAll('#orgScanGuidanceStageChecks input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = !!set[cb.value];
+    });
+  }
+
+  function stageCoverageMapFor(list) {
+    var m = {};
+    stageKeys.forEach(function (k) {
+      m[k] = false;
+    });
+    (list || []).forEach(function (it) {
+      var c = (it.content || '').trim();
+      if (!c) return;
+      (it.stages || []).forEach(function (s) {
+        if (m.hasOwnProperty(s)) m[s] = true;
+      });
+    });
+    return m;
+  }
+
+  function stageCoverageMap() {
+    return stageCoverageMapFor(items);
+  }
+
+  function cloneItems() {
+    return items.map(function (it) {
+      return {
+        title: it.title,
+        content: it.content,
+        stages: (it.stages || []).slice(),
+      };
+    });
+  }
+
+  function applyRowToClone(baseList, row, editIdx) {
+    var next = baseList.map(function (it) {
+      return {
+        title: it.title,
+        content: it.content,
+        stages: (it.stages || []).slice(),
+      };
+    });
+    if (editIdx !== null && editIdx >= 0) next[editIdx] = row;
+    else next.push(row);
+    return next;
+  }
+
+  function mergeServerGuidanceResponse(data) {
+    labels = (data && data.labels) || labels;
+    stageKeys = Array.isArray(data && data.stageKeys) ? data.stageKeys.slice() : stageKeys;
+    items = Array.isArray(data && data.items) ? JSON.parse(JSON.stringify(data.items)) : [];
+    renderStageCheckboxes();
+    syncGuidanceStepsFilterOptions();
+    renderTable();
+  }
+
+  function renderCoverage() {
+    var body = document.getElementById('orgScanGuidanceCoverageBody');
+    if (!body) return;
+    body.innerHTML = '';
+    var cov = stageCoverageMap();
+    stageKeys.forEach(function (key) {
+      var tr = document.createElement('tr');
+      var ok = cov[key];
+      tr.innerHTML =
+        '<td>' +
+        labelFor(key).replace(/</g, '&lt;') +
+        '</td><td>' +
+        (ok ? 'Has guidance' : '<span class="org-scan-guidance-coverage--gap">No guidance yet</span>') +
+        '</td>';
+      body.appendChild(tr);
+    });
+  }
+
+  function renderTable() {
+    if (typeof jQuery !== 'undefined' && jQuery.fn.DataTable) {
+      var $gt = jQuery('#orgScanGuidanceTable');
+      if ($gt.length && jQuery.fn.DataTable.isDataTable($gt)) {
+        $gt.DataTable().destroy();
+      }
+    }
+    var body = document.getElementById('orgScanGuidanceTableBody');
+    var emptyEl = document.getElementById('orgScanGuidanceEmpty');
+    var table = document.getElementById('orgScanGuidanceTable');
+    if (!body) return;
+    body.innerHTML = '';
+    if (items.length === 0) {
+      if (emptyEl) emptyEl.style.display = '';
+      if (table) table.style.display = 'none';
+    } else {
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (table) table.style.display = '';
+      items.forEach(function (it, idx) {
+        var title = (it.title || '').trim() || '—';
+        var stageLabels = (it.stages || []).map(labelFor).join(', ');
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' +
+          title.replace(/</g, '&lt;') +
+          '</td><td>' +
+          stageLabels.replace(/</g, '&lt;') +
+          '</td><td class="org-scan-guidance__row-actions"></td>';
+        var actions = tr.querySelector('.org-scan-guidance__row-actions');
+        var editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'transparent';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', function () {
+          openEditModal(idx);
+        });
+        var rmBtn = document.createElement('button');
+        rmBtn.type = 'button';
+        rmBtn.className = 'transparent';
+        rmBtn.textContent = 'Remove';
+        rmBtn.addEventListener('click', function () {
+          var nextItems = cloneItems();
+          nextItems.splice(idx, 1);
+          showScanCtxMsg('Saving…', false);
+          fetch('/organisation/scan-context', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ items: nextItems }),
+          })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                if (!res.ok) throw new Error(data.message || res.statusText);
+                if (editIndex === idx) {
+                  editIndex = null;
+                  if (dialog.open) dialog.close();
+                } else if (editIndex !== null && editIndex > idx) {
+                  editIndex -= 1;
+                }
+                mergeServerGuidanceResponse(data);
+                showScanCtxMsg(data.message || 'Saved', false);
+              });
+            })
+            .catch(function (e) {
+              showScanCtxMsg(e.message || String(e), true);
+              fetch('/organisation/scan-context', { headers: { Accept: 'application/json' } })
+                .then(function (r) {
+                  return r.json().then(function (d) {
+                    return { ok: r.ok, d: d };
+                  });
+                })
+                .then(function (x) {
+                  if (x.ok) mergeServerGuidanceResponse(x.d);
+                })
+                .catch(function () {});
+            });
+        });
+        actions.appendChild(editBtn);
+        actions.appendChild(document.createTextNode(' '));
+        actions.appendChild(rmBtn);
+        body.appendChild(tr);
+      });
+    }
+    renderCoverage();
+    rebuildGuidanceDataTable();
+  }
+
+  function resetEditor() {
+    document.getElementById('orgScanGuidanceTitle').value = '';
+    document.getElementById('orgScanGuidanceContent').value = '';
+    setEditorStages([]);
+    editIndex = null;
+    var titleEl = document.getElementById('orgScanGuidanceDialogTitle');
+    var submitBtn = document.getElementById('orgScanGuidanceDialogSubmit');
+    if (titleEl) titleEl.textContent = 'Add guidance';
+    if (submitBtn) submitBtn.textContent = 'Add';
+  }
+
+  function openAddModal() {
+    hideModalMsg();
+    resetEditor();
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+  }
+
+  function openEditModal(idx) {
+    var it = items[idx];
+    if (!it) return;
+    hideModalMsg();
+    editIndex = idx;
+    document.getElementById('orgScanGuidanceTitle').value = it.title || '';
+    document.getElementById('orgScanGuidanceContent').value = it.content || '';
+    setEditorStages(it.stages || []);
+    var titleEl = document.getElementById('orgScanGuidanceDialogTitle');
+    var submitBtn = document.getElementById('orgScanGuidanceDialogSubmit');
+    if (titleEl) titleEl.textContent = 'Edit guidance';
+    if (submitBtn) submitBtn.textContent = 'Save';
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+  }
+
+  function closeGuidanceModal() {
+    dialog.close();
+  }
+
+  function commitGuidanceModal(ev) {
+    ev.preventDefault();
+    var title = document.getElementById('orgScanGuidanceTitle').value.trim();
+    var content = document.getElementById('orgScanGuidanceContent').value.trim();
+    var stages = selectedStagesFromEditor();
+    if (!content) {
+      showModalMsg('Guidance text is required.', true);
+      return;
+    }
+    if (stages.length === 0) {
+      showModalMsg('Select at least one step.', true);
+      return;
+    }
+    var row = { title: title, content: content, stages: stages };
+    var nextItems = applyRowToClone(cloneItems(), row, editIndex);
+
+    var submitBtn = document.getElementById('orgScanGuidanceDialogSubmit');
+    if (submitBtn) submitBtn.disabled = true;
+    hideModalMsg();
+    showModalMsg('Saving…', false);
+
+    fetch('/organisation/scan-context', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ items: nextItems }),
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.message || res.statusText);
+          hideModalMsg();
+          mergeServerGuidanceResponse(data);
+          dialog.close();
+          showScanCtxMsg(data.message || 'Saved', false);
+        });
+      })
+      .catch(function (e) {
+        hideModalMsg();
+        showModalMsg(e.message || String(e), true);
+        fetch('/organisation/scan-context', { headers: { Accept: 'application/json' } })
+          .then(function (r) {
+            return r.json().then(function (d) {
+              return { ok: r.ok, d: d };
+            });
+          })
+          .then(function (x) {
+            if (x.ok) mergeServerGuidanceResponse(x.d);
+          })
+          .catch(function () {});
+      })
+      .finally(function () {
+        if (submitBtn) submitBtn.disabled = false;
+      });
+  }
+
+  function loadFromServer(d) {
+    if (dialog.open) dialog.close();
+    labels = (d && d.labels) || {};
+    stageKeys = Array.isArray(d && d.stageKeys) ? d.stageKeys.slice() : [];
+    items = Array.isArray(d && d.items) ? JSON.parse(JSON.stringify(d.items)) : [];
+    renderStageCheckboxes();
+    syncGuidanceStepsFilterOptions();
+    renderTable();
+  }
+
+  var addBtn = document.getElementById('orgAddScanGuidanceBtn');
+  if (addBtn) addBtn.addEventListener('click', openAddModal);
+
+  modalForm.addEventListener('submit', commitGuidanceModal);
+
+  document.getElementById('orgScanGuidanceDialogCancel').addEventListener('click', function () {
+    closeGuidanceModal();
+  });
+  dialog.addEventListener('click', function (ev) {
+    if (ev.target === dialog) closeGuidanceModal();
+  });
+  dialog.addEventListener('close', function () {
+    hideModalMsg();
+    resetEditor();
+  });
+
   fetch('/organisation/scan-context', { headers: { Accept: 'application/json' } })
     .then(function (r) {
       return r.json().then(function (d) {
@@ -585,32 +1279,12 @@
       });
     })
     .then(function (x) {
-      if (!x.ok) throw new Error(x.d.message || 'Could not load scan context');
-      fillScanContextForm(x.d);
+      if (!x.ok) throw new Error(x.d.message || 'Could not load scan guidance');
+      loadFromServer(x.d);
     })
     .catch(function (e) {
       showScanCtxMsg(e.message || String(e), true);
     });
-  form.addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    showScanCtxMsg('', false);
-    document.getElementById('orgScanContextMessage').style.display = 'none';
-    fetch('/organisation/scan-context', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(collectScanContextPayload()),
-    })
-      .then(function (res) {
-        return res.json().then(function (data) {
-          if (!res.ok) throw new Error(data.message || res.statusText);
-          fillScanContextForm({ stages: data.stages });
-          showScanCtxMsg(data.message || 'Saved', false);
-        });
-      })
-      .catch(function (e) {
-        showScanCtxMsg(e.message || String(e), true);
-      });
-  });
 })();
 
 (function () {

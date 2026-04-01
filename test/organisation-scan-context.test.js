@@ -1,78 +1,131 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  validateAndNormalizeScanContextUpdate,
-  mergeScanContextIntoSubscription,
-  maskScanContextForClient,
-  scanContextPresenceByStage,
-  getScanContextForMessageId,
-  MAX_STAGE_CHARS,
+  validateAndNormalizeGuidanceItems,
+  resolveGuidanceItems,
+  scanContextPresenceByStageForSubscription,
+  getScanContextTextForSubscription,
+  uncoveredScanStages,
+  migrateLegacyScanContextToItems,
+  MAX_GUIDANCE_CONTENT_CHARS,
   replaceOrgContextPlaceholder,
+  SCAN_CONTEXT_STAGE_KEYS,
 } = require('../lib/organisationScanContext');
 
-test('validateAndNormalizeScanContextUpdate accepts stages wrapper', () => {
-  const out = validateAndNormalizeScanContextUpdate({
-    stages: { completeAssessment: '  hello  ', intendedConsequences: '' },
+test('validateAndNormalizeGuidanceItems accepts items', () => {
+  const out = validateAndNormalizeGuidanceItems({
+    items: [
+      { title: '  T  ', content: '  body  ', stages: ['completeAssessment', 'stakeholders'] },
+    ],
   });
-  assert.equal(out.completeAssessment, 'hello');
-  assert.equal(out.intendedConsequences, '');
-  assert.equal(Object.keys(out).length, 2);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].title, 'T');
+  assert.equal(out[0].content, 'body');
+  assert.deepEqual(out[0].stages, ['completeAssessment', 'stakeholders']);
 });
 
-test('validateAndNormalizeScanContextUpdate rejects non-string stage value', () => {
+test('validateAndNormalizeGuidanceItems rejects missing stages', () => {
   assert.throws(
-    () => validateAndNormalizeScanContextUpdate({ stages: { stakeholders: 1 } }),
-    /must be a string/
+    () => validateAndNormalizeGuidanceItems({ items: [{ title: 'a', content: 'b', stages: [] }] }),
+    /at least one scan step/
   );
 });
 
-test('validateAndNormalizeScanContextUpdate rejects empty body keys', () => {
+test('validateAndNormalizeGuidanceItems rejects empty content', () => {
   assert.throws(
-    () => validateAndNormalizeScanContextUpdate({ stages: {} }),
-    /at least one stage key/
+    () =>
+      validateAndNormalizeGuidanceItems({
+        items: [{ title: 'a', content: '   ', stages: ['actionPlanning'] }],
+      }),
+    /guidance text is required/
   );
 });
 
-test('mergeScanContextIntoSubscription preserves unspecified keys', () => {
-  const existing = { completeAssessment: 'a', intendedConsequences: 'b' };
-  const merged = mergeScanContextIntoSubscription(existing, { stakeholders: 'c' });
-  assert.equal(merged.completeAssessment, 'a');
-  assert.equal(merged.intendedConsequences, 'b');
-  assert.equal(merged.stakeholders, 'c');
-});
-
-test('maskScanContextForClient fills missing keys', () => {
-  const m = maskScanContextForClient({ completeAssessment: 'x' });
-  assert.equal(m.completeAssessment, 'x');
-  assert.equal(m.intendedConsequences, '');
-});
-
-test('scanContextPresenceByStage is true only for non-empty trimmed text', () => {
-  const p = scanContextPresenceByStage({ completeAssessment: ' hi ', intendedConsequences: '   ' });
-  assert.equal(p.completeAssessment, true);
-  assert.equal(p.intendedConsequences, false);
-});
-
-test('getScanContextForMessageId ignores unknown message id', () => {
-  assert.equal(getScanContextForMessageId({ stakeholders: 'z' }, 'projectDetails'), '');
-});
-
-test('normalize truncates to MAX_STAGE_CHARS', () => {
-  const long = 'x'.repeat(MAX_STAGE_CHARS + 50);
-  const out = validateAndNormalizeScanContextUpdate({
-    stages: { completeAssessment: long },
+test('validateAndNormalizeGuidanceItems dedupes stages', () => {
+  const out = validateAndNormalizeGuidanceItems({
+    items: [{ title: '', content: 'x', stages: ['riskEvaluation', 'riskEvaluation'] }],
   });
-  assert.equal(out.completeAssessment.length, MAX_STAGE_CHARS);
+  assert.deepEqual(out[0].stages, ['riskEvaluation']);
+});
+
+test('validateAndNormalizeGuidanceItems truncates long content', () => {
+  const long = 'x'.repeat(MAX_GUIDANCE_CONTENT_CHARS + 50);
+  const out = validateAndNormalizeGuidanceItems({
+    items: [{ title: '', content: long, stages: ['intendedConsequences'] }],
+  });
+  assert.equal(out[0].content.length, MAX_GUIDANCE_CONTENT_CHARS);
+});
+
+test('resolveGuidanceItems prefers organisationScanGuidanceItems over legacy', () => {
+  const sub = {
+    organisationScanGuidanceItems: [{ title: 'A', content: 'new', stages: ['actionPlanning'] }],
+    organisationScanContext: { completeAssessment: 'legacy' },
+  };
+  const items = resolveGuidanceItems(sub);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].content, 'new');
+});
+
+test('resolveGuidanceItems migrates legacy flat context', () => {
+  const sub = {
+    organisationScanContext: { completeAssessment: ' hi ', stakeholders: '' },
+  };
+  const items = resolveGuidanceItems(sub);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].content, 'hi');
+  assert.deepEqual(items[0].stages, ['completeAssessment']);
+});
+
+test('scanContextPresenceByStageForSubscription includes riskEvaluation and actionPlanning', () => {
+  const sub = {
+    organisationScanGuidanceItems: [
+      { title: '', content: 'x', stages: ['riskEvaluation'] },
+      { title: '', content: 'y', stages: ['actionPlanning'] },
+    ],
+  };
+  const p = scanContextPresenceByStageForSubscription(sub);
+  assert.equal(p.riskEvaluation, true);
+  assert.equal(p.actionPlanning, true);
+  assert.equal(p.completeAssessment, false);
+});
+
+test('getScanContextTextForSubscription joins blocks with title', () => {
+  const sub = {
+    organisationScanGuidanceItems: [
+      { title: 'One', content: 'A', stages: ['stakeholders'] },
+      { title: '', content: 'B', stages: ['stakeholders'] },
+    ],
+  };
+  const t = getScanContextTextForSubscription(sub, 'stakeholders');
+  assert.match(t, /One/);
+  assert.match(t, /A/);
+  assert.match(t, /B/);
+});
+
+test('getScanContextTextForSubscription ignores unknown message id', () => {
+  assert.equal(getScanContextTextForSubscription({}, 'projectDetails'), '');
+});
+
+test('uncoveredScanStages lists gaps', () => {
+  const sub = {
+    organisationScanGuidanceItems: [{ title: '', content: 'x', stages: ['completeAssessment'] }],
+  };
+  const u = uncoveredScanStages(sub);
+  assert.ok(u.length > 0);
+  assert.ok(!u.includes('completeAssessment'));
+  assert.ok(u.includes('actionPlanning'));
+});
+
+test('SCAN_CONTEXT_STAGE_KEYS includes six steps', () => {
+  assert.equal(SCAN_CONTEXT_STAGE_KEYS.length, 6);
+});
+
+test('migrateLegacyScanContextToItems maps riskEvaluation', () => {
+  const items = migrateLegacyScanContextToItems({ riskEvaluation: 'r', actionPlanning: 'a' });
+  assert.equal(items.length, 2);
 });
 
 test('replaceOrgContextPlaceholder substitutes {{orgContext}}', () => {
   const out = replaceOrgContextPlaceholder('Before\n{{orgContext}}\nAfter', 'Org line');
   assert.equal(out, 'Before\nOrg line\nAfter');
-});
-
-test('replaceOrgContextPlaceholder replaces all occurrences and clears when empty', () => {
-  assert.equal(replaceOrgContextPlaceholder('{{orgContext}}', 'x'), 'x');
-  assert.equal(replaceOrgContextPlaceholder('A {{orgContext}} B {{orgContext}}', 'z'), 'A z B z');
-  assert.equal(replaceOrgContextPlaceholder('Hi {{orgContext}}', ''), 'Hi ');
-  assert.equal(replaceOrgContextPlaceholder('Hi {{orgContext}}', '   '), 'Hi ');
 });

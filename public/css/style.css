@@ -809,6 +809,182 @@ table.dataTable td.eval-shares-col .eval-share-open.btn {
     resize: vertical;
 }
 
+.org-scan-guidance__subhead {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.05rem;
+}
+
+.org-scan-guidance__table {
+    margin-top: 0.5rem;
+}
+
+.org-scan-guidance__row-actions {
+    white-space: nowrap;
+}
+
+.org-scan-guidance-coverage {
+    margin-top: 0.5rem;
+}
+
+.org-scan-guidance-coverage--gap {
+    color: #8a5a00;
+}
+
+.org-scan-guidance__add-bar {
+    margin-top: 0.75rem;
+    margin-bottom: 0;
+}
+
+.org-scan-guidance-stages__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.35rem;
+}
+
+.org-scan-guidance-stages__grid--modal {
+    margin-top: 0;
+}
+
+.org-scan-guidance-stages__chk {
+    display: block;
+    font-weight: normal;
+}
+
+/* Reuse licensed-user modal sizing for scan guidance editor */
+.org-scan-guidance-dialog .sub-form__textarea,
+.org-scan-guidance-dialog .org-scan-context-form__textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 6rem;
+}
+
+/* Organisation page: title + centered subscription summary */
+/* Beats .page-title h1 { text-align: left } (higher specificity) */
+.organisation-page .page-title h1 {
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.organisation-page__summary {
+    text-align: center;
+    max-width: 36rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+.organisation-page__summary p {
+    margin-top: 0;
+}
+
+/* Organisation page: DataTables toolbars + zebra rows on light-blue blocks */
+.org-dt-wrap {
+    margin-top: 0.35rem;
+}
+/* Page length immediately to the left of “Showing X to Y of Z” on the bottom row */
+.org-dt-wrap .dt-container .dt-layout-row:last-child .dt-layout-start {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+}
+.org-dt-wrap .dt-container .dt-layout-row:last-child .dt-length {
+    margin-right: 0;
+}
+.org-dt-wrap .dt-container .dt-length {
+  margin-top: 0.75rem;
+}
+.org-dt-wrap .dt-container .dt-length select {
+    display: inline-block;
+}
+.org-dt-wrap .dt-container .dt-layout-row:last-child .dt-info {
+    margin-left: 0;
+}
+/* Excel-style column filter control in header */
+.org-dt-th-filterable .dt-column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+.org-dt-th-filterable .dt-column-title {
+    flex: 1;
+    min-width: 0;
+}
+.org-dt-col-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0.15rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: rgba(0, 0, 0, 0.42);
+    line-height: 0;
+    border-radius: 2px;
+}
+.org-dt-col-filter-btn:hover {
+    color: var(--color-dark-blue);
+    background: rgba(7, 37, 137, 0.08);
+}
+.org-dt-col-filter-btn--active {
+    color: var(--color-dark-blue);
+}
+.org-dt-col-filter-btn--active .org-dt-filter-icon-shape {
+    fill: currentColor;
+    opacity: 1;
+}
+.org-dt-col-filter-btn:not(.org-dt-col-filter-btn--active) .org-dt-filter-icon-shape {
+    fill: currentColor;
+    opacity: 0.55;
+}
+.org-column-filter-dialog .sub-form__actions {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+.org-column-filter-checks {
+    border: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: min(50vh, 22rem);
+    overflow-y: auto;
+}
+.org-column-filter-checks__row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    font-weight: normal;
+    cursor: pointer;
+}
+.org-column-filter-checks__row input {
+    margin-top: 0.2rem;
+    flex-shrink: 0;
+}
+.content-block.light-blue table.org-dt-table.dataTable tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.42);
+}
+.content-block.light-blue table.org-dt-table.dataTable tbody tr:nth-child(odd) {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+.content-block.light-blue table.org-dt-table.dataTable tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.58);
+}
+.org-scan-guidance-coverage tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.35);
+}
+.org-scan-guidance-coverage tbody tr:nth-child(odd) {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
 .org-ai-test-result__pre {
     background: #f4f6f8;
     border: 1px solid rgba(0, 0, 0, 0.1);

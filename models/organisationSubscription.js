@@ -34,13 +34,38 @@ const organisationSubscriptionSchema = new mongoose.Schema(
         default: 'standard',
       },
     },
-    /** Optional per-stage text appended to AI user prompts when members opt in. */
+    /**
+     * Legacy flat per-step strings (migrated automatically when reading if guidance items are empty).
+     * Cleared when saving the new guidance list.
+     */
     organisationScanContext: {
       completeAssessment: { type: String, default: '' },
       intendedConsequences: { type: String, default: '' },
       unintendedConsequences: { type: String, default: '' },
       stakeholders: { type: String, default: '' },
+      riskEvaluation: { type: String, default: '' },
+      actionPlanning: { type: String, default: '' },
     },
+    /** Titled guidance blocks, each applied to one or more scan steps (preferred over organisationScanContext). */
+    organisationScanGuidanceItems: [
+      {
+        title: { type: String, default: '' },
+        content: { type: String, default: '' },
+        stages: [
+          {
+            type: String,
+            enum: [
+              'completeAssessment',
+              'intendedConsequences',
+              'unintendedConsequences',
+              'stakeholders',
+              'riskEvaluation',
+              'actionPlanning',
+            ],
+          },
+        ],
+      },
+    ],
   },
   { collection: 'OrganisationSubscriptions', timestamps: true }
 );

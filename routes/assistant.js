@@ -12,7 +12,7 @@ const { parseModelJsonResponse } = require('../services/parseAIJson');
 const { findMembershipForEmail } = require('../lib/organisationEntitlements');
 const { orgAiToRuntimeOverrides } = require('../lib/organisationAiConfig');
 const {
-  getScanContextForMessageId,
+  getScanContextTextForSubscription,
   replaceOrgContextPlaceholder,
 } = require('../lib/organisationScanContext');
 
@@ -684,7 +684,7 @@ async function resolveOrganisationScanContextAppend(req, messageId) {
   if (!m || !m.subscriptionId) return '';
   const subId = m.subscriptionId._id || m.subscriptionId;
   const sub = await OrganisationSubscription.findById(subId);
-  return getScanContextForMessageId(sub && sub.organisationScanContext, messageId);
+  return getScanContextTextForSubscription(sub, messageId);
 }
 
 async function resolveOrganisationAiOverrides(req) {

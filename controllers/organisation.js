@@ -26,11 +26,12 @@ const {
 } = require('../lib/organisationAiConfig');
 const {
   SCAN_CONTEXT_STAGE_LABELS,
-  validateAndNormalizeScanContextUpdate,
-  mergeScanContextIntoSubscription,
-  maskScanContextForClient,
-  scanContextPresenceByStage,
-  getScanContextForMessageId,
+  SCAN_CONTEXT_STAGE_KEYS,
+  validateAndNormalizeGuidanceItems,
+  resolveGuidanceItems,
+  scanContextPresenceByStageForSubscription,
+  getScanContextTextForSubscription,
+  uncoveredScanStages,
 } = require('../lib/organisationScanContext');
 const { chatCompletion } = require('../services/aiChat');
 const { parseModelJsonResponse } = require('../services/parseAIJson');
@@ -347,9 +348,9 @@ async function getAiEligibilityForUser(userId, forMessageId) {
   const subId = m.subscriptionId._id || m.subscriptionId;
   const sub = await OrganisationSubscription.findById(subId);
   const ov = orgAiToRuntimeOverrides(sub && sub.organisationAi);
-  const scanContextByStage = scanContextPresenceByStage(sub && sub.organisationScanContext);
+  const scanContextByStage = scanContextPresenceByStageForSubscription(sub);
   const mid = forMessageId != null ? String(forMessageId).trim() : '';
-  const rawCtx = mid ? getScanContextForMessageId(sub && sub.organisationScanContext, mid) : '';
+  const rawCtx = mid ? getScanContextTextForSubscription(sub, mid) : '';
   const scanContextText = rawCtx ? rawCtx : null;
   return { organisationAiAvailable: !!ov, scanContextByStage, scanContextText };
 }
@@ -513,8 +514,10 @@ async function getScanContextAdmin(requesterUserId) {
     throw err;
   }
   return {
-    stages: maskScanContextForClient(sub.organisationScanContext),
+    items: resolveGuidanceItems(sub),
     labels: SCAN_CONTEXT_STAGE_LABELS,
+    stageKeys: SCAN_CONTEXT_STAGE_KEYS,
+    uncoveredStages: uncoveredScanStages(sub),
   };
 }
 
@@ -537,15 +540,21 @@ async function updateScanContextAdmin(requesterUserId, body) {
     err.status = 404;
     throw err;
   }
-  const partial = validateAndNormalizeScanContextUpdate(body);
-  const merged = mergeScanContextIntoSubscription(sub.organisationScanContext, partial);
+  const items = validateAndNormalizeGuidanceItems(body);
   await OrganisationSubscription.updateOne(
     { _id: sub._id },
-    { $set: { organisationScanContext: merged } }
+    {
+      $set: { organisationScanGuidanceItems: items },
+      $unset: { organisationScanContext: '' },
+    }
   );
+  const syntheticSub = { organisationScanGuidanceItems: items };
   return {
     message: 'Saved',
-    stages: maskScanContextForClient(merged),
+    items: resolveGuidanceItems(syntheticSub),
+    labels: SCAN_CONTEXT_STAGE_LABELS,
+    stageKeys: SCAN_CONTEXT_STAGE_KEYS,
+    uncoveredStages: uncoveredScanStages(syntheticSub),
   };
 }
 
