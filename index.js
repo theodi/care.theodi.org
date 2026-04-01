@@ -30,6 +30,7 @@ db.once('open', function() {
 
 const express = require('express');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const passport = require('./passport'); // Require the passport module
 const authRoutes = require('./routes/auth'); // Require the authentication routes module
 const subscriptionRoutes = require('./routes/subscriptions');
@@ -65,11 +66,16 @@ app.use(express.urlencoded({ extended: false }));
 
 // Other middleware and setup code...
 
-// Session configuration
+// Session configuration — MongoDB store so restarts do not clear logins (see collection `sessions`)
+const mongoSessionStoreOpts = { mongoUrl: mongoURI };
+if (mongoDB) {
+  mongoSessionStoreOpts.dbName = mongoDB;
+}
 app.use(session({
   resave: false,
   saveUninitialized: true,
   secret: process.env.SESSION_SECRET,
+  store: MongoStore.create(mongoSessionStoreOpts),
 }));
 
 // Middleware for user object

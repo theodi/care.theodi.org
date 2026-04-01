@@ -11,6 +11,33 @@ const {
 } = require('../lib/organisationEntitlements');
 const { validateCreatePayload } = require('../lib/careAdminSubscriptionPayload');
 
+async function getSubscription(id) {
+  if (!mongoose.isValidObjectId(id)) {
+    const err = new Error('Invalid subscription id');
+    err.status = 400;
+    throw err;
+  }
+  const s = await OrganisationSubscription.findById(id).lean();
+  if (!s) return null;
+  const adminEmails = await adminEmailsForSubscriptionId(s._id);
+  return {
+    id: s._id,
+    organisationName: s.organisationName,
+    emailDomain: s.emailDomain,
+    adminEmails,
+    planTier: s.planTier,
+    seatLimit: s.seatLimit,
+    amount: s.amount,
+    startDate: s.startDate,
+    endDate: s.endDate,
+    status: subscriptionLifecycleStatus(s),
+    isActive: isSubscriptionActive(s),
+    createdAt: s.createdAt,
+    hubspotCompanyId: s.hubspotCompanyId || null,
+    hubspotDealId: s.hubspotDealId || null,
+  };
+}
+
 async function listSubscriptions() {
   const rows = await OrganisationSubscription.find().sort({ endDate: -1 }).lean();
   const ids = rows.map((s) => s._id);
@@ -88,9 +115,88 @@ async function createSubscription(body, createdByUserId) {
   return sub;
 }
 
-async function updateSubscription(id, body) {
+async function adminEmailsForSubscriptionId(subscriptionId) {
+  const rows = await OrganisationMembership.find({
+    subscriptionId,
+    role: 'admin',
+  })
+    .select('emailLower')
+    .lean();
+  return rows.map((r) => r.emailLower);
+}
+
+function normalizeAdminEmailsInput(body) {
+  if (body.adminEmails === undefined) return null;
+  if (!Array.isArray(body.adminEmails)) {
+    const err = new Error('adminEmails must be an array of email strings');
+    err.status = 400;
+    throw err;
+  }
+  const seen = new Set();
+  const out = [];
+  for (const item of body.adminEmails) {
+    const s = normalizeMemberEmail(item);
+    if (!s || !s.includes('@')) continue;
+    if (!seen.has(s)) {
+      seen.add(s);
+      out.push(s);
+    }
+  }
+  if (out.length === 0) {
+    const err = new Error('adminEmails must include at least one valid email');
+    err.status = 400;
+    throw err;
+  }
+  return out;
+}
+
+async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLowers, actingUserId) {
+  if (adminEmailLowers.length === 0) {
+    const err = new Error('adminEmails must include at least one valid email');
+    err.status = 400;
+    throw err;
+  }
+  for (const emailLower of adminEmailLowers) {
+    if (!emailMatchesDomain(emailLower, emailDomain)) {
+      const err = new Error(`Admin email must be on @${emailDomain}`);
+      err.status = 400;
+      throw err;
+    }
+  }
+  if (!mongoose.isValidObjectId(actingUserId)) {
+    const err = new Error('Invalid session user id');
+    err.status = 401;
+    throw err;
+  }
+  const addedByOid = new mongoose.Types.ObjectId(actingUserId);
+  for (const emailLower of adminEmailLowers) {
+    const existing = await OrganisationMembership.findOne({ subscriptionId, emailLower });
+    if (existing) {
+      existing.role = 'admin';
+      await existing.save();
+    } else {
+      await OrganisationMembership.create({
+        subscriptionId,
+        emailLower,
+        role: 'admin',
+        addedByUserId: addedByOid,
+      });
+    }
+  }
+  await OrganisationMembership.updateMany(
+    { subscriptionId, role: 'admin', emailLower: { $nin: adminEmailLowers } },
+    { $set: { role: 'member' } }
+  );
+}
+
+async function updateSubscription(id, body, actingUserId) {
   if (!mongoose.isValidObjectId(id)) {
     const err = new Error('Invalid subscription id');
+    err.status = 400;
+    throw err;
+  }
+  if (body.emailDomain !== undefined) {
+    const err = new Error('emailDomain cannot be changed; member emails are tied to the subscription domain');
     err.status = 400;
     throw err;
   }
@@ -102,7 +208,6 @@ async function updateSubscription(id, body) {
   }
 
   if (body.organisationName !== undefined) sub.organisationName = String(body.organisationName).trim();
-  if (body.emailDomain !== undefined) sub.emailDomain = normalizeEmailDomain(body.emailDomain);
   if (body.planTier !== undefined) {
     if (!['silver', 'gold'].includes(body.planTier)) {
       const err = new Error('planTier must be silver or gold');
@@ -111,6 +216,7 @@ async function updateSubscription(id, body) {
     }
     sub.planTier = body.planTier;
   }
+  let prospectiveSeatLimit = sub.seatLimit;
   if (body.seatLimit !== undefined) {
     const seatLimit = parseInt(body.seatLimit, 10);
     if (Number.isNaN(seatLimit) || seatLimit < 1) {
@@ -118,7 +224,43 @@ async function updateSubscription(id, body) {
       err.status = 400;
       throw err;
     }
+    prospectiveSeatLimit = seatLimit;
     sub.seatLimit = seatLimit;
+  }
+
+  const usedSeats = await OrganisationMembership.countDocuments({ subscriptionId: sub._id });
+  if (prospectiveSeatLimit < usedSeats) {
+    const err = new Error('seatLimit cannot be less than the number of members on this subscription');
+    err.status = 400;
+    throw err;
+  }
+
+  const adminList = normalizeAdminEmailsInput(body);
+  if (adminList !== null) {
+    if (!mongoose.isValidObjectId(actingUserId)) {
+      const err = new Error('Invalid session user id');
+      err.status = 401;
+      throw err;
+    }
+    for (const emailLower of adminList) {
+      if (!emailMatchesDomain(emailLower, sub.emailDomain)) {
+        const err = new Error(`Admin email must be on @${sub.emailDomain}`);
+        err.status = 400;
+        throw err;
+      }
+    }
+    const memberEmails = await OrganisationMembership.find({ subscriptionId: sub._id })
+      .select('emailLower')
+      .lean();
+    const memberSet = new Set(memberEmails.map((m) => m.emailLower));
+    const newSeatsFromAdmins = adminList.filter((e) => !memberSet.has(e)).length;
+    if (usedSeats + newSeatsFromAdmins > prospectiveSeatLimit) {
+      const err = new Error(
+        'Seat limit is too low for current members plus new admin emails (raise seats or remove members first)'
+      );
+      err.status = 400;
+      throw err;
+    }
   }
   if (body.amount !== undefined) {
     const amount = Number(body.amount);
@@ -149,11 +291,18 @@ async function updateSubscription(id, body) {
   await assertNoOverlappingSubscription(sub.emailDomain, sub.startDate, sub.endDate, sub._id);
 
   await sub.save();
+
+  if (adminList !== null) {
+    await syncSubscriptionAdmins(sub._id, sub.emailDomain, adminList, actingUserId);
+  }
+
   return sub;
 }
 
 module.exports = {
+  getSubscription,
   listSubscriptions,
   createSubscription,
   updateSubscription,
+  adminEmailsForSubscriptionId,
 };

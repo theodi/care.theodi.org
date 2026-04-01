@@ -28,16 +28,24 @@ function renderSubscriptionsTable(rows) {
   tbody.innerHTML = '';
   rows.forEach((s) => {
     const tr = document.createElement('tr');
+    const id = String(s.id);
     tr.innerHTML = `
-      <td>${escapeHtml(s.organisationName)}<br/><small>id: ${escapeHtml(String(s.id))}</small></td>
+      <td>${escapeHtml(s.organisationName)}<br/><small>id: ${escapeHtml(id)}</small></td>
       <td>${escapeHtml(s.emailDomain)}</td>
       <td>${escapeHtml(s.planTier)}</td>
       <td>${s.seatLimit}</td>
       <td>${formatDate(s.startDate)} – ${formatDate(s.endDate)}</td>
       <td>${s.status === 'active' ? 'Active' : 'Expired'}</td>
       <td>${escapeHtml((s.adminEmails || []).join(', ') || '—')}</td>
+      <td><button type="button" class="transparent subscription-row-edit" data-href="/subscriptions/${encodeURIComponent(id)}/edit">Edit</button></td>
     `;
     tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.subscription-row-edit').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const href = this.getAttribute('data-href');
+      if (href) window.location.href = href;
+    });
   });
   if ($.fn.DataTable && $.fn.DataTable.isDataTable('#subscriptionsTable')) {
     $('#subscriptionsTable').DataTable().destroy();

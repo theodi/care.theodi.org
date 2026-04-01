@@ -1,7 +1,9 @@
+<% const isEdit = typeof subscriptionEditId !== 'undefined' && subscriptionEditId; %>
 <div class="main-content">
   <section class="page-title container white">
     <h1 style="text-align: center;"><%= page.title %></h1>
     <input type="hidden" value="<%= page.link %>" id="pageId"/>
+    <input type="hidden" id="subscriptionEditId" value="<%= isEdit ? subscriptionEditId : '' %>"/>
   </section>
 
   <div class="content-block white">
@@ -18,7 +20,7 @@
         <p class="sub-form__hint">Shown in the list so you can confirm you created the right customer. Not shown to organisation users.</p>
       </div>
 
-      <div class="sub-form__row">
+      <div class="sub-form__row" id="subscriptionCreateDomainRow"<% if (isEdit) { %> style="display: none;"<% } %>>
         <label class="sub-form__label" for="sub-emailDomain">Email domain</label>
         <div class="sub-form__control">
           <input type="text" id="sub-emailDomain" name="emailDomain" required class="input inputText" placeholder="example.com" autocapitalize="none" autocomplete="off" spellcheck="false"/>
@@ -26,12 +28,28 @@
         <p class="sub-form__hint">Members you invite must sign in with an address on this domain (e.g. <kbd>name@example.com</kbd>). Enter the host only, without <kbd>@</kbd>.</p>
       </div>
 
-      <div class="sub-form__row">
+      <div class="sub-form__row" id="subscriptionEditDomainRow"<% if (!isEdit) { %> style="display: none;"<% } %>>
+        <label class="sub-form__label">Email domain</label>
+        <div class="sub-form__control">
+          <strong>@<span id="sub-emailDomainDisplay"></span></strong>
+          <p class="sub-form__hint">The domain cannot be changed; existing members are tied to it.</p>
+        </div>
+      </div>
+
+      <div class="sub-form__row" id="subscriptionCreateAdminRow"<% if (isEdit) { %> style="display: none;"<% } %>>
         <label class="sub-form__label" for="sub-initialAdminEmail">Initial admin (email)</label>
         <div class="sub-form__control">
           <input type="email" id="sub-initialAdminEmail" name="initialAdminEmail" required class="input inputText" placeholder="admin@example.com" autocomplete="email"/>
         </div>
         <p class="sub-form__hint">Creates the first admin in the members list (not stored on the subscription record). Must match the domain above. More admins can be added later from the organisation page.</p>
+      </div>
+
+      <div class="sub-form__row" id="subscriptionEditAdminsRow"<% if (!isEdit) { %> style="display: none;"<% } %>>
+        <label class="sub-form__label" for="sub-adminEmails">Organisation admins</label>
+        <div class="sub-form__control">
+          <textarea id="sub-adminEmails" class="input inputText" rows="4" placeholder="admin@example.com&#10;other.admin@example.com"></textarea>
+        </div>
+        <p class="sub-form__hint">One email per line (or comma-separated). Each must be on the domain above. Anyone listed becomes an admin; other admins are demoted to members but stay on the subscription.</p>
       </div>
 
       <div class="sub-form__row">
@@ -50,7 +68,7 @@
         <div class="sub-form__control">
           <input type="number" id="sub-seatLimit" name="seatLimit" min="1" required class="input inputText" value="5"/>
         </div>
-        <p class="sub-form__hint">Maximum users in the organisation (including the primary admin). Increase later via subscription edit if needed.</p>
+        <p class="sub-form__hint" id="sub-seatLimit-hint"><% if (isEdit) { %>Maximum users on the subscription (including admins). Cannot be below the current member count.<% } else { %>Maximum users in the organisation (including the primary admin). You can change this when editing the subscription.<% } %></p>
       </div>
 
       <div class="sub-form__row">
@@ -78,8 +96,8 @@
       </div>
 
       <div class="sub-form__actions">
-        <button type="submit" class="btn btn-primary">Create subscription</button>
-        <a href="/subscriptions" class="transparent">Cancel</a>
+        <button type="submit" class="btn btn-primary" id="subscriptionFormSubmit"><%= isEdit ? 'Save changes' : 'Create subscription' %></button>
+        <button type="button" class="transparent" onclick="window.location.href='/subscriptions'">Cancel</button>
       </div>
     </form>
     </div>
