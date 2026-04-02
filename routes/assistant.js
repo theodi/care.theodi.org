@@ -17,6 +17,13 @@ const {
 } = require('../lib/organisationScanContext');
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
+const {
+    buildAiInteractionRecord,
+    appendAiInteractionRun,
+    getEffectiveModelConfig,
+    sanitizeModelConfig,
+    aiSourceFromQuery,
+} = require('../lib/aiProvenance');
 
 const completeAssessmentRuns = new Map();
 const assistantStepRuns = new Map();
@@ -210,7 +217,7 @@ router.post('/:id/completeAssessment/start', ensureAuthenticated, checkProjectAc
             if (progress.error) {
                 current.error = progress.error;
             }
-        })
+        }, { pipelineRunId: runId })
             .then((summary) => {
                 const current = completeAssessmentRuns.get(runId);
                 if (!current) return;
@@ -309,7 +316,7 @@ router.post('/:id/completeAssessment/retry/:runId/:stepId', ensureAuthenticated,
                     current.error = progress.error;
                 }
             },
-            { startIndex, progressSteps: currentSteps }
+            { startIndex, progressSteps: currentSteps, pipelineRunId: req.params.runId }
         )
             .then((summary) => {
                 const current = completeAssessmentRuns.get(req.params.runId);
@@ -366,11 +373,17 @@ router.post('/:id/:messageId/start', ensureAuthenticated, checkProjectAccess, lo
         };
         assistantStepRuns.set(runId, state);
 
-        runAssistantSingleStep(req, projectData, messageId, (delta) => {
-            const current = assistantStepRuns.get(runId);
-            if (!current) return;
-            current.thinking += delta;
-        })
+        runAssistantSingleStep(
+            req,
+            projectData,
+            messageId,
+            (delta) => {
+                const current = assistantStepRuns.get(runId);
+                if (!current) return;
+                current.thinking += delta;
+            },
+            { runId, startedAt: state.startedAt }
+        )
             .then((result) => {
                 const current = assistantStepRuns.get(runId);
                 if (!current) return;
@@ -462,9 +475,56 @@ function stepCountFor(stepId, latest) {
     return (latest.unintendedConsequences || []).length;
 }
 
+async function persistAiInteractionRecord(req, projectData, stepId, detail) {
+    const {
+        runId,
+        pipelineRunId,
+        startedAt,
+        userPrompt,
+        orgOverrides,
+        orgContextString,
+        rawResponseText,
+        reasoning,
+        normalizedResult,
+        status,
+        error,
+    } = detail;
+    const includeExisting = includeExistingStepDataRequested(req);
+    const includeOrgCtx =
+        includeOrgContextRequested(req) &&
+        !!(orgContextString && String(orgContextString).trim());
+    const effective = getEffectiveModelConfig(orgOverrides);
+    const modelSnapshot = sanitizeModelConfig(effective);
+    const aiSource = aiSourceFromQuery(req.query && req.query.aiSource);
+    const record = buildAiInteractionRecord({
+        runId,
+        projectId: String(projectData._id),
+        stepId,
+        pipelineRunId,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        aiSource,
+        model: modelSnapshot,
+        includeExistingStepData: includeExisting,
+        includeOrganisationContext: includeOrgCtx,
+        promptFull: userPrompt,
+        rawResponseText: rawResponseText || '',
+        normalizedResult: normalizedResult && typeof normalizedResult === 'object' ? normalizedResult : {},
+        reasoning: reasoning || '',
+        status: status === 'failed' ? 'failed' : 'completed',
+        error,
+    });
+    try {
+        await appendAiInteractionRun(String(projectData._id), record);
+    } catch (e) {
+        console.error('[assistant] Failed to persist AI provenance:', e);
+    }
+}
+
 async function runCompleteAssessmentPipeline(req, initialProjectData, merge = true, onProgress, options = {}) {
     const stepOrder = COMPLETE_ASSESSMENT_STEP_ORDER;
     const orgOverrides = await resolveOrganisationAiOverrides(req);
+    const pipelineRunId = options.pipelineRunId || null;
     const progress = Array.isArray(options.progressSteps) && options.progressSteps.length
         ? options.progressSteps.map((s) => ({ ...s }))
         : stepOrder.map((id) => ({ id, status: 'pending', count: null }));
@@ -491,16 +551,21 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
                 },
             });
         }
+        const stepRunId = pipelineRunId ? `${pipelineRunId}:${stepId}` : `${Date.now()}_${stepId}`;
+        const stepStartedAt = new Date().toISOString();
+        let pipelineUserPrompt = '';
+        let pipelineOrgContext = '';
+        let rawResponseText = '';
         try {
             const schema = require('../public/data/schemas/partials/' + stepId + '.json');
             projectData.schema = JSON.stringify(schema);
             const includeExisting = includeExistingStepDataRequested(req);
             const baseMessage = await populateMessage(stepId, projectData);
             const message = appendExistingStepContext(baseMessage, stepId, projectData, includeExisting);
-            const orgContext = await resolveOrganisationScanContextAppend(req, stepId);
-            const userPrompt = replaceOrgContextPlaceholder(message, orgContext);
+            pipelineOrgContext = await resolveOrganisationScanContextAppend(req, stepId);
+            pipelineUserPrompt = replaceOrgContextPlaceholder(message, pipelineOrgContext);
             const response = await getAIReponse(
-                userPrompt,
+                pipelineUserPrompt,
                 stepId,
                 schema,
                 orgOverrides,
@@ -519,7 +584,20 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
                     }
                 }
             );
+            rawResponseText = typeof response === 'string' ? response : '';
             const parsedResponse = normalizeParsedResponseForStep(stepId, parseModelJsonResponse(response));
+            await persistAiInteractionRecord(req, projectData, stepId, {
+                runId: stepRunId,
+                pipelineRunId,
+                startedAt: stepStartedAt,
+                userPrompt: pipelineUserPrompt,
+                orgOverrides,
+                orgContextString: pipelineOrgContext,
+                rawResponseText,
+                reasoning: step.thinking || '',
+                normalizedResult: parsedResponse,
+                status: 'completed',
+            });
             await applyStepResult(projectData, stepId, parsedResponse, merge);
             step.status = 'done';
 
@@ -539,6 +617,19 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
         } catch (error) {
             step.status = 'failed';
             step.error = error && error.message ? error.message : 'Step failed';
+            await persistAiInteractionRecord(req, projectData, stepId, {
+                runId: stepRunId,
+                pipelineRunId,
+                startedAt: stepStartedAt,
+                userPrompt: pipelineUserPrompt,
+                orgOverrides,
+                orgContextString: pipelineOrgContext,
+                rawResponseText,
+                reasoning: step.thinking || '',
+                normalizedResult: {},
+                status: 'failed',
+                error: step.error,
+            });
             if (typeof onProgress === 'function') {
                 onProgress({
                     steps: progress.map((s) => ({ ...s })),
@@ -569,7 +660,7 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
     };
 }
 
-async function runAssistantSingleStep(req, projectData, messageId, onThinkingDelta) {
+async function runAssistantSingleStep(req, projectData, messageId, onThinkingDelta, provenanceMeta = {}) {
     const schema = require('../public/data/schemas/partials/' + messageId + '.json');
     projectData.schema = JSON.stringify(schema);
     const includeExisting = includeExistingStepDataRequested(req);
@@ -578,19 +669,53 @@ async function runAssistantSingleStep(req, projectData, messageId, onThinkingDel
     const orgContext = await resolveOrganisationScanContextAppend(req, messageId);
     const userPrompt = replaceOrgContextPlaceholder(message, orgContext);
     const orgOverrides = await resolveOrganisationAiOverrides(req);
-    const response = await getAIReponse(
-        userPrompt,
-        messageId,
-        schema,
-        orgOverrides,
-        (evt) => {
-            if (!evt || evt.type !== 'thinking_delta' || !evt.text) return;
-            if (typeof onThinkingDelta === 'function') {
-                onThinkingDelta(evt.text);
+    let reasoning = '';
+    let rawResponseText = '';
+    try {
+        const response = await getAIReponse(
+            userPrompt,
+            messageId,
+            schema,
+            orgOverrides,
+            (evt) => {
+                if (!evt || evt.type !== 'thinking_delta' || !evt.text) return;
+                reasoning += evt.text;
+                if (typeof onThinkingDelta === 'function') {
+                    onThinkingDelta(evt.text);
+                }
             }
-        }
-    );
-    return normalizeParsedResponseForStep(messageId, parseModelJsonResponse(response));
+        );
+        rawResponseText = typeof response === 'string' ? response : '';
+        const normalized = normalizeParsedResponseForStep(messageId, parseModelJsonResponse(response));
+        await persistAiInteractionRecord(req, projectData, messageId, {
+            runId: provenanceMeta.runId,
+            pipelineRunId: provenanceMeta.pipelineRunId,
+            startedAt: provenanceMeta.startedAt,
+            userPrompt,
+            orgOverrides,
+            orgContextString: orgContext,
+            rawResponseText,
+            reasoning,
+            normalizedResult: normalized,
+            status: 'completed',
+        });
+        return normalized;
+    } catch (err) {
+        await persistAiInteractionRecord(req, projectData, messageId, {
+            runId: provenanceMeta.runId,
+            pipelineRunId: provenanceMeta.pipelineRunId,
+            startedAt: provenanceMeta.startedAt,
+            userPrompt,
+            orgOverrides,
+            orgContextString: orgContext,
+            rawResponseText,
+            reasoning,
+            normalizedResult: {},
+            status: 'failed',
+            error: err && err.message ? err.message : 'Run failed',
+        });
+        throw err;
+    }
 }
 
 async function completeAssessment(parsedResponse, projectData, merge = true) {

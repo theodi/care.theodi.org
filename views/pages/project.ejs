@@ -4,6 +4,10 @@
 </form>
 <section class="content-block white result">
     <h1 id="title"></h1>
+    <div id="aiProvenanceBanner" class="care-report-ai-notice" role="status" hidden>
+        <p class="care-report-ai-notice__title">Artificial intelligence was used to help with this assessment</p>
+        <p class="care-report-ai-notice__body">This project has a stored transparency record (prompts, models, reasoning where captured, and what you chose to apply). Each Word export includes a short notice in the <strong>About</strong> section that states whether the detailed record was appended for that download. Use the download dialog to tick or untick “Include AI provenance appendix” as needed.</p>
+    </div>
     <h2>Objectives</h2>
     <p id="objectives"></p>
     <h2>Data used</h2>
@@ -123,8 +127,29 @@
 <div id="submitButtonContainer" class="content-block white proceed">
     <button id="downloadButton" class="btn btn-primary submitButton">Download project data</button>
     <button id="downloadCSVButton" class="btn btn-primary submitButton">Download risk assessment (CSV)</button>
-    <button id="downloadDOCXButton" class="btn btn-primary submitButton">Download project report (DOCX)</button>
+    <button id="downloadDOCXButton" class="btn btn-primary submitButton" type="button">Download project report (DOCX)</button>
 </div>
+<dialog id="reportDownloadDialog" class="org-access-edit-dialog" aria-labelledby="reportDownloadDialogTitle">
+    <div class="content-block white">
+        <h2 id="reportDownloadDialogTitle" style="margin-top:0;">Download project report</h2>
+        <p class="small">After the document downloads, update the table of contents in Word so page numbers and titles are correct.</p>
+        <div class="sub-form" style="margin-top:1rem;">
+            <p id="reportAiProvenanceHint" class="small care-report-download-ai-hint" hidden>This project has AI assistance history — consider including the provenance appendix for transparency.</p>
+            <label class="org-add-delegated-perms__chk" style="margin-bottom:1rem;">
+                <input type="checkbox" id="reportIncludeGlossaryAppendix"/>
+                Include glossary as an appendix (definitions of CARE terms)
+            </label>
+            <label class="org-add-delegated-perms__chk" style="margin-bottom:1rem;">
+                <input type="checkbox" id="reportIncludeAiProvenance"/>
+                Include AI provenance appendix (prompts, model, reasoning, responses and what was selected)
+            </label>
+            <div class="sub-form__actions">
+                <button type="button" class="btn btn-primary" id="reportDownloadConfirm">Download</button>
+                <button type="button" class="transparent" id="reportDownloadCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+</dialog>
 <%- include('../partials/scan-footer') %>
 <script>
 
@@ -158,7 +183,87 @@
 
     let projectDownloadInProgress = false;
 
+    async function downloadProjectDocx(appendGlossary, includeAiProvenance) {
+        if (projectDownloadInProgress) {
+            return;
+        }
+        projectDownloadInProgress = true;
+        setDownloadButtonsDisabled(true);
+        try {
+            const params = new URLSearchParams();
+            if (appendGlossary) {
+                params.set("appendGlossary", "true");
+            }
+            if (includeAiProvenance) {
+                params.set("includeAiProvenance", "true");
+            }
+            const qs = params.toString();
+            const response = await fetch(`/project/${projectId}${qs ? "?" + qs : ""}`, {
+                headers: {
+                    "Accept": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`Download failed (${response.status})`);
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = projectData.title.replace(/\s+/g, "_").trim() + ".docx";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error downloading DOCX data:", error);
+        } finally {
+            projectDownloadInProgress = false;
+            setDownloadButtonsDisabled(false);
+        }
+    }
+
     function addButtonListeners(projectId) {
+        const reportDownloadDialog = document.getElementById("reportDownloadDialog");
+        const reportIncludeGlossaryAppendix = document.getElementById("reportIncludeGlossaryAppendix");
+        const reportIncludeAiProvenance = document.getElementById("reportIncludeAiProvenance");
+        const reportDownloadConfirm = document.getElementById("reportDownloadConfirm");
+        const reportDownloadCancel = document.getElementById("reportDownloadCancel");
+
+        if (reportDownloadDialog && reportDownloadConfirm && reportDownloadCancel) {
+            document.getElementById("downloadDOCXButton").addEventListener("click", () => {
+                const hint = document.getElementById("reportAiProvenanceHint");
+                if (hint) {
+                    const hasAi =
+                        Array.isArray(projectData.aiInteractionHistory) &&
+                        projectData.aiInteractionHistory.length > 0;
+                    hint.hidden = !hasAi;
+                }
+                if (typeof reportDownloadDialog.showModal === "function") {
+                    reportDownloadDialog.showModal();
+                } else {
+                    downloadProjectDocx(false, false);
+                }
+            });
+            reportDownloadCancel.addEventListener("click", () => reportDownloadDialog.close());
+            reportDownloadConfirm.addEventListener("click", () => {
+                const appendGlossary = reportIncludeGlossaryAppendix && reportIncludeGlossaryAppendix.checked;
+                const includeAiProv = reportIncludeAiProvenance && reportIncludeAiProvenance.checked;
+                reportDownloadDialog.close();
+                downloadProjectDocx(appendGlossary, includeAiProv);
+            });
+            reportDownloadDialog.addEventListener("click", function (ev) {
+                if (ev.target === reportDownloadDialog) {
+                    reportDownloadDialog.close();
+                }
+            });
+        } else {
+            document.getElementById("downloadDOCXButton").addEventListener("click", () => downloadProjectDocx(false, false));
+        }
+
         document.getElementById("downloadButton").addEventListener("click", async () => {
             if (projectDownloadInProgress) {
                 return;
@@ -224,42 +329,6 @@
                 setDownloadButtonsDisabled(false);
             }
         });
-        document.getElementById("downloadDOCXButton").addEventListener("click", async () => {
-            if (projectDownloadInProgress) {
-                return;
-            }
-            projectDownloadInProgress = true;
-            setDownloadButtonsDisabled(true);
-            try {
-                alert("Once the document has downloaded, you will need to update the table of contents to correct page numbering and titles.");
-
-                const response = await fetch(`/project/${projectId}`, {
-                    headers: {
-                        "Accept": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    }
-                });
-                if (!response.ok) {
-                    throw new Error(`Download failed (${response.status})`);
-                }
-
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = projectData.title.replace(/\s+/g, "_").trim() + ".docx";
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                URL.revokeObjectURL(url);
-            } catch (error) {
-                console.error("Error downloading DOCX data:", error);
-            } finally {
-                projectDownloadInProgress = false;
-                setDownloadButtonsDisabled(false);
-            }
-        });
     }
 
     async function loadPage(projectId) {
@@ -268,6 +337,13 @@
 
         // Populate the page with project title, objectives, data used, intended consequences, and unintended consequences
         document.getElementById("title").textContent = projectData.title;
+        const aiBanner = document.getElementById("aiProvenanceBanner");
+        if (aiBanner) {
+            const hasAi =
+                Array.isArray(projectData.aiInteractionHistory) &&
+                projectData.aiInteractionHistory.length > 0;
+            aiBanner.hidden = !hasAi;
+        }
         document.getElementById("objectives").textContent = projectData.objectives || "No objectives provided.";
         document.getElementById("dataUsed").textContent = projectData.dataUsed || "No data used provided.";
 

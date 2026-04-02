@@ -51,6 +51,33 @@ router.get('/:id/completeAssessment', ensureAuthenticated, checkProjectAccess, l
         next(error); // Pass error to error handling middleware
     }
 });
+// POST append user selections for a prior AI run (audit trail + client sync)
+router.post(
+    '/:id/ai-runs/:runId/selections',
+    ensureAuthenticated,
+    checkProjectAccess,
+    async (req, res) => {
+        const projectId = req.params.id;
+        const runId = req.params.runId;
+        try {
+            const { appendSelectionToRun } = require('../lib/aiProvenance');
+            const result = await appendSelectionToRun(projectId, runId, req.body || {});
+            if (!result.ok) {
+                return res.status(result.code).json({ message: result.message });
+            }
+            return res.status(201).json({
+                message: 'Selection recorded',
+                appliedAt: result.appliedAt,
+                indices: result.indices,
+                items: result.items,
+            });
+        } catch (e) {
+            console.error(e);
+            return res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+);
+
 // GET route to retrieve a project by ID
 router.get('/:id/riskSummary', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
     try {
@@ -311,8 +338,25 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
                 let metrics = await projectController.getUserProjectMetrics(userProjects);
                 console.log('Project metrics retrieved:', Object.keys(metrics || {}));
                 
-                console.log('Calling buildDocx...');
-                const tempFilePath = await buildDocx(project, metrics, owner);
+                const appendGlossaryRaw = req.query.appendGlossary;
+                const includeGlossaryAppendix =
+                    appendGlossaryRaw !== undefined &&
+                    appendGlossaryRaw !== null &&
+                    appendGlossaryRaw !== '' &&
+                    ['1', 'true', 'yes'].includes(String(appendGlossaryRaw).toLowerCase());
+
+                const includeAiRaw = req.query.includeAiProvenance;
+                const includeAiProvenance =
+                    includeAiRaw !== undefined &&
+                    includeAiRaw !== null &&
+                    includeAiRaw !== '' &&
+                    ['1', 'true', 'yes'].includes(String(includeAiRaw).toLowerCase());
+
+                console.log('Calling buildDocx...', { includeGlossaryAppendix, includeAiProvenance });
+                const tempFilePath = await buildDocx(project, metrics, owner, {
+                    includeGlossaryAppendix,
+                    includeAiProvenance,
+                });
                 console.log('buildDocx completed, temp file:', tempFilePath);
                 
                 // Validate the generated file
@@ -381,7 +425,9 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
         const user = req.session.passport.user;
         req.body.owner = user.id; // Assuming user ID is available in req.user after authentication
 
-        const project = new Project(req.body);
+        const createPayload = { ...req.body };
+        delete createPayload.aiInteractionHistory;
+        const project = new Project(createPayload);
         const savedProject = await project.save();
         if (req.session.authMethod !== 'local') {
             updateToolStatistics(req.session.passport.user.id);
@@ -400,6 +446,7 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, nex
         delete payload.owner;
         delete payload.organisationSubscriptionId;
         delete payload.sharedWithOrganisation;
+        delete payload.aiInteractionHistory;
         const updatedProject = await Project.findByIdAndUpdate(id, payload, { new: false });
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });

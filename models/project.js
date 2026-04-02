@@ -1,5 +1,37 @@
 const mongoose = require('mongoose');
 
+const aiSelectionSchema = new mongoose.Schema(
+    {
+        appliedAt: { type: String },
+        indices: [{ type: Number }],
+        items: [mongoose.Schema.Types.Mixed],
+    },
+    { _id: false }
+);
+
+const aiInteractionHistorySchema = new mongoose.Schema(
+    {
+        runId: { type: String, required: true },
+        stepId: { type: String, required: true },
+        pipelineRunId: { type: String },
+        startedAt: { type: String },
+        completedAt: { type: String },
+        aiSource: { type: String, enum: ['organisation', 'built_in'] },
+        model: { type: mongoose.Schema.Types.Mixed },
+        includeExistingStepData: { type: Boolean },
+        includeOrganisationContext: { type: Boolean },
+        promptFull: { type: String },
+        rawResponseText: { type: String },
+        normalizedResult: { type: mongoose.Schema.Types.Mixed },
+        suggestions: [mongoose.Schema.Types.Mixed],
+        reasoning: { type: String },
+        status: { type: String, enum: ['completed', 'failed'] },
+        error: { type: String },
+        selections: [aiSelectionSchema],
+    },
+    { _id: false }
+);
+
 const projectSchema = new mongoose.Schema({
     owner: {
         type: mongoose.Schema.Types.ObjectId,
@@ -100,6 +132,11 @@ const projectSchema = new mongoose.Schema({
     sharedWithOrganisation: {
         type: Boolean,
         default: false,
+    },
+    /** Append-only AI audit trail; only server should $push (not via generic PUT). */
+    aiInteractionHistory: {
+        type: [aiInteractionHistorySchema],
+        default: undefined,
     },
 }, {
     collection: 'Projects' // Specify the collection name
