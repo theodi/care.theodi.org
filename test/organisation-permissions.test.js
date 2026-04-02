@@ -5,6 +5,7 @@ const {
   canManageLicenses,
   canManageAiModel,
   canManagePromptScanContext,
+  canManageReportTemplate,
   membershipCapabilities,
 } = require('../lib/organisationPermissions');
 
@@ -14,12 +15,14 @@ describe('organisationPermissions', () => {
   const licenseOnly = { role: 'member', licenseAdmin: true };
   const aiOnly = { role: 'member', aiModelAdmin: true };
   const promptOnly = { role: 'member', promptAdmin: true };
+  const reportOnly = { role: 'member', reportAdmin: true };
 
   it('treats role admin as full access', () => {
     assert.equal(isOrganisationAdmin(orgAdmin), true);
     assert.equal(canManageLicenses(orgAdmin), true);
     assert.equal(canManageAiModel(orgAdmin), true);
     assert.equal(canManagePromptScanContext(orgAdmin), true);
+    assert.equal(canManageReportTemplate(orgAdmin), true);
   });
 
   it('grants only delegated capabilities to members with flags', () => {
@@ -29,6 +32,8 @@ describe('organisationPermissions', () => {
     assert.equal(canManageAiModel(aiOnly), true);
     assert.equal(canManagePromptScanContext(promptOnly), true);
     assert.equal(canManageAiModel(licenseOnly), false);
+    assert.equal(canManageReportTemplate(reportOnly), true);
+    assert.equal(canManageReportTemplate(licenseOnly), false);
   });
 
   it('membershipCapabilities returns a consistent object', () => {
@@ -37,6 +42,7 @@ describe('organisationPermissions', () => {
       canManageLicenses: true,
       canManageAiModel: false,
       canManagePromptScanContext: false,
+      canManageReportTemplate: false,
     });
   });
 });

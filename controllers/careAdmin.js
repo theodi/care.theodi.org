@@ -176,6 +176,7 @@ async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLow
       existing.licenseAdmin = false;
       existing.aiModelAdmin = false;
       existing.promptAdmin = false;
+      existing.reportAdmin = false;
       await existing.save();
     } else {
       await OrganisationMembership.create({
@@ -185,13 +186,22 @@ async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLow
         licenseAdmin: false,
         aiModelAdmin: false,
         promptAdmin: false,
+        reportAdmin: false,
         addedByUserId: addedByOid,
       });
     }
   }
   await OrganisationMembership.updateMany(
     { subscriptionId, role: 'admin', emailLower: { $nin: adminEmailLowers } },
-    { $set: { role: 'member', licenseAdmin: false, aiModelAdmin: false, promptAdmin: false } }
+    {
+      $set: {
+        role: 'member',
+        licenseAdmin: false,
+        aiModelAdmin: false,
+        promptAdmin: false,
+        reportAdmin: false,
+      },
+    }
   );
 }
 

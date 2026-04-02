@@ -17,6 +17,8 @@ const organisationMembershipSchema = new mongoose.Schema(
     aiModelAdmin: { type: Boolean, default: false },
     /** Delegated: extra scan-step prompt guidance (organisation scan context). */
     promptAdmin: { type: Boolean, default: false },
+    /** Delegated: Word report template upload / remove for the organisation. */
+    reportAdmin: { type: Boolean, default: false },
     addedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { collection: 'OrganisationMemberships', timestamps: true }

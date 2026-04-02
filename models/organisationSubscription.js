@@ -66,6 +66,11 @@ const organisationSubscriptionSchema = new mongoose.Schema(
         ],
       },
     ],
+    /** Custom Word export template (validated {{patch}} placeholders); file on disk under uploads/org-report-templates/{id}.docx */
+    reportTemplateOriginalName: { type: String, default: '' },
+    reportTemplateUploadedAt: { type: Date },
+    /** Last auto-detected accent from uploaded template (Heading 1 / theme); exports re-parse the file. */
+    reportAccentDetectedHex: { type: String, default: '' },
   },
   { collection: 'OrganisationSubscriptions', timestamps: true }
 );

@@ -16,6 +16,7 @@ const {
   canManageLicenses,
   canManageAiModel,
   canManagePromptScanContext,
+  canManageReportTemplate,
   membershipCapabilities,
 } = require('../lib/organisationPermissions');
 const {
@@ -35,6 +36,16 @@ const {
 } = require('../lib/organisationScanContext');
 const { chatCompletion } = require('../services/aiChat');
 const { parseModelJsonResponse } = require('../services/parseAIJson');
+const {
+  validateDocxTemplateBuffer,
+  extractAccentHexFromDocxBuffer,
+} = require('../lib/reportTemplateValidation');
+const {
+  saveOrgReportTemplate,
+  deleteOrgReportTemplate,
+  orgTemplateFileExists,
+  effectiveAccentHexFromSubscription,
+} = require('../lib/orgReportTemplateStorage');
 
 async function enrichMemberRows(members) {
   const lookups = members.map(async (m) => {
@@ -51,6 +62,7 @@ async function enrichMemberRows(members) {
       licenseAdmin: !!m.licenseAdmin,
       aiModelAdmin: !!m.aiModelAdmin,
       promptAdmin: !!m.promptAdmin,
+      reportAdmin: !!m.reportAdmin,
     };
   });
   return Promise.all(lookups);
@@ -83,6 +95,13 @@ async function getOrganisationContext(userId) {
       startDate: sub.startDate,
       endDate: sub.endDate,
       subscriptionActive: active,
+      reportTemplate: {
+        hasFile: !!(sub.reportTemplateUploadedAt && orgTemplateFileExists(sub._id)),
+        originalName: sub.reportTemplateOriginalName || '',
+        uploadedAt: sub.reportTemplateUploadedAt || null,
+        accentDetectedHex: sub.reportAccentDetectedHex || '',
+        accentEffectiveHex: effectiveAccentHexFromSubscription(sub),
+      },
     },
     myRole: membership.role,
     myMembership: membershipCapabilities(membership),
@@ -111,6 +130,7 @@ function membershipToJson(m) {
     licenseAdmin: !!m.licenseAdmin,
     aiModelAdmin: !!m.aiModelAdmin,
     promptAdmin: !!m.promptAdmin,
+    reportAdmin: !!m.reportAdmin,
     subscriptionId: sid,
   };
 }
@@ -152,15 +172,18 @@ async function addMember(requesterUserId, body) {
   let licenseAdmin = !!(body && body.licenseAdmin);
   let aiModelAdmin = !!(body && body.aiModelAdmin);
   let promptAdmin = !!(body && body.promptAdmin);
+  let reportAdmin = !!(body && body.reportAdmin);
   if (!isOrganisationAdmin(requester)) {
     licenseAdmin = false;
     aiModelAdmin = false;
     promptAdmin = false;
+    reportAdmin = false;
   }
   if (wantsAdmin) {
     licenseAdmin = false;
     aiModelAdmin = false;
     promptAdmin = false;
+    reportAdmin = false;
   }
 
   const role = wantsAdmin ? 'admin' : 'member';
@@ -199,6 +222,7 @@ async function addMember(requesterUserId, body) {
     licenseAdmin,
     aiModelAdmin,
     promptAdmin,
+    reportAdmin,
     addedByUserId,
   });
   return {
@@ -244,14 +268,17 @@ async function updateMembership(requesterUserId, membershipId, body) {
   let nextLicense = !!target.licenseAdmin;
   let nextAi = !!target.aiModelAdmin;
   let nextPrompt = !!target.promptAdmin;
+  let nextReport = !!target.reportAdmin;
   if (body && body.licenseAdmin !== undefined) nextLicense = !!body.licenseAdmin;
   if (body && body.aiModelAdmin !== undefined) nextAi = !!body.aiModelAdmin;
   if (body && body.promptAdmin !== undefined) nextPrompt = !!body.promptAdmin;
+  if (body && body.reportAdmin !== undefined) nextReport = !!body.reportAdmin;
 
   if (nextRole === 'admin') {
     nextLicense = false;
     nextAi = false;
     nextPrompt = false;
+    nextReport = false;
   }
 
   if (target.role === 'admin' && nextRole === 'member') {
@@ -270,6 +297,7 @@ async function updateMembership(requesterUserId, membershipId, body) {
   target.licenseAdmin = nextLicense;
   target.aiModelAdmin = nextAi;
   target.promptAdmin = nextPrompt;
+  target.reportAdmin = nextReport;
   await target.save();
 
   return {
@@ -558,6 +586,75 @@ async function updateScanContextAdmin(requesterUserId, body) {
   };
 }
 
+async function assertOrgAdminForReportTemplate(requesterUserId) {
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !canManageReportTemplate(requester)) {
+    const err = new Error(
+      'Only organisation admins and report managers can manage the report template'
+    );
+    err.status = 403;
+    throw err;
+  }
+  if (!isSubscriptionActive(requester.subscriptionId)) {
+    const err = new Error('Subscription is not active');
+    err.status = 403;
+    throw err;
+  }
+  return requester;
+}
+
+async function uploadReportTemplateAdmin(requesterUserId, buffer, originalName) {
+  const requester = await assertOrgAdminForReportTemplate(requesterUserId);
+  const subId = requester.subscriptionId._id || requester.subscriptionId;
+  const validation = validateDocxTemplateBuffer(buffer);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      missingKeys: validation.missingKeys,
+      warnings: validation.warnings,
+    };
+  }
+  const detected = extractAccentHexFromDocxBuffer(buffer);
+  saveOrgReportTemplate(subId, buffer);
+  await OrganisationSubscription.updateOne(
+    { _id: subId },
+    {
+      $set: {
+        reportTemplateOriginalName: String(originalName || 'template.docx').slice(0, 240),
+        reportTemplateUploadedAt: new Date(),
+        reportAccentDetectedHex: detected,
+      },
+    }
+  );
+  const sub = await OrganisationSubscription.findById(subId).lean();
+  return {
+    ok: true,
+    warnings: validation.warnings,
+    accentDetectedHex: detected,
+    accentEffectiveHex: effectiveAccentHexFromSubscription(sub),
+    originalName: sub.reportTemplateOriginalName,
+    uploadedAt: sub.reportTemplateUploadedAt,
+  };
+}
+
+async function deleteReportTemplateAdmin(requesterUserId) {
+  const requester = await assertOrgAdminForReportTemplate(requesterUserId);
+  const subId = requester.subscriptionId._id || requester.subscriptionId;
+  deleteOrgReportTemplate(subId);
+  await OrganisationSubscription.updateOne(
+    { _id: subId },
+    {
+      $unset: {
+        reportTemplateOriginalName: 1,
+        reportTemplateUploadedAt: 1,
+        reportAccentDetectedHex: 1,
+        reportAccentHexOverride: 1,
+      },
+    }
+  );
+  return { ok: true };
+}
+
 module.exports = {
   getOrganisationContext,
   addMember,
@@ -572,4 +669,6 @@ module.exports = {
   testAiConfigAdmin,
   getScanContextAdmin,
   updateScanContextAdmin,
+  uploadReportTemplateAdmin,
+  deleteReportTemplateAdmin,
 };

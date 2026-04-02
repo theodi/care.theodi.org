@@ -978,6 +978,16 @@ table.dataTable td.eval-shares-col .eval-share-open.btn {
 .content-block.light-blue table.org-dt-table.dataTable tbody tr:hover {
     background-color: rgba(255, 255, 255, 0.58);
 }
+/* Same zebra when a main org section alternates onto a white stripe */
+.content-block.white table.org-dt-table.dataTable tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+.content-block.white table.org-dt-table.dataTable tbody tr:nth-child(odd) {
+    background-color: rgba(0, 0, 0, 0.07);
+}
+.content-block.white table.org-dt-table.dataTable tbody tr:hover {
+    background-color: rgba(7, 37, 137, 0.08);
+}
 .org-scan-guidance-coverage tbody tr:nth-child(even) {
     background-color: rgba(255, 255, 255, 0.35);
 }

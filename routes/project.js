@@ -8,6 +8,12 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const { buildDocx } = require('../lib/docxBuilder'); // Import the buildDocx function
+const OrganisationSubscription = require('../models/organisationSubscription');
+const {
+  readOrgReportTemplateBuffer,
+  orgTemplateFileExists,
+} = require('../lib/orgReportTemplateStorage');
+const { extractAccentHexFromDocxBuffer } = require('../lib/reportTemplateValidation');
 const docx = require('docx');
 
 // Middleware to ensure user is authenticated
@@ -352,10 +358,51 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
                     includeAiRaw !== '' &&
                     ['1', 'true', 'yes'].includes(String(includeAiRaw).toLowerCase());
 
-                console.log('Calling buildDocx...', { includeGlossaryAppendix, includeAiProvenance });
+                /** Org template/accent: explicit share link, else owner's active licence (same rule as organisation-share). */
+                let subscriptionIdForTemplate = project.organisationSubscriptionId;
+                if (!subscriptionIdForTemplate && owner?.email) {
+                    const ownerMemberships = await findActiveMembershipsForEmail(owner.email);
+                    const first = ownerMemberships[0];
+                    if (first?.subscriptionId?._id) {
+                        subscriptionIdForTemplate = first.subscriptionId._id;
+                    }
+                }
+
+                let templateBuffer = null;
+                let accentHex = undefined;
+                if (subscriptionIdForTemplate) {
+                    try {
+                        const orgSub = await OrganisationSubscription.findById(
+                            subscriptionIdForTemplate
+                        ).lean();
+                        if (orgSub) {
+                            if (orgSub.reportTemplateUploadedAt && orgTemplateFileExists(orgSub._id)) {
+                                const buf = readOrgReportTemplateBuffer(orgSub._id);
+                                if (buf && Buffer.isBuffer(buf) && buf.length >= 1000) {
+                                    templateBuffer = buf;
+                                    accentHex = extractAccentHexFromDocxBuffer(buf);
+                                } else {
+                                    console.warn(
+                                        '[docx] Organisation template file missing or invalid; using default template'
+                                    );
+                                }
+                            }
+                        }
+                    } catch (orgErr) {
+                        console.warn('[docx] Could not load organisation template:', orgErr.message);
+                    }
+                }
+
+                console.log('Calling buildDocx...', {
+                    includeGlossaryAppendix,
+                    includeAiProvenance,
+                    customTemplate: !!templateBuffer,
+                });
                 const tempFilePath = await buildDocx(project, metrics, owner, {
                     includeGlossaryAppendix,
                     includeAiProvenance,
+                    templateBuffer: templateBuffer || undefined,
+                    accentHex,
                 });
                 console.log('buildDocx completed, temp file:', tempFilePath);
                 

@@ -12,7 +12,8 @@
   </div>
   <% } else { %>
   <% var orgAdminCount = organisation.members.filter(function(m) { return m.role === 'admin'; }).length; %>
-  <div class="content-block white">
+  <% var orgMainStripe = 0; %>
+  <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %>">
     <div class="organisation-page__summary">
       <p>
         Domain: <strong>@<%= organisation.subscription.emailDomain %></strong><br/>
@@ -25,7 +26,7 @@
     <div id="orgMessage" class="alert" style="display:none;"></div>
   </div>
 
-  <div class="content-block light-blue">
+  <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %>">
     <h2>Licensed users</h2>
     <div class="org-dt-wrap org-licensed-users-dt">
     <table class="display org-dt-table" style="width:100%" id="licensedUsersTable">
@@ -58,6 +59,7 @@
               if (m.licenseAdmin) accessParts.push('License manager');
               if (m.aiModelAdmin) accessParts.push('AI model admin');
               if (m.promptAdmin) accessParts.push('Prompt manager');
+              if (m.reportAdmin) accessParts.push('Report manager');
               if (accessParts.length === 0) accessParts.push('—');
             }
             var accessSummary = accessParts.join(' · ');
@@ -74,6 +76,7 @@
               data-license-admin="<%= m.licenseAdmin ? 'true' : 'false' %>"
               data-ai-model-admin="<%= m.aiModelAdmin ? 'true' : 'false' %>"
               data-prompt-admin="<%= m.promptAdmin ? 'true' : 'false' %>"
+              data-report-admin="<%= m.reportAdmin ? 'true' : 'false' %>"
             >Edit</button>
             <% } %>
             <% if (canRemoveThis) { %>
@@ -123,6 +126,7 @@
           <span class="sub-form__label">Delegated permissions</span>
           <div class="sub-form__control org-access-edit-delegated">
             <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditLicenseAdmin"/> License manager — manage who is assigned a seat</label>
+            <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditReportAdmin"/> Report manager — Word report template for the organisation</label>
             <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditAiModelAdmin"/> AI model admin — organisation AI provider and model settings</label>
             <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditPromptAdmin"/> Prompt manager — extra guidance for scan steps</label>
           </div>
@@ -135,9 +139,30 @@
     </div>
   </dialog>
   <% } %>
+  <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageReportTemplate) { %>
+    <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %> org-report-template-section">
+      <h2>Report template (Word export)</h2>
+      <p class="small">Upload a <code>.docx</code> that includes every CARE placeholder <code>{{…}}</code> (copy the default template from the codebase or export). The key <code>unintendedConsequneces</code> must be spelled exactly. Generated table headers and AI/glossary labels use the accent colour taken from your template (Heading&nbsp;1 colour, or theme accent if Heading&nbsp;1 has no colour). Organisation admins and report managers can change this template.</p>
+      <div id="orgReportTemplateMessage" class="alert" style="display:none;"></div>
+      <p id="orgReportTemplateStatus" class="small"></p>
+      <form id="orgReportTemplateUploadForm">
+        <p>
+          <input type="file" id="orgReportTemplateFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        </p>
+        <p>
+          <button type="submit" class="btn btn-primary" id="orgReportTemplateUploadBtn">Upload template</button>
+          <button type="button" class="transparent" id="orgReportTemplateRemoveBtn">Remove custom template</button>
+        </p>
+      </form>
+      <div id="orgReportTemplateMissingKeys" class="small" style="display:none;color:#c00;"></div>
+    </div>
+    <script>
+    window.__orgReportTemplateData = JSON.parse(decodeURIComponent('<%- encodeURIComponent(JSON.stringify(organisation.subscription.reportTemplate || {})) %>'));
+    </script>
+    <% } %>
 
   <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageAiModel) { %>
-  <div class="content-block white org-ai-content-block">
+  <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %> org-ai-content-block">
     <h2>Organisation AI</h2>
     <p class="small">Configure a model for all licensed users in the organisation. They use it by default on evaluation steps; each step can switch to CARE built-in. Choose a provider first, then complete the fields shown. Keys are stored on the subscription. Only organisation admins and AI model admins can change these settings.</p>
     <div id="orgAiMessage" class="alert" style="display:none;"></div>
@@ -252,7 +277,7 @@
   <% } %>
 
   <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManagePromptScanContext) { %>
-  <div class="content-block light-blue org-scan-context-section">
+  <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %> org-scan-context-section">
     <h2>Extra guidance for scan steps</h2>
     <p class="small">Separate from the model settings above. Define a <strong>title</strong> and <strong>guidance text</strong>, then choose which AI-assisted steps it applies to. You can reuse the same text on several steps. Licensed users choose whether to include organisation guidance in the prompt. Works with <strong>CARE built-in</strong> or <strong>organisation</strong> AI. Only organisation admins and prompt admins can edit this.</p>
     <div id="orgScanContextMessage" class="alert" style="display:none;"></div>
@@ -479,6 +504,7 @@
       var permOpts = [
         { v: 'Organisation admin (full access)', t: 'Organisation admin (full access)' },
         { v: 'License manager', t: 'License manager' },
+        { v: 'Report manager', t: 'Report manager' },
         { v: 'AI model admin', t: 'AI model admin' },
         { v: 'Prompt manager', t: 'Prompt manager' },
         { v: '—', t: 'No extra permissions' },
@@ -890,6 +916,93 @@
     }
     runOrgAiTest(body);
   });
+})();
+
+(function () {
+  var uploadForm = document.getElementById('orgReportTemplateUploadForm');
+  if (!uploadForm) return;
+  function showRtMsg(text, isError) {
+    var el = document.getElementById('orgReportTemplateMessage');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#c00' : '';
+  }
+  function renderRtStatus() {
+    var el = document.getElementById('orgReportTemplateStatus');
+    var missEl = document.getElementById('orgReportTemplateMissingKeys');
+    var rt = window.__orgReportTemplateData || {};
+    if (!el) return;
+    if (rt.hasFile) {
+      var uploaded = rt.uploadedAt ? new Date(rt.uploadedAt).toLocaleString() : '';
+      el.textContent =
+        'Custom template: ' +
+        (rt.originalName || 'template.docx') +
+        (uploaded ? ' · uploaded ' + uploaded : '') +
+        '. Accent for generated tables/labels is read from the template (last detected #' +
+        (rt.accentDetectedHex || rt.accentEffectiveHex || '—') +
+        ').';
+      if (missEl) missEl.style.display = 'none';
+    } else {
+      el.textContent =
+        'Exports use the default CARE Word template. Upload a custom .docx above to use your branding.';
+    }
+  }
+  renderRtStatus();
+  uploadForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var fileInput = document.getElementById('orgReportTemplateFile');
+    var file = fileInput && fileInput.files && fileInput.files[0];
+    if (!file) {
+      showRtMsg('Choose a .docx file first.', true);
+      return;
+    }
+    var fd = new FormData();
+    fd.append('reportTemplate', file);
+    var btn = document.getElementById('orgReportTemplateUploadBtn');
+    if (btn) btn.disabled = true;
+    showRtMsg('Uploading…', false);
+    fetch('/organisation/report-template', { method: 'POST', body: fd })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) {
+            var mk = data.missingKeys;
+            var missEl = document.getElementById('orgReportTemplateMissingKeys');
+            if (missEl && Array.isArray(mk) && mk.length) {
+              missEl.style.display = 'block';
+              missEl.textContent = 'Missing: {{' + mk.join('}}, {{') + '}}';
+            } else if (missEl) missEl.style.display = 'none';
+            throw new Error(data.message || res.statusText);
+          }
+          if (data.warnings && data.warnings.length) {
+            console.warn('Template warnings', data.warnings);
+          }
+          window.location.reload();
+        });
+      })
+      .catch(function (e) {
+        showRtMsg(e.message || String(e), true);
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
+      });
+  });
+  var rm = document.getElementById('orgReportTemplateRemoveBtn');
+  if (rm) {
+    rm.addEventListener('click', function () {
+      if (!confirm('Remove the custom template? Exports will use the default CARE template.')) return;
+      fetch('/organisation/report-template', { method: 'DELETE', headers: { Accept: 'application/json' } })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok) throw new Error(data.message || res.statusText);
+            window.location.reload();
+          });
+        })
+        .catch(function (e) {
+          showRtMsg(e.message || String(e), true);
+        });
+    });
+  }
 })();
 
 (function () {
@@ -1378,6 +1491,7 @@
       document.getElementById('orgAccessEditLicenseAdmin').checked = false;
       document.getElementById('orgAccessEditAiModelAdmin').checked = false;
       document.getElementById('orgAccessEditPromptAdmin').checked = false;
+      document.getElementById('orgAccessEditReportAdmin').checked = false;
       syncDelegatedVisibility();
     } else {
       if (roleRow) roleRow.style.display = 'none';
@@ -1409,6 +1523,8 @@
       btn.getAttribute('data-ai-model-admin') === 'true';
     document.getElementById('orgAccessEditPromptAdmin').checked =
       btn.getAttribute('data-prompt-admin') === 'true';
+    document.getElementById('orgAccessEditReportAdmin').checked =
+      btn.getAttribute('data-report-admin') === 'true';
     syncDelegatedVisibility();
     if (typeof dialog.showModal === 'function') dialog.showModal();
   }
@@ -1449,6 +1565,7 @@
           payload.licenseAdmin = document.getElementById('orgAccessEditLicenseAdmin').checked;
           payload.aiModelAdmin = document.getElementById('orgAccessEditAiModelAdmin').checked;
           payload.promptAdmin = document.getElementById('orgAccessEditPromptAdmin').checked;
+          payload.reportAdmin = document.getElementById('orgAccessEditReportAdmin').checked;
         }
       }
       showModalMsg('Adding…', false);
@@ -1476,11 +1593,13 @@
       licenseAdmin: document.getElementById('orgAccessEditLicenseAdmin').checked,
       aiModelAdmin: document.getElementById('orgAccessEditAiModelAdmin').checked,
       promptAdmin: document.getElementById('orgAccessEditPromptAdmin').checked,
+      reportAdmin: document.getElementById('orgAccessEditReportAdmin').checked,
     };
     if (roleSel.value === 'admin') {
       body.licenseAdmin = false;
       body.aiModelAdmin = false;
       body.promptAdmin = false;
+      body.reportAdmin = false;
     }
     showModalMsg('Saving…', false);
     fetch('/organisation/members/' + encodeURIComponent(id), {

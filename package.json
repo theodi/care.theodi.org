@@ -21,6 +21,7 @@
   "homepage": "https://github.com/theodi/care.theodi.org",
   "dependencies": {
     "@hubspot/api-client": "^11.1.0",
+    "adm-zip": "^0.5.17",
     "chartjs-to-image": "^1.2.2",
     "connect-mongo": "^5.1.0",
     "cors": "^2.8.5",
@@ -33,6 +34,7 @@
     "json2csv": "^6.0.0-alpha.2",
     "mongoose": "^8.2.1",
     "morgan": "^1.10.0",
+    "multer": "^2.1.1",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "nodemon": "^3.1.0",

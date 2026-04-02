@@ -1,6 +1,20 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const organisationController = require('../controllers/organisation');
+
+const reportTemplateUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const n = (file.originalname || '').toLowerCase();
+    if (n.endsWith('.docx')) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Only .docx files are allowed'));
+  },
+});
 
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) return next();
@@ -51,7 +65,7 @@ router.post('/members', ensureAuthenticated, async (req, res, next) => {
     }
     if (!req.body || typeof req.body !== 'object') {
       const e = new Error(
-        'Expected a JSON body — set Content-Type: application/json and send at least { "email" }; optional: membershipRole, licenseAdmin, aiModelAdmin, promptAdmin (organisation admins only).'
+        'Expected a JSON body — set Content-Type: application/json and send at least { "email" }; optional: membershipRole, licenseAdmin, aiModelAdmin, promptAdmin, reportAdmin (organisation admins only).'
       );
       e.status = 400;
       throw e;
@@ -143,6 +157,54 @@ router.put('/scan-context', ensureAuthenticated, async (req, res, next) => {
   try {
     const userId = req.session.passport.user.id;
     const result = await organisationController.updateScanContextAdmin(userId, req.body);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post(
+  '/report-template',
+  ensureAuthenticated,
+  reportTemplateUpload.single('reportTemplate'),
+  async (req, res, next) => {
+    try {
+      const userId = req.session.passport.user.id;
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      const result = await organisationController.uploadReportTemplateAdmin(
+        userId,
+        req.file.buffer,
+        req.file.originalname
+      );
+      if (!result.ok) {
+        return res.status(400).json({
+          ok: false,
+          missingKeys: result.missingKeys,
+          warnings: result.warnings,
+          message: 'Template is missing required placeholders',
+        });
+      }
+      res.json({
+        ok: true,
+        message: 'Template saved',
+        warnings: result.warnings,
+        accentDetectedHex: result.accentDetectedHex,
+        accentEffectiveHex: result.accentEffectiveHex,
+        originalName: result.originalName,
+        uploadedAt: result.uploadedAt,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.delete('/report-template', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.deleteReportTemplateAdmin(userId);
     res.json(result);
   } catch (e) {
     next(e);
