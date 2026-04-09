@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const organisationMembershipSchema = new mongoose.Schema(
   {
-    subscriptionId: {
+    tenantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'OrganisationSubscription',
+      ref: 'Tenant',
       required: true,
     },
     /** Normalised full address (lowercase trim); identity is email, not User — no CARE account required */
@@ -19,11 +19,13 @@ const organisationMembershipSchema = new mongoose.Schema(
     promptAdmin: { type: Boolean, default: false },
     /** Delegated: Word report template upload / remove for the organisation. */
     reportAdmin: { type: Boolean, default: false },
+    /** Delegated: set organisation integration external id on org-shared evaluations (PM / integrations). */
+    projectManager: { type: Boolean, default: false },
     addedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { collection: 'OrganisationMemberships', timestamps: true }
 );
 
-organisationMembershipSchema.index({ subscriptionId: 1, emailLower: 1 }, { unique: true });
+organisationMembershipSchema.index({ tenantId: 1, emailLower: 1 }, { unique: true });
 
 module.exports = mongoose.model('OrganisationMembership', organisationMembershipSchema);

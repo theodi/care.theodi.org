@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Tenant = require('../models/tenant');
 const OrganisationSubscription = require('../models/organisationSubscription');
 const OrganisationMembership = require('../models/organisationMembership');
 const {
@@ -7,9 +8,12 @@ const {
   emailMatchesDomain,
   isSubscriptionActive,
   subscriptionLifecycleStatus,
-  assertNoOverlappingSubscription,
+  assertNoOverlappingSubscriptionForTenant,
 } = require('../lib/organisationEntitlements');
-const { validateCreatePayload } = require('../lib/careAdminSubscriptionPayload');
+const {
+  validateCreatePayload,
+  validateSubscriptionPeriodPayload,
+} = require('../lib/careAdminSubscriptionPayload');
 
 async function getSubscription(id) {
   if (!mongoose.isValidObjectId(id)) {
@@ -17,13 +21,16 @@ async function getSubscription(id) {
     err.status = 400;
     throw err;
   }
-  const s = await OrganisationSubscription.findById(id).lean();
+  const s = await OrganisationSubscription.findById(id).populate('tenantId').lean();
   if (!s) return null;
-  const adminEmails = await adminEmailsForSubscriptionId(s._id);
+  const tenant = s.tenantId;
+  const tenantOid = tenant && tenant._id ? tenant._id : s.tenantId;
+  const adminEmails = await adminEmailsForTenantId(tenantOid);
   return {
     id: s._id,
-    organisationName: s.organisationName,
-    emailDomain: s.emailDomain,
+    tenantId: tenantOid,
+    organisationName: tenant && tenant.organisationName,
+    emailDomain: tenant && tenant.emailDomain,
     adminEmails,
     planTier: s.planTier,
     seatLimit: s.seatLimit,
@@ -39,41 +46,76 @@ async function getSubscription(id) {
 }
 
 async function listSubscriptions() {
-  const rows = await OrganisationSubscription.find().sort({ endDate: -1 }).lean();
-  const ids = rows.map((s) => s._id);
+  const rows = await OrganisationSubscription.find().sort({ endDate: -1 }).populate('tenantId').lean();
+  const tenantIds = rows.map((s) => s.tenantId && (s.tenantId._id || s.tenantId)).filter(Boolean);
   const adminMemberships = await OrganisationMembership.find({
-    subscriptionId: { $in: ids },
+    tenantId: { $in: tenantIds },
     role: 'admin',
   })
-    .select('subscriptionId emailLower')
+    .select('tenantId emailLower')
     .lean();
 
-  const adminsBySub = {};
+  const adminsByTenant = {};
   for (const m of adminMemberships) {
-    const sid = m.subscriptionId.toString();
-    if (!adminsBySub[sid]) adminsBySub[sid] = [];
-    adminsBySub[sid].push(m.emailLower);
+    const tid = m.tenantId.toString();
+    if (!adminsByTenant[tid]) adminsByTenant[tid] = [];
+    adminsByTenant[tid].push(m.emailLower);
   }
 
-  return rows.map((s) => ({
-    id: s._id,
-    organisationName: s.organisationName,
-    emailDomain: s.emailDomain,
-    adminEmails: adminsBySub[s._id.toString()] || [],
-    planTier: s.planTier,
-    seatLimit: s.seatLimit,
-    amount: s.amount,
-    startDate: s.startDate,
-    endDate: s.endDate,
-    status: subscriptionLifecycleStatus(s),
-    isActive: isSubscriptionActive(s),
-    createdAt: s.createdAt,
-    hubspotCompanyId: s.hubspotCompanyId || null,
-    hubspotDealId: s.hubspotDealId || null,
-  }));
+  return rows.map((s) => {
+    const tenant = s.tenantId;
+    const tenantOid = tenant && tenant._id ? tenant._id : s.tenantId;
+    const tid = tenantOid ? tenantOid.toString() : '';
+    return {
+      id: s._id,
+      tenantId: tenantOid,
+      organisationName: tenant && tenant.organisationName,
+      emailDomain: tenant && tenant.emailDomain,
+      adminEmails: adminsByTenant[tid] || [],
+      planTier: s.planTier,
+      seatLimit: s.seatLimit,
+      amount: s.amount,
+      startDate: s.startDate,
+      endDate: s.endDate,
+      status: subscriptionLifecycleStatus(s),
+      isActive: isSubscriptionActive(s),
+      createdAt: s.createdAt,
+      hubspotCompanyId: s.hubspotCompanyId || null,
+      hubspotDealId: s.hubspotDealId || null,
+    };
+  });
 }
 
 async function createSubscription(body, createdByUserId) {
+  const createdByOid = new mongoose.Types.ObjectId(createdByUserId);
+
+  if (body.tenantId != null && String(body.tenantId).trim() !== '') {
+    if (!mongoose.isValidObjectId( String(body.tenantId))) {
+      const err = new Error('tenantId is invalid');
+      err.status = 400;
+      throw err;
+    }
+    const tenant = await Tenant.findById(body.tenantId);
+    if (!tenant) {
+      const err = new Error('Tenant not found');
+      err.status = 404;
+      throw err;
+    }
+    const { seatLimit, amount, startDate, endDate } = validateSubscriptionPeriodPayload(body);
+    await assertNoOverlappingSubscriptionForTenant(tenant._id, startDate, endDate, null);
+
+    const sub = await OrganisationSubscription.create({
+      tenantId: tenant._id,
+      planTier: body.planTier,
+      seatLimit,
+      amount,
+      startDate,
+      endDate,
+      createdByUserId: createdByOid,
+    });
+    return sub;
+  }
+
   const { seatLimit, amount, startDate, endDate } = validateCreatePayload(body);
   const emailDomain = normalizeEmailDomain(body.emailDomain);
   if (!emailDomain) {
@@ -92,37 +134,49 @@ async function createSubscription(body, createdByUserId) {
     err.status = 400;
     throw err;
   }
-  await assertNoOverlappingSubscription(emailDomain, startDate, endDate, null);
 
-  const sub = await OrganisationSubscription.create({
+  const tenant = await Tenant.create({
     organisationName: String(body.organisationName).trim(),
     emailDomain,
+  });
+
+  await assertNoOverlappingSubscriptionForTenant(tenant._id, startDate, endDate, null);
+
+  const sub = await OrganisationSubscription.create({
+    tenantId: tenant._id,
     planTier: body.planTier,
     seatLimit,
     amount,
     startDate,
     endDate,
-    createdByUserId,
+    createdByUserId: createdByOid,
   });
 
   await OrganisationMembership.create({
-    subscriptionId: sub._id,
+    tenantId: tenant._id,
     emailLower: normalizeMemberEmail(initialAdminEmail),
     role: 'admin',
-    addedByUserId: new mongoose.Types.ObjectId(createdByUserId),
+    addedByUserId: createdByOid,
   });
 
   return sub;
 }
 
-async function adminEmailsForSubscriptionId(subscriptionId) {
+async function adminEmailsForTenantId(tenantId) {
   const rows = await OrganisationMembership.find({
-    subscriptionId,
+    tenantId,
     role: 'admin',
   })
     .select('emailLower')
     .lean();
   return rows.map((r) => r.emailLower);
+}
+
+/** @deprecated use adminEmailsForTenantId */
+async function adminEmailsForSubscriptionId(subscriptionId) {
+  const sub = await OrganisationSubscription.findById(subscriptionId).select('tenantId').lean();
+  if (!sub || !sub.tenantId) return [];
+  return adminEmailsForTenantId(sub.tenantId);
 }
 
 function normalizeAdminEmailsInput(body) {
@@ -150,7 +204,7 @@ function normalizeAdminEmailsInput(body) {
   return out;
 }
 
-async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLowers, actingUserId) {
+async function syncTenantAdmins(tenantId, emailDomain, adminEmailLowers, actingUserId) {
   if (adminEmailLowers.length === 0) {
     const err = new Error('adminEmails must include at least one valid email');
     err.status = 400;
@@ -170,7 +224,7 @@ async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLow
   }
   const addedByOid = new mongoose.Types.ObjectId(actingUserId);
   for (const emailLower of adminEmailLowers) {
-    const existing = await OrganisationMembership.findOne({ subscriptionId, emailLower });
+    const existing = await OrganisationMembership.findOne({ tenantId, emailLower });
     if (existing) {
       existing.role = 'admin';
       existing.licenseAdmin = false;
@@ -180,7 +234,7 @@ async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLow
       await existing.save();
     } else {
       await OrganisationMembership.create({
-        subscriptionId,
+        tenantId,
         emailLower,
         role: 'admin',
         licenseAdmin: false,
@@ -192,7 +246,7 @@ async function syncSubscriptionAdmins(subscriptionId, emailDomain, adminEmailLow
     }
   }
   await OrganisationMembership.updateMany(
-    { subscriptionId, role: 'admin', emailLower: { $nin: adminEmailLowers } },
+    { tenantId, role: 'admin', emailLower: { $nin: adminEmailLowers } },
     {
       $set: {
         role: 'member',
@@ -211,19 +265,28 @@ async function updateSubscription(id, body, actingUserId) {
     err.status = 400;
     throw err;
   }
-  if (body.emailDomain !== undefined) {
-    const err = new Error('emailDomain cannot be changed; member emails are tied to the subscription domain');
-    err.status = 400;
-    throw err;
-  }
   const sub = await OrganisationSubscription.findById(id);
   if (!sub) {
     const err = new Error('Subscription not found');
     err.status = 404;
     throw err;
   }
+  const tenant = await Tenant.findById(sub.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.status = 404;
+    throw err;
+  }
 
-  if (body.organisationName !== undefined) sub.organisationName = String(body.organisationName).trim();
+  if (body.emailDomain !== undefined) {
+    const err = new Error('emailDomain cannot be changed; member emails are tied to the tenant domain');
+    err.status = 400;
+    throw err;
+  }
+
+  if (body.organisationName !== undefined) {
+    tenant.organisationName = String(body.organisationName).trim();
+  }
   if (body.planTier !== undefined) {
     if (!['silver', 'gold'].includes(body.planTier)) {
       const err = new Error('planTier must be silver or gold');
@@ -244,9 +307,9 @@ async function updateSubscription(id, body, actingUserId) {
     sub.seatLimit = seatLimit;
   }
 
-  const usedSeats = await OrganisationMembership.countDocuments({ subscriptionId: sub._id });
+  const usedSeats = await OrganisationMembership.countDocuments({ tenantId: tenant._id });
   if (prospectiveSeatLimit < usedSeats) {
-    const err = new Error('seatLimit cannot be less than the number of members on this subscription');
+    const err = new Error('seatLimit cannot be less than the number of members on this tenant');
     err.status = 400;
     throw err;
   }
@@ -259,13 +322,13 @@ async function updateSubscription(id, body, actingUserId) {
       throw err;
     }
     for (const emailLower of adminList) {
-      if (!emailMatchesDomain(emailLower, sub.emailDomain)) {
-        const err = new Error(`Admin email must be on @${sub.emailDomain}`);
+      if (!emailMatchesDomain(emailLower, tenant.emailDomain)) {
+        const err = new Error(`Admin email must be on @${tenant.emailDomain}`);
         err.status = 400;
         throw err;
       }
     }
-    const memberEmails = await OrganisationMembership.find({ subscriptionId: sub._id })
+    const memberEmails = await OrganisationMembership.find({ tenantId: tenant._id })
       .select('emailLower')
       .lean();
     const memberSet = new Set(memberEmails.map((m) => m.emailLower));
@@ -304,12 +367,13 @@ async function updateSubscription(id, body, actingUserId) {
     sub.endDate = end;
   }
 
-  await assertNoOverlappingSubscription(sub.emailDomain, sub.startDate, sub.endDate, sub._id);
+  await assertNoOverlappingSubscriptionForTenant(tenant._id, sub.startDate, sub.endDate, sub._id);
 
+  await tenant.save();
   await sub.save();
 
   if (adminList !== null) {
-    await syncSubscriptionAdmins(sub._id, sub.emailDomain, adminList, actingUserId);
+    await syncTenantAdmins(tenant._id, tenant.emailDomain, adminList, actingUserId);
   }
 
   return sub;
@@ -320,5 +384,6 @@ module.exports = {
   listSubscriptions,
   createSubscription,
   updateSubscription,
+  adminEmailsForTenantId,
   adminEmailsForSubscriptionId,
 };

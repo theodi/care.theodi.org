@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const OrganisationMembership = require('../models/organisationMembership');
-const OrganisationSubscription = require('../models/organisationSubscription');
+const Tenant = require('../models/tenant');
 const User = require('../models/user');
 const {
   normalizeEmailDomain,
@@ -44,8 +44,9 @@ const {
   saveOrgReportTemplate,
   deleteOrgReportTemplate,
   orgTemplateFileExists,
-  effectiveAccentHexFromSubscription,
+  effectiveAccentHexFromTenant,
 } = require('../lib/orgReportTemplateStorage');
+const { generateIntegrationApiKey } = require('../lib/tenantIntegrationKeys');
 
 async function enrichMemberRows(members) {
   const lookups = members.map(async (m) => {
@@ -63,6 +64,7 @@ async function enrichMemberRows(members) {
       aiModelAdmin: !!m.aiModelAdmin,
       promptAdmin: !!m.promptAdmin,
       reportAdmin: !!m.reportAdmin,
+      projectManager: !!m.projectManager,
     };
   });
   return Promise.all(lookups);
@@ -73,22 +75,33 @@ async function getOrganisationContext(userId) {
   if (!user) return null;
   const activeMemberships = await findActiveMembershipsForEmail(user.email);
   const membership = activeMemberships[0];
-  if (!membership || !membership.subscriptionId) {
+  if (!membership || !membership.tenantId || !membership.activeSubscription) {
     return null;
   }
-  const sub = membership.subscriptionId;
+  const sub = membership.activeSubscription;
+  const tenant = membership.tenantId;
+  const tenantOid = tenant._id || tenant;
   const active = isSubscriptionActive(sub);
-  const memberDocs = await OrganisationMembership.find({ subscriptionId: sub._id }).sort({
+  const memberDocs = await OrganisationMembership.find({ tenantId: tenantOid }).sort({
     role: 1,
     emailLower: 1,
   });
   const seatUsed = memberDocs.length;
   const members = await enrichMemberRows(memberDocs);
+  const keys = Array.isArray(tenant.integrationApiKeys) ? tenant.integrationApiKeys : [];
+  const integrationApiKeys = keys.map((k) => ({
+    id: k._id ? k._id.toString() : null,
+    prefix: k.prefix || '',
+    label: k.label || '',
+    createdAt: k.createdAt || null,
+    lastUsedAt: k.lastUsedAt || null,
+  }));
   return {
+    tenantId: tenantOid.toString(),
     subscription: {
       id: sub._id,
-      organisationName: sub.organisationName,
-      emailDomain: sub.emailDomain,
+      organisationName: tenant.organisationName,
+      emailDomain: tenant.emailDomain,
       planTier: sub.planTier,
       seatLimit: sub.seatLimit,
       seatUsed,
@@ -96,12 +109,13 @@ async function getOrganisationContext(userId) {
       endDate: sub.endDate,
       subscriptionActive: active,
       reportTemplate: {
-        hasFile: !!(sub.reportTemplateUploadedAt && orgTemplateFileExists(sub._id)),
-        originalName: sub.reportTemplateOriginalName || '',
-        uploadedAt: sub.reportTemplateUploadedAt || null,
-        accentDetectedHex: sub.reportAccentDetectedHex || '',
-        accentEffectiveHex: effectiveAccentHexFromSubscription(sub),
+        hasFile: !!(tenant.reportTemplateUploadedAt && orgTemplateFileExists(tenantOid)),
+        originalName: tenant.reportTemplateOriginalName || '',
+        uploadedAt: tenant.reportTemplateUploadedAt || null,
+        accentDetectedHex: tenant.reportAccentDetectedHex || '',
+        accentEffectiveHex: effectiveAccentHexFromTenant(tenant),
       },
+      integrationApiKeys,
     },
     myRole: membership.role,
     myMembership: membershipCapabilities(membership),
@@ -112,17 +126,18 @@ async function getOrganisationContext(userId) {
 async function findRequesterActiveOrgMembership(requesterUserId) {
   const user = await User.findById(requesterUserId);
   if (!user) return null;
-  const emailLower = normalizeMemberEmail(user.email);
-  const memberships = await OrganisationMembership.find({ emailLower }).populate('subscriptionId');
-  return (
-    memberships.find((m) => m.subscriptionId && isSubscriptionActive(m.subscriptionId)) || null
-  );
+  const active = await findActiveMembershipsForEmail(user.email);
+  return active[0] || null;
 }
 
 function membershipToJson(m) {
   if (!m) return null;
   const id = m._id != null ? m._id.toString() : null;
-  const sid = m.subscriptionId != null ? m.subscriptionId.toString() : null;
+  const tid = m.tenantId != null ? (m.tenantId._id || m.tenantId).toString() : null;
+  const sid =
+    m.activeSubscription != null && m.activeSubscription._id != null
+      ? m.activeSubscription._id.toString()
+      : null;
   return {
     id,
     emailLower: m.emailLower,
@@ -131,6 +146,8 @@ function membershipToJson(m) {
     aiModelAdmin: !!m.aiModelAdmin,
     promptAdmin: !!m.promptAdmin,
     reportAdmin: !!m.reportAdmin,
+    projectManager: !!m.projectManager,
+    tenantId: tid,
     subscriptionId: sid,
   };
 }
@@ -153,12 +170,14 @@ async function addMember(requesterUserId, body) {
     err.status = 403;
     throw err;
   }
-  const sub = requester.subscriptionId;
-  if (!isSubscriptionActive(sub)) {
+  const sub = requester.activeSubscription;
+  const tenant = requester.tenantId;
+  if (!sub || !tenant || !isSubscriptionActive(sub)) {
     const err = new Error('Subscription is not active');
     err.status = 403;
     throw err;
   }
+  const tenantOid = tenant._id || tenant;
 
   const membershipRoleInput =
     body && (body.membershipRole != null ? body.membershipRole : body.role);
@@ -173,17 +192,20 @@ async function addMember(requesterUserId, body) {
   let aiModelAdmin = !!(body && body.aiModelAdmin);
   let promptAdmin = !!(body && body.promptAdmin);
   let reportAdmin = !!(body && body.reportAdmin);
+  let projectManager = !!(body && body.projectManager);
   if (!isOrganisationAdmin(requester)) {
     licenseAdmin = false;
     aiModelAdmin = false;
     promptAdmin = false;
     reportAdmin = false;
+    projectManager = false;
   }
   if (wantsAdmin) {
     licenseAdmin = false;
     aiModelAdmin = false;
     promptAdmin = false;
     reportAdmin = false;
+    projectManager = false;
   }
 
   const role = wantsAdmin ? 'admin' : 'member';
@@ -193,41 +215,52 @@ async function addMember(requesterUserId, body) {
     err.status = 400;
     throw err;
   }
-  if (!emailMatchesDomain(trimmed, sub.emailDomain)) {
-    const err = new Error(`Email must be on the organisation domain @${sub.emailDomain}`);
+  if (!emailMatchesDomain(trimmed, tenant.emailDomain)) {
+    const err = new Error(`Email must be on the organisation domain @${tenant.emailDomain}`);
     err.status = 400;
     throw err;
   }
   const emailLower = normalizeMemberEmail(trimmed);
-  const n = await countMembers(sub._id);
+  const n = await countMembers(tenantOid);
   if (n >= sub.seatLimit) {
     const err = new Error('Seat limit reached');
     err.status = 403;
     throw err;
   }
   const existing = await OrganisationMembership.findOne({
-    subscriptionId: sub._id,
+    tenantId: tenantOid,
     emailLower,
   });
   if (existing) {
+    const enriched = {
+      ...existing.toObject(),
+      tenantId: requester.tenantId,
+      activeSubscription: requester.activeSubscription,
+    };
     return {
       message: 'That email is already on this organisation',
-      membership: membershipToJson(existing),
+      membership: membershipToJson(enriched),
     };
   }
   const membership = await OrganisationMembership.create({
-    subscriptionId: sub._id,
+    tenantId: tenantOid,
     emailLower,
     role,
     licenseAdmin,
     aiModelAdmin,
     promptAdmin,
     reportAdmin,
+    projectManager,
     addedByUserId,
   });
+  const enriched = {
+    ...membership.toObject(),
+    tenantId: tenant,
+    activeSubscription: sub,
+  };
   return {
     message: role === 'admin' ? 'Organisation admin added' : 'Licensed user added',
-    membership: membershipToJson(membership),
+    membership: membershipToJson(enriched),
   };
 }
 
@@ -243,15 +276,17 @@ async function updateMembership(requesterUserId, membershipId, body) {
     err.status = 403;
     throw err;
   }
-  const sub = requester.subscriptionId;
-  if (!isSubscriptionActive(sub)) {
+  const sub = requester.activeSubscription;
+  const tenant = requester.tenantId;
+  if (!sub || !tenant || !isSubscriptionActive(sub)) {
     const err = new Error('Subscription is not active');
     err.status = 403;
     throw err;
   }
+  const tenantOid = tenant._id || tenant;
   const target = await OrganisationMembership.findOne({
     _id: membershipId,
-    subscriptionId: sub._id,
+    tenantId: tenantOid,
   });
   if (!target) {
     const err = new Error('Member not found');
@@ -269,21 +304,24 @@ async function updateMembership(requesterUserId, membershipId, body) {
   let nextAi = !!target.aiModelAdmin;
   let nextPrompt = !!target.promptAdmin;
   let nextReport = !!target.reportAdmin;
+  let nextProjectManager = !!target.projectManager;
   if (body && body.licenseAdmin !== undefined) nextLicense = !!body.licenseAdmin;
   if (body && body.aiModelAdmin !== undefined) nextAi = !!body.aiModelAdmin;
   if (body && body.promptAdmin !== undefined) nextPrompt = !!body.promptAdmin;
   if (body && body.reportAdmin !== undefined) nextReport = !!body.reportAdmin;
+  if (body && body.projectManager !== undefined) nextProjectManager = !!body.projectManager;
 
   if (nextRole === 'admin') {
     nextLicense = false;
     nextAi = false;
     nextPrompt = false;
     nextReport = false;
+    nextProjectManager = false;
   }
 
   if (target.role === 'admin' && nextRole === 'member') {
     const adminCount = await OrganisationMembership.countDocuments({
-      subscriptionId: sub._id,
+      tenantId: tenantOid,
       role: 'admin',
     });
     if (adminCount <= 1) {
@@ -298,11 +336,17 @@ async function updateMembership(requesterUserId, membershipId, body) {
   target.aiModelAdmin = nextAi;
   target.promptAdmin = nextPrompt;
   target.reportAdmin = nextReport;
+  target.projectManager = nextProjectManager;
   await target.save();
 
+  const enriched = {
+    ...target.toObject(),
+    tenantId: requester.tenantId,
+    activeSubscription: requester.activeSubscription,
+  };
   return {
     message: 'Membership updated',
-    membership: membershipToJson(target),
+    membership: membershipToJson(enriched),
   };
 }
 
@@ -318,15 +362,17 @@ async function removeMember(requesterUserId, membershipId) {
     err.status = 403;
     throw err;
   }
-  const sub = requester.subscriptionId;
-  if (!isSubscriptionActive(sub)) {
+  const sub = requester.activeSubscription;
+  const tenant = requester.tenantId;
+  if (!sub || !tenant || !isSubscriptionActive(sub)) {
     const err = new Error('Subscription is not active');
     err.status = 403;
     throw err;
   }
+  const tenantOid = tenant._id || tenant;
   const target = await OrganisationMembership.findOne({
     _id: membershipId,
-    subscriptionId: sub._id,
+    tenantId: tenantOid,
   });
   if (!target) {
     const err = new Error('Member not found');
@@ -340,7 +386,7 @@ async function removeMember(requesterUserId, membershipId) {
   }
   if (target.role === 'admin') {
     const adminCount = await OrganisationMembership.countDocuments({
-      subscriptionId: sub._id,
+      tenantId: tenantOid,
       role: 'admin',
     });
     if (adminCount <= 1) {
@@ -370,15 +416,14 @@ async function getAiEligibilityForUser(userId, forMessageId) {
     return { organisationAiAvailable: false, scanContextByStage: {}, scanContextText: null };
   }
   const m = await findMembershipForEmail(user.email);
-  if (!m || !m.subscriptionId) {
+  if (!m || !m.tenantId) {
     return { organisationAiAvailable: false, scanContextByStage: {}, scanContextText: null };
   }
-  const subId = m.subscriptionId._id || m.subscriptionId;
-  const sub = await OrganisationSubscription.findById(subId);
-  const ov = orgAiToRuntimeOverrides(sub && sub.organisationAi);
-  const scanContextByStage = scanContextPresenceByStageForSubscription(sub);
+  const tenant = m.tenantId._id ? m.tenantId : await Tenant.findById(m.tenantId);
+  const ov = orgAiToRuntimeOverrides(tenant && tenant.organisationAi);
+  const scanContextByStage = scanContextPresenceByStageForSubscription(tenant);
   const mid = forMessageId != null ? String(forMessageId).trim() : '';
-  const rawCtx = mid ? getScanContextTextForSubscription(sub, mid) : '';
+  const rawCtx = mid ? getScanContextTextForSubscription(tenant, mid) : '';
   const scanContextText = rawCtx ? rawCtx : null;
   return { organisationAiAvailable: !!ov, scanContextByStage, scanContextText };
 }
@@ -390,15 +435,13 @@ async function getAiConfigAdmin(requesterUserId) {
     err.status = 403;
     throw err;
   }
-  const sub = await OrganisationSubscription.findById(
-    requester.subscriptionId._id || requester.subscriptionId
-  );
-  if (!sub) {
-    const err = new Error('Subscription not found');
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
     err.status = 404;
     throw err;
   }
-  return maskOrgAiForClient(sub.organisationAi);
+  return maskOrgAiForClient(tenant.organisationAi);
 }
 
 async function updateAiConfigAdmin(requesterUserId, body) {
@@ -408,21 +451,20 @@ async function updateAiConfigAdmin(requesterUserId, body) {
     err.status = 403;
     throw err;
   }
-  if (!isSubscriptionActive(requester.subscriptionId)) {
+  if (!requester.activeSubscription || !isSubscriptionActive(requester.activeSubscription)) {
     const err = new Error('Subscription is not active');
     err.status = 403;
     throw err;
   }
   const validated = validateOrgAiUpdate(body);
-  const subId = requester.subscriptionId._id || requester.subscriptionId;
-  const sub = await OrganisationSubscription.findById(subId);
-  if (!sub) {
-    const err = new Error('Subscription not found');
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
     err.status = 404;
     throw err;
   }
-  const merged = mergeOrgAiIntoSubscription(sub.organisationAi, validated);
-  await OrganisationSubscription.updateOne({ _id: sub._id }, { $set: { organisationAi: merged } });
+  const merged = mergeOrgAiIntoSubscription(tenant.organisationAi, validated);
+  await Tenant.updateOne({ _id: tenant._id }, { $set: { organisationAi: merged } });
   return { message: 'Saved', config: maskOrgAiForClient(merged) };
 }
 
@@ -443,10 +485,8 @@ async function testAiConfigAdmin(requesterUserId, body) {
   }
   let overrides;
   if (body.useSaved) {
-    const sub = await OrganisationSubscription.findById(
-      requester.subscriptionId._id || requester.subscriptionId
-    );
-    overrides = orgAiToRuntimeOverrides(sub && sub.organisationAi);
+    const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+    overrides = orgAiToRuntimeOverrides(tenant && tenant.organisationAi);
     if (!overrides) {
       const err = new Error(
         'Saved organisation AI is not enabled or incomplete. Save settings first or send a full config (useSaved: false).'
@@ -533,19 +573,17 @@ async function getScanContextAdmin(requesterUserId) {
     err.status = 403;
     throw err;
   }
-  const sub = await OrganisationSubscription.findById(
-    requester.subscriptionId._id || requester.subscriptionId
-  );
-  if (!sub) {
-    const err = new Error('Subscription not found');
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
     err.status = 404;
     throw err;
   }
   return {
-    items: resolveGuidanceItems(sub),
+    items: resolveGuidanceItems(tenant),
     labels: SCAN_CONTEXT_STAGE_LABELS,
     stageKeys: SCAN_CONTEXT_STAGE_KEYS,
-    uncoveredStages: uncoveredScanStages(sub),
+    uncoveredStages: uncoveredScanStages(tenant),
   };
 }
 
@@ -556,33 +594,32 @@ async function updateScanContextAdmin(requesterUserId, body) {
     err.status = 403;
     throw err;
   }
-  if (!isSubscriptionActive(requester.subscriptionId)) {
+  if (!requester.activeSubscription || !isSubscriptionActive(requester.activeSubscription)) {
     const err = new Error('Subscription is not active');
     err.status = 403;
     throw err;
   }
-  const subId = requester.subscriptionId._id || requester.subscriptionId;
-  const sub = await OrganisationSubscription.findById(subId);
-  if (!sub) {
-    const err = new Error('Subscription not found');
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
     err.status = 404;
     throw err;
   }
   const items = validateAndNormalizeGuidanceItems(body);
-  await OrganisationSubscription.updateOne(
-    { _id: sub._id },
+  await Tenant.updateOne(
+    { _id: tenant._id },
     {
       $set: { organisationScanGuidanceItems: items },
       $unset: { organisationScanContext: '' },
     }
   );
-  const syntheticSub = { organisationScanGuidanceItems: items };
+  const synthetic = { organisationScanGuidanceItems: items };
   return {
     message: 'Saved',
-    items: resolveGuidanceItems(syntheticSub),
+    items: resolveGuidanceItems(synthetic),
     labels: SCAN_CONTEXT_STAGE_LABELS,
     stageKeys: SCAN_CONTEXT_STAGE_KEYS,
-    uncoveredStages: uncoveredScanStages(syntheticSub),
+    uncoveredStages: uncoveredScanStages(synthetic),
   };
 }
 
@@ -595,7 +632,7 @@ async function assertOrgAdminForReportTemplate(requesterUserId) {
     err.status = 403;
     throw err;
   }
-  if (!isSubscriptionActive(requester.subscriptionId)) {
+  if (!requester.activeSubscription || !isSubscriptionActive(requester.activeSubscription)) {
     const err = new Error('Subscription is not active');
     err.status = 403;
     throw err;
@@ -605,7 +642,13 @@ async function assertOrgAdminForReportTemplate(requesterUserId) {
 
 async function uploadReportTemplateAdmin(requesterUserId, buffer, originalName) {
   const requester = await assertOrgAdminForReportTemplate(requesterUserId);
-  const subId = requester.subscriptionId._id || requester.subscriptionId;
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.status = 404;
+    throw err;
+  }
+  const tenantId = tenant._id;
   const validation = validateDocxTemplateBuffer(buffer);
   if (!validation.ok) {
     return {
@@ -615,9 +658,9 @@ async function uploadReportTemplateAdmin(requesterUserId, buffer, originalName) 
     };
   }
   const detected = extractAccentHexFromDocxBuffer(buffer);
-  saveOrgReportTemplate(subId, buffer);
-  await OrganisationSubscription.updateOne(
-    { _id: subId },
+  saveOrgReportTemplate(tenantId, buffer);
+  await Tenant.updateOne(
+    { _id: tenantId },
     {
       $set: {
         reportTemplateOriginalName: String(originalName || 'template.docx').slice(0, 240),
@@ -626,23 +669,104 @@ async function uploadReportTemplateAdmin(requesterUserId, buffer, originalName) 
       },
     }
   );
-  const sub = await OrganisationSubscription.findById(subId).lean();
+  const t = await Tenant.findById(tenantId).lean();
   return {
     ok: true,
     warnings: validation.warnings,
     accentDetectedHex: detected,
-    accentEffectiveHex: effectiveAccentHexFromSubscription(sub),
-    originalName: sub.reportTemplateOriginalName,
-    uploadedAt: sub.reportTemplateUploadedAt,
+    accentEffectiveHex: effectiveAccentHexFromTenant(t),
+    originalName: t.reportTemplateOriginalName,
+    uploadedAt: t.reportTemplateUploadedAt,
   };
+}
+
+async function assertOrgAdminForIntegrationApi(requesterUserId) {
+  const requester = await findRequesterActiveOrgMembership(requesterUserId);
+  if (!requester || !isOrganisationAdmin(requester)) {
+    const err = new Error('Only organisation admins can manage integration API keys');
+    err.status = 403;
+    throw err;
+  }
+  if (!requester.activeSubscription || !isSubscriptionActive(requester.activeSubscription)) {
+    const err = new Error('Subscription is not active');
+    err.status = 403;
+    throw err;
+  }
+  return requester;
+}
+
+async function createTenantIntegrationApiKey(requesterUserId, body) {
+  const requester = await assertOrgAdminForIntegrationApi(requesterUserId);
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.status = 404;
+    throw err;
+  }
+  const label = String((body && body.label) || '').trim().slice(0, 120);
+  const { plaintext, keyHash, prefix, keyId } = generateIntegrationApiKey();
+  await Tenant.updateOne(
+    { _id: tenant._id },
+    {
+      $push: {
+        integrationApiKeys: {
+          _id: keyId,
+          keyHash,
+          prefix,
+          label,
+          createdAt: new Date(),
+        },
+      },
+    }
+  );
+  return {
+    message: 'Key created. Store it securely; it will not be shown again.',
+    key: plaintext,
+    keyId: keyId.toString(),
+    prefix,
+    label,
+  };
+}
+
+async function deleteTenantIntegrationApiKey(requesterUserId, keyId) {
+  if (!mongoose.isValidObjectId(keyId)) {
+    const err = new Error('Invalid key id');
+    err.status = 400;
+    throw err;
+  }
+  const requester = await assertOrgAdminForIntegrationApi(requesterUserId);
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.status = 404;
+    throw err;
+  }
+  const oid = new mongoose.Types.ObjectId(keyId);
+  const before = await Tenant.findOne({
+    _id: tenant._id,
+    integrationApiKeys: { $elemMatch: { _id: oid } },
+  });
+  if (!before) {
+    const err = new Error('Key not found');
+    err.status = 404;
+    throw err;
+  }
+  await Tenant.updateOne({ _id: tenant._id }, { $pull: { integrationApiKeys: { _id: oid } } });
+  return { ok: true, message: 'Key revoked' };
 }
 
 async function deleteReportTemplateAdmin(requesterUserId) {
   const requester = await assertOrgAdminForReportTemplate(requesterUserId);
-  const subId = requester.subscriptionId._id || requester.subscriptionId;
-  deleteOrgReportTemplate(subId);
-  await OrganisationSubscription.updateOne(
-    { _id: subId },
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.status = 404;
+    throw err;
+  }
+  const tenantId = tenant._id;
+  deleteOrgReportTemplate(tenantId);
+  await Tenant.updateOne(
+    { _id: tenantId },
     {
       $unset: {
         reportTemplateOriginalName: 1,
@@ -671,4 +795,6 @@ module.exports = {
   updateScanContextAdmin,
   uploadReportTemplateAdmin,
   deleteReportTemplateAdmin,
+  createTenantIntegrationApiKey,
+  deleteTenantIntegrationApiKey,
 };

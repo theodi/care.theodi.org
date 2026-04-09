@@ -72,6 +72,28 @@
         </div>
     </div>
 </div>
+<dialog id="orgIntegrationIdDialog" class="org-access-edit-dialog org-integration-id-dialog">
+    <div class="content-block white">
+        <h2 id="orgIntegrationIdDialogTitle" style="margin-top:0;">Your project ID</h2>
+        <p class="small" id="orgIntegrationIdDialogEvalTitle" style="display:none;margin-top:0;"></p>
+        <p class="small org-integration-id-dialog__lead">
+            Use this field to store your organisation’s own reference for this evaluation—for example the ID from Jira, Asana, Notion, or an internal project register. It is returned by the tenant integrations API as <code>integrationExternalId</code> so Zapier, Make, n8n, or custom scripts can match CARE to your other systems. It does not replace the CARE project ID shown under the evaluation title.
+        </p>
+        <div id="orgIntegrationIdModalMsg" class="alert" style="display:none;" role="alert"></div>
+        <input type="hidden" id="orgIntegrationIdProjectId" value=""/>
+        <div class="sub-form__row">
+            <label class="sub-form__label" for="orgIntegrationIdInput">Reference</label>
+            <div class="sub-form__control">
+                <input type="text" id="orgIntegrationIdInput" class="input inputText" maxlength="256" autocomplete="off" placeholder="e.g. PROJ-4421 or internal code"/>
+            </div>
+        </div>
+        <div class="sub-form__actions org-integration-id-dialog__actions">
+            <button type="button" class="btn btn-primary" id="orgIntegrationIdSave">Save</button>
+            <button type="button" class="transparent" id="orgIntegrationIdClear" style="display:none;">Remove reference</button>
+            <button type="button" class="transparent" id="orgIntegrationIdCancel">Cancel</button>
+        </div>
+    </div>
+</dialog>
 <% } %>
 <div class="main-content">
     <section class="page-title container white">
@@ -218,6 +240,13 @@ function escapeHtml(s) {
         .replace(/"/g, '&quot;');
 }
 
+function truncateIntegrationIdDisplay(str, maxLen) {
+    var t = String(str || '');
+    var n = maxLen != null ? maxLen : 48;
+    if (t.length <= n) return t;
+    return t.slice(0, n) + '…';
+}
+
 function organisationProjectsRows(payload) {
     if (!payload) return [];
     if (Array.isArray(payload)) return payload;
@@ -262,12 +291,32 @@ function renderEvalTitleCell(data, type, row) {
     }
     var label = data == null || String(data).trim() === '' ? 'Untitled evaluation' : String(data);
     var href = evalProjectAssessmentHref(row);
+    var pid = String(row.id != null ? row.id : '');
+    var copySvg =
+        '<svg class="eval-copy-project-id__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    var idRow = '';
+    if (pid) {
+        idRow =
+            '<div class="eval-project-id-row">' +
+            '<span class="eval-project-id-label">Project ID</span> ' +
+            '<code class="eval-project-id-code">' +
+            escapeHtml(pid) +
+            '</code> ' +
+            '<button type="button" class="transparent eval-copy-project-id" data-id="' +
+            escapeHtml(pid) +
+            '" title="Copy project ID" aria-label="Copy project ID">' +
+            copySvg +
+            '</button></div>';
+    }
     return (
+        '<div class="eval-title-stack">' +
         '<a class="eval-title-link" href="' +
         href +
         '">' +
         escapeHtml(label) +
-        '</a>'
+        '</a>' +
+        idRow +
+        '</div>'
     );
 }
 
@@ -346,6 +395,190 @@ function renderSharedUsers(sharedUsers) {
 }
 
 $(document).ready(function () {
+    $(document).on('click', '.eval-copy-project-id', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = String($(this).data('id') || '');
+        if (!id || !navigator.clipboard || !navigator.clipboard.writeText) return;
+        var btn = this;
+        navigator.clipboard.writeText(id).then(function () {
+            var t = btn.getAttribute('title');
+            btn.setAttribute('title', 'Copied');
+            setTimeout(function () {
+                btn.setAttribute('title', t || 'Copy project ID');
+            }, 2000);
+        });
+    });
+
+    function patchOrganisationProjectIntegrationId(projectId, value) {
+        return fetch('/project/' + encodeURIComponent(projectId) + '/integration-external-id', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ integrationExternalId: value })
+        }).then(function (res) {
+            return res.json().then(function (d) {
+                if (!res.ok) throw new Error(d.message || res.statusText);
+                return d;
+            });
+        }).then(function (d) {
+            var committed = d.integrationExternalId != null ? String(d.integrationExternalId) : '';
+            var list =
+                organisationProjectsCachedPayload && organisationProjectsCachedPayload.projects;
+            if (Array.isArray(list)) {
+                list.forEach(function (p) {
+                    if (String(p.id) === String(projectId)) {
+                        p.integrationExternalId = committed;
+                    }
+                });
+            }
+            if (typeof renderOrganisationProjects === 'function') {
+                renderOrganisationProjects(
+                    organisationProjectsCachedPayload,
+                    organisationMetaGlobal
+                );
+            }
+            return committed;
+        });
+    }
+
+    function showOrgIntegrationIdModalMsg(text, isErr) {
+        var el = document.getElementById('orgIntegrationIdModalMsg');
+        if (!el) return;
+        el.style.display = text ? 'block' : 'none';
+        el.textContent = text || '';
+        el.style.color = isErr ? '#c00' : '';
+    }
+
+    function openOrgIntegrationIdDialog(projectId, evalTitle, currentValue) {
+        var dlg = document.getElementById('orgIntegrationIdDialog');
+        if (!dlg) return;
+        var pidEl = document.getElementById('orgIntegrationIdProjectId');
+        var inp = document.getElementById('orgIntegrationIdInput');
+        var titleEl = document.getElementById('orgIntegrationIdDialogTitle');
+        var evalEl = document.getElementById('orgIntegrationIdDialogEvalTitle');
+        var clearBtn = document.getElementById('orgIntegrationIdClear');
+        if (pidEl) pidEl.value = projectId || '';
+        if (inp) {
+            inp.value = currentValue != null ? String(currentValue) : '';
+        }
+        var hasVal = !!(currentValue != null && String(currentValue).trim() !== '');
+        if (titleEl) {
+            titleEl.textContent = hasVal ? 'Edit your project ID' : 'Add your project ID';
+        }
+        if (evalEl) {
+            var t = evalTitle != null ? String(evalTitle).trim() : '';
+            if (t) {
+                evalEl.style.display = 'block';
+                evalEl.textContent = 'Evaluation: ' + t;
+            } else {
+                evalEl.style.display = 'none';
+                evalEl.textContent = '';
+            }
+        }
+        if (clearBtn) clearBtn.style.display = hasVal ? '' : 'none';
+        showOrgIntegrationIdModalMsg('', false);
+        if (typeof dlg.showModal === 'function') dlg.showModal();
+        if (inp) {
+            inp.focus();
+            inp.select();
+        }
+    }
+
+    function closeOrgIntegrationIdDialog() {
+        var dlg = document.getElementById('orgIntegrationIdDialog');
+        if (dlg && typeof dlg.close === 'function') dlg.close();
+    }
+
+    $(document).on('click', '.org-eval-integration-add', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $t = $(this);
+        openOrgIntegrationIdDialog(
+            String($t.attr('data-project-id') || ''),
+            $t.attr('data-eval-title'),
+            ''
+        );
+    });
+
+    $(document).on('click', '.org-eval-integration-edit', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $t = $(this);
+        openOrgIntegrationIdDialog(
+            String($t.attr('data-project-id') || ''),
+            $t.attr('data-eval-title'),
+            $t.attr('data-committed') || ''
+        );
+    });
+
+    (function bindOrgIntegrationIdDialog() {
+        var dlg = document.getElementById('orgIntegrationIdDialog');
+        if (!dlg) return;
+        dlg.addEventListener('click', function (ev) {
+            if (ev.target === dlg) closeOrgIntegrationIdDialog();
+        });
+        var cancel = document.getElementById('orgIntegrationIdCancel');
+        if (cancel) cancel.addEventListener('click', closeOrgIntegrationIdDialog);
+        var clearBtn = document.getElementById('orgIntegrationIdClear');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                var pidEl = document.getElementById('orgIntegrationIdProjectId');
+                var pid = pidEl ? pidEl.value.trim() : '';
+                if (!pid) return;
+                if (
+                    !confirm(
+                        'Remove this project reference? It will no longer appear in the integrations API for this evaluation.'
+                    )
+                ) {
+                    return;
+                }
+                showOrgIntegrationIdModalMsg('', false);
+                clearBtn.disabled = true;
+                patchOrganisationProjectIntegrationId(pid, '')
+                    .then(function () {
+                        closeOrgIntegrationIdDialog();
+                    })
+                    .catch(function (err) {
+                        showOrgIntegrationIdModalMsg(err.message || String(err), true);
+                    })
+                    .then(function () {
+                        clearBtn.disabled = false;
+                    });
+            });
+        }
+        var save = document.getElementById('orgIntegrationIdSave');
+        if (save) {
+            save.addEventListener('click', function () {
+                var pidEl = document.getElementById('orgIntegrationIdProjectId');
+                var inp = document.getElementById('orgIntegrationIdInput');
+                var pid = pidEl ? pidEl.value.trim() : '';
+                if (!pid) return;
+                var v = inp ? inp.value.trim() : '';
+                showOrgIntegrationIdModalMsg('', false);
+                save.disabled = true;
+                patchOrganisationProjectIntegrationId(pid, v)
+                    .then(function () {
+                        closeOrgIntegrationIdDialog();
+                    })
+                    .catch(function (err) {
+                        showOrgIntegrationIdModalMsg(err.message || String(err), true);
+                    })
+                    .then(function () {
+                        save.disabled = false;
+                    });
+            });
+        }
+        var inpEl = document.getElementById('orgIntegrationIdInput');
+        if (inpEl) {
+            inpEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('orgIntegrationIdSave').click();
+                }
+            });
+        }
+    })();
+
     // Fetch projects data from server
     fetch('/projects', {
         headers: {
@@ -664,6 +897,53 @@ function renderOrganisationProjects(payload, organisationMeta) {
             }
         },
         { data: 'owner', title: 'Owner', defaultContent: '' ,width: '12%' },
+        {
+            data: 'integrationExternalId',
+            title: 'Your project ID',
+            width: '11rem',
+            className: 'eval-org-integration-id-col',
+            orderable: true,
+            defaultContent: '',
+            render: function (data, type, row) {
+                var v = data == null || data === undefined ? '' : String(data);
+                if (type === 'sort' || type === 'filter' || type === 'type') {
+                    return v;
+                }
+                var id = String(row.id != null ? row.id : '');
+                var evalTitle = row.title == null ? '' : String(row.title);
+                var canEdit =
+                    organisationMeta && organisationMeta.canManageOrganisationProjectIntegrations;
+                var etAttr = escapeHtml(evalTitle);
+                if (canEdit && id) {
+                    if (v.trim() !== '') {
+                        var shown = escapeHtml(truncateIntegrationIdDisplay(v, 44));
+                        return (
+                            '<button type="button" class="transparent org-eval-integration-edit" ' +
+                            'data-project-id="' +
+                            escapeHtml(id) +
+                            '" data-eval-title="' +
+                            etAttr +
+                            '" data-committed="' +
+                            escapeHtml(v) +
+                            '" title="Edit your project ID" aria-label="Edit your project ID">' +
+                            shown +
+                            '</button>'
+                        );
+                    }
+                    return (
+                        '<button type="button" class="btn btn-primary org-eval-integration-add" ' +
+                        'data-project-id="' +
+                        escapeHtml(id) +
+                        '" data-eval-title="' +
+                        etAttr +
+                        '" aria-label="Add your project ID">Add</button>'
+                    );
+                }
+                return v.trim() !== ''
+                    ? escapeHtml(truncateIntegrationIdDisplay(v, 56))
+                    : '<span class="small share-access-muted">—</span>';
+            }
+        },
         {
             data: 'lastModified',
             title: 'Last modified',

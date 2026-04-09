@@ -125,6 +125,12 @@ const projectSchema = new mongoose.Schema({
             type: Number
         }
     },
+    /** Tenant (master) for org-wide sharing; survives subscription renewals. */
+    tenantId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Tenant',
+    },
+    /** @deprecated Prefer tenantId; set only until DB migration runs. */
     organisationSubscriptionId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrganisationSubscription',
@@ -132,6 +138,13 @@ const projectSchema = new mongoose.Schema({
     sharedWithOrganisation: {
         type: Boolean,
         default: false,
+    },
+    /** Customer reference for PM / middleware (set by org admins or project managers); exposed on integration API. */
+    integrationExternalId: {
+        type: String,
+        trim: true,
+        maxlength: 256,
+        default: undefined,
     },
     /** Append-only AI audit trail; only server should $push (not via generic PUT). */
     aiInteractionHistory: {

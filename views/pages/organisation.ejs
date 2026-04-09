@@ -60,6 +60,7 @@
               if (m.aiModelAdmin) accessParts.push('AI model admin');
               if (m.promptAdmin) accessParts.push('Prompt manager');
               if (m.reportAdmin) accessParts.push('Report manager');
+              if (m.projectManager) accessParts.push('Project manager');
               if (accessParts.length === 0) accessParts.push('—');
             }
             var accessSummary = accessParts.join(' · ');
@@ -77,6 +78,7 @@
               data-ai-model-admin="<%= m.aiModelAdmin ? 'true' : 'false' %>"
               data-prompt-admin="<%= m.promptAdmin ? 'true' : 'false' %>"
               data-report-admin="<%= m.reportAdmin ? 'true' : 'false' %>"
+              data-project-manager="<%= m.projectManager ? 'true' : 'false' %>"
             >Edit</button>
             <% } %>
             <% if (canRemoveThis) { %>
@@ -129,6 +131,7 @@
             <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditReportAdmin"/> Report manager — Word report template for the organisation</label>
             <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditAiModelAdmin"/> AI model admin — organisation AI provider and model settings</label>
             <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditPromptAdmin"/> Prompt manager — extra guidance for scan steps</label>
+            <label class="org-add-delegated-perms__chk"><input type="checkbox" id="orgAccessEditProjectManager"/> Project manager — set your organisation’s reference ID on evaluations shared with the organisation (for integrations)</label>
           </div>
         </div>
         <div class="sub-form__actions">
@@ -365,6 +368,83 @@
       </form>
     </div>
   </dialog>
+
+  <% if (organisation.subscription.subscriptionActive && organisation.myMembership.isOrganisationAdmin) { %>
+  <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %> org-integration-api-section" id="orgIntegrationApiSection" data-tenant-id="<%= organisation.tenantId %>">
+    <h2>Integrations API</h2>
+    <p class="small">Read-only JSON for evaluations <strong>shared with your organisation</strong>. Use the <strong>Tenant ID</strong> and a key below; send <code>Accept: application/json</code> on every request.</p>
+    <ul class="small org-integration-api-doc-links">
+      <li><a href="/docs/tenant-integration">Developer documentation</a> — guide, IDs, cookbook link, and interactive API reference (generated from OpenAPI)</li>
+      <li><a href="/docs/tenant-integration-openapi.yaml">OpenAPI specification (YAML)</a> — machine-readable contract for tools and codegen</li>
+      <li><a href="/docs/tenant-integration-zapier.md">Zapier / Make / n8n cookbook</a> (Markdown)</li>
+    </ul>
+    <div id="orgIntegrationApiMsg" class="alert" style="display:none;"></div>
+    <p>
+      <span class="org-integration-label">Tenant ID</span>
+      <code id="orgIntegrationTenantIdDisplay"><%= organisation.tenantId %></code>
+      <button type="button" class="transparent org-integration-copy-btn" id="orgIntegrationCopyTenantId">Copy</button>
+    </p>
+    <p>
+      <span class="org-integration-label">Projects list URL</span><br/>
+      <input type="text" readonly class="input inputText org-integration-url-field" id="orgIntegrationBaseUrlField" value="" aria-label="Base URL for projects list"/>
+    </p>
+    <h3 class="org-integration-subhead">Integration keys</h3>
+    <p class="org-licensed-users__add-bar org-integration-keys__add-bar">
+      <button type="button" class="transparent" id="orgAddIntegrationKeyBtn">Create integration key</button>
+    </p>
+    <table class="display org-integration-keys-table" style="width:100%">
+      <thead>
+        <tr>
+          <th>Prefix</th>
+          <th>Label</th>
+          <th>Created</th>
+          <th>Last used</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="orgIntegrationKeysBody"></tbody>
+    </table>
+  </div>
+
+  <dialog id="orgIntegrationKeyDialog" class="org-access-edit-dialog org-integration-key-dialog">
+    <div class="content-block white">
+      <h2 id="orgIntegrationKeyDialogTitle" style="margin-top:0;">Create integration key</h2>
+      <div id="orgIntegrationKeyModalMsg" class="alert" style="display:none;"></div>
+      <div id="orgIntegrationKeyStepCreate">
+        <form id="orgIntegrationKeyForm" class="sub-form" novalidate>
+          <div class="sub-form__row">
+            <label class="sub-form__label" for="orgIntegrationKeyModalLabel">Label</label>
+            <div class="sub-form__control">
+              <input type="text" id="orgIntegrationKeyModalLabel" class="input inputText" maxlength="120" placeholder="e.g. Zapier production" autocomplete="off"/>
+              <p class="sub-form__hint">Shown in the keys list so you can tell integrations apart.</p>
+            </div>
+          </div>
+          <div class="sub-form__actions">
+            <button type="submit" class="btn btn-primary" id="orgIntegrationKeySubmitBtn">Create key</button>
+            <button type="button" class="transparent" id="orgIntegrationKeyCancelBtn">Cancel</button>
+          </div>
+        </form>
+      </div>
+      <div id="orgIntegrationKeyStepReveal" hidden>
+        <p class="small"><strong>Copy this key now.</strong> You will not be able to see it again after you close this dialog.</p>
+        <div class="sub-form__row">
+          <label class="sub-form__label" for="orgIntegrationKeyRevealValue">Secret key</label>
+          <div class="sub-form__control">
+            <input type="text" readonly class="input inputText org-integration-key-reveal-input" id="orgIntegrationKeyRevealValue" value="" aria-label="New integration API key"/>
+          </div>
+        </div>
+        <div class="sub-form__actions">
+          <button type="button" class="btn btn-primary" id="orgIntegrationKeyCopyRevealBtn">Copy key</button>
+          <button type="button" class="transparent" id="orgIntegrationKeyDoneBtn">Done</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+  window.__orgIntegrationInitialKeys = JSON.parse(decodeURIComponent('<%- encodeURIComponent(JSON.stringify(organisation.subscription.integrationApiKeys || [])) %>'));
+  </script>
+  <% } %>
 
   <% } %>
 </div>
@@ -1492,6 +1572,7 @@
       document.getElementById('orgAccessEditAiModelAdmin').checked = false;
       document.getElementById('orgAccessEditPromptAdmin').checked = false;
       document.getElementById('orgAccessEditReportAdmin').checked = false;
+      document.getElementById('orgAccessEditProjectManager').checked = false;
       syncDelegatedVisibility();
     } else {
       if (roleRow) roleRow.style.display = 'none';
@@ -1525,6 +1606,8 @@
       btn.getAttribute('data-prompt-admin') === 'true';
     document.getElementById('orgAccessEditReportAdmin').checked =
       btn.getAttribute('data-report-admin') === 'true';
+    document.getElementById('orgAccessEditProjectManager').checked =
+      btn.getAttribute('data-project-manager') === 'true';
     syncDelegatedVisibility();
     if (typeof dialog.showModal === 'function') dialog.showModal();
   }
@@ -1566,6 +1649,7 @@
           payload.aiModelAdmin = document.getElementById('orgAccessEditAiModelAdmin').checked;
           payload.promptAdmin = document.getElementById('orgAccessEditPromptAdmin').checked;
           payload.reportAdmin = document.getElementById('orgAccessEditReportAdmin').checked;
+          payload.projectManager = document.getElementById('orgAccessEditProjectManager').checked;
         }
       }
       showModalMsg('Adding…', false);
@@ -1594,12 +1678,14 @@
       aiModelAdmin: document.getElementById('orgAccessEditAiModelAdmin').checked,
       promptAdmin: document.getElementById('orgAccessEditPromptAdmin').checked,
       reportAdmin: document.getElementById('orgAccessEditReportAdmin').checked,
+      projectManager: document.getElementById('orgAccessEditProjectManager').checked,
     };
     if (roleSel.value === 'admin') {
       body.licenseAdmin = false;
       body.aiModelAdmin = false;
       body.promptAdmin = false;
       body.reportAdmin = false;
+      body.projectManager = false;
     }
     showModalMsg('Saving…', false);
     fetch('/organisation/members/' + encodeURIComponent(id), {
@@ -1618,6 +1704,257 @@
         showModalMsg(e.message || String(e), true);
       });
   });
+})();
+
+(function () {
+  var section = document.getElementById('orgIntegrationApiSection');
+  if (!section) return;
+  var tenantId = section.getAttribute('data-tenant-id') || '';
+  var msgEl = document.getElementById('orgIntegrationApiMsg');
+  var keysBody = document.getElementById('orgIntegrationKeysBody');
+  var baseUrlField = document.getElementById('orgIntegrationBaseUrlField');
+  var copyTenantBtn = document.getElementById('orgIntegrationCopyTenantId');
+  var dialog = document.getElementById('orgIntegrationKeyDialog');
+  var stepCreate = document.getElementById('orgIntegrationKeyStepCreate');
+  var stepReveal = document.getElementById('orgIntegrationKeyStepReveal');
+  var modalMsg = document.getElementById('orgIntegrationKeyModalMsg');
+  var keyForm = document.getElementById('orgIntegrationKeyForm');
+  var labelInput = document.getElementById('orgIntegrationKeyModalLabel');
+  var revealInput = document.getElementById('orgIntegrationKeyRevealValue');
+  var titleEl = document.getElementById('orgIntegrationKeyDialogTitle');
+  var submitBtn = document.getElementById('orgIntegrationKeySubmitBtn');
+  var addBtn = document.getElementById('orgAddIntegrationKeyBtn');
+
+  function showMsg(text, isErr) {
+    if (!msgEl) return;
+    msgEl.style.display = text ? 'block' : 'none';
+    msgEl.textContent = text || '';
+    msgEl.style.color = isErr ? '#c00' : '';
+  }
+
+  function showModalMsg(text, isErr) {
+    if (!modalMsg) return;
+    if (!text) {
+      modalMsg.style.display = 'none';
+      modalMsg.textContent = '';
+      modalMsg.style.color = '';
+      return;
+    }
+    modalMsg.style.display = 'block';
+    modalMsg.textContent = text;
+    modalMsg.style.color = isErr ? '#c00' : '';
+  }
+
+  function integrationProjectsUrl() {
+    return window.location.origin + '/organisation/' + tenantId + '/api/v1/projects';
+  }
+
+  if (baseUrlField) baseUrlField.value = integrationProjectsUrl();
+
+  function formatIso(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleString();
+    } catch (e) {
+      return '—';
+    }
+  }
+
+  function renderKeyRows(keys) {
+    if (!keysBody) return;
+    keysBody.textContent = '';
+    if (!keys || keys.length === 0) {
+      var tr0 = document.createElement('tr');
+      var td0 = document.createElement('td');
+      td0.colSpan = 5;
+      td0.className = 'small';
+      td0.textContent = 'No keys yet. Use Create integration key for Zapier, Make, n8n, or your own scripts.';
+      tr0.appendChild(td0);
+      keysBody.appendChild(tr0);
+      return;
+    }
+    keys.forEach(function (k) {
+      var tr = document.createElement('tr');
+      function tdText(t) {
+        var td = document.createElement('td');
+        td.textContent = t;
+        return td;
+      }
+      tr.appendChild(tdText(k.prefix || ''));
+      tr.appendChild(tdText(k.label || '—'));
+      tr.appendChild(tdText(formatIso(k.createdAt)));
+      tr.appendChild(tdText(formatIso(k.lastUsedAt)));
+      var tdAct = document.createElement('td');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'transparent org-integration-revoke-key';
+      btn.textContent = 'Revoke';
+      if (k.id) btn.setAttribute('data-key-id', k.id);
+      tdAct.appendChild(btn);
+      tr.appendChild(tdAct);
+      keysBody.appendChild(tr);
+    });
+  }
+
+  var initial = window.__orgIntegrationInitialKeys;
+  if (!Array.isArray(initial)) initial = [];
+  renderKeyRows(initial);
+
+  function copyEl(el) {
+    if (!el || !navigator.clipboard || !navigator.clipboard.writeText) return;
+    var t =
+      el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+        ? String(el.value || '')
+        : String(el.textContent || '').trim();
+    if (!t) return;
+    navigator.clipboard.writeText(t);
+  }
+
+  if (copyTenantBtn) {
+    copyTenantBtn.addEventListener('click', function () {
+      copyEl(document.getElementById('orgIntegrationTenantIdDisplay'));
+      showMsg('Tenant ID copied.', false);
+      setTimeout(function () {
+        showMsg('', false);
+      }, 2000);
+    });
+  }
+
+  function resetIntegrationKeyModal() {
+    showModalMsg('', false);
+    if (stepCreate) stepCreate.hidden = false;
+    if (stepReveal) stepReveal.hidden = true;
+    if (labelInput) labelInput.value = '';
+    if (revealInput) revealInput.value = '';
+    if (titleEl) titleEl.textContent = 'Create integration key';
+    if (submitBtn) submitBtn.disabled = false;
+  }
+
+  function openIntegrationKeyModal() {
+    resetIntegrationKeyModal();
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    if (labelInput) labelInput.focus();
+  }
+
+  function closeIntegrationKeyModal() {
+    if (dialog && typeof dialog.close === 'function') dialog.close();
+  }
+
+  if (addBtn) {
+    addBtn.addEventListener('click', openIntegrationKeyModal);
+  }
+
+  if (dialog) {
+    dialog.addEventListener('close', function () {
+      resetIntegrationKeyModal();
+    });
+  }
+
+  var cancelBtn = document.getElementById('orgIntegrationKeyCancelBtn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function () {
+      closeIntegrationKeyModal();
+    });
+  }
+
+  var copyRevealBtn = document.getElementById('orgIntegrationKeyCopyRevealBtn');
+  if (copyRevealBtn && revealInput) {
+    copyRevealBtn.addEventListener('click', function () {
+      copyEl(revealInput);
+      showModalMsg('Key copied to clipboard.', false);
+      setTimeout(function () {
+        if (stepReveal && !stepReveal.hidden) showModalMsg('', false);
+      }, 2000);
+    });
+  }
+
+  var doneBtn = document.getElementById('orgIntegrationKeyDoneBtn');
+  if (doneBtn) {
+    doneBtn.addEventListener('click', function () {
+      closeIntegrationKeyModal();
+    });
+  }
+
+  if (keysBody) {
+    keysBody.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.classList || !t.classList.contains('org-integration-revoke-key')) return;
+      var kid = t.getAttribute('data-key-id');
+      if (!kid) return;
+      if (!confirm('Revoke this key? Automations using it will stop working.')) return;
+      showMsg('', false);
+      fetch('/organisation/integration-api-keys/' + encodeURIComponent(kid), {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      })
+        .then(function (res) {
+          return res.json().then(function (d) {
+            if (!res.ok) throw new Error(d.message || res.statusText);
+            return d;
+          });
+        })
+        .then(function () {
+          return fetch('/organisation', { headers: { Accept: 'application/json' } });
+        })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (ctx) {
+          renderKeyRows((ctx.subscription && ctx.subscription.integrationApiKeys) || []);
+          showMsg('Key revoked.', false);
+        })
+        .catch(function (e) {
+          showMsg(e.message || String(e), true);
+        });
+    });
+  }
+
+  if (keyForm) {
+    keyForm.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var label = labelInput ? labelInput.value.trim() : '';
+      showModalMsg('', false);
+      if (submitBtn) submitBtn.disabled = true;
+      showModalMsg('Creating key…', false);
+      fetch('/organisation/integration-api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ label: label }),
+      })
+        .then(function (res) {
+          return res.json().then(function (d) {
+            if (!res.ok) throw new Error(d.message || res.statusText);
+            return d;
+          });
+        })
+        .then(function (d) {
+          return fetch('/organisation', { headers: { Accept: 'application/json' } }).then(function (res) {
+            return res.json().then(function (ctx) {
+              return { key: d.key, ctx: ctx };
+            });
+          });
+        })
+        .then(function (bundle) {
+          renderKeyRows(
+            (bundle.ctx.subscription && bundle.ctx.subscription.integrationApiKeys) || []
+          );
+          showModalMsg('', false);
+          if (stepCreate) stepCreate.hidden = true;
+          if (stepReveal) stepReveal.hidden = false;
+          if (revealInput) {
+            revealInput.value = bundle.key || '';
+            revealInput.select();
+          }
+          if (titleEl) titleEl.textContent = 'Your new key';
+          if (submitBtn) submitBtn.disabled = false;
+          showMsg('Integration key created. Copy it in the dialog before closing.', false);
+        })
+        .catch(function (e) {
+          if (submitBtn) submitBtn.disabled = false;
+          showModalMsg(e.message || String(e), true);
+        });
+    });
+  }
 })();
 </script>
 <% } %>

@@ -1,7 +1,11 @@
 const mongoose = require('mongoose');
 const Project = require('../models/project');
 const User = require('../models/user'); // Import the User model
+const OrganisationSubscription = require('../models/organisationSubscription');
 const { findActiveMembershipsForEmail } = require('../lib/organisationEntitlements');
+const { buildTenantSharedProjectsFilter } = require('../lib/integrationApiQuery');
+const { canManageOrganisationProjectIntegrations } = require('../lib/organisationPermissions');
+const { normalizeIntegrationExternalId } = require('../lib/integrationExternalId');
 
 async function getUserProjects(userId) {
     try {
@@ -28,14 +32,25 @@ async function getUserProjects(userId) {
         const sharedProjects = await Project.find({ "sharedWith.user": userEmail });
 
         const activeMemberships = await findActiveMembershipsForEmail(userEmail);
-        const subscriptionIds = activeMemberships
-            .map((m) => m.subscriptionId && m.subscriptionId._id)
+        const tenantIds = activeMemberships
+            .map((m) => m.tenantId && (m.tenantId._id || m.tenantId))
             .filter(Boolean);
         let organisationProjectDocs = [];
-        if (subscriptionIds.length > 0) {
+        if (tenantIds.length > 0) {
+            const subsForTenants = await OrganisationSubscription.find({
+                tenantId: { $in: tenantIds },
+            })
+                .select('_id')
+                .lean();
+            const legacySubscriptionIds = subsForTenants.map((s) => s._id);
             organisationProjectDocs = await Project.find({
                 sharedWithOrganisation: true,
-                organisationSubscriptionId: { $in: subscriptionIds },
+                $or: [
+                    { tenantId: { $in: tenantIds } },
+                    ...(legacySubscriptionIds.length
+                        ? [{ organisationSubscriptionId: { $in: legacySubscriptionIds } }]
+                        : []),
+                ],
             });
         }
 
@@ -73,6 +88,10 @@ async function getUserProjects(userId) {
                 status,
                 organisation: true,
                 ownedByCurrentUser: ownerId && ownerId.equals(userIdObjectId),
+                integrationExternalId:
+                    project.integrationExternalId != null && String(project.integrationExternalId).trim() !== ''
+                        ? String(project.integrationExternalId).trim()
+                        : '',
             };
         });
         const organisationProjectsList = await Promise.all(organisationProjectsPromises);
@@ -338,4 +357,76 @@ async function getProjectOwner(project) {
     }
 }
 
-module.exports = { getUserProjects, getCompletionState, getUserProjectMetrics, addRiskScoreToProject, getProjectOwner };
+async function userMaySetOrganisationIntegrationExternalId(userEmail, project) {
+    if (!project || !project.sharedWithOrganisation) return false;
+    const memberships = await findActiveMembershipsForEmail(userEmail);
+    for (const m of memberships) {
+        if (!canManageOrganisationProjectIntegrations(m)) continue;
+        const tenantOid = m.tenantId && (m.tenantId._id || m.tenantId);
+        if (!tenantOid) continue;
+        const filter = await buildTenantSharedProjectsFilter(tenantOid);
+        const hit = await Project.findOne({ _id: project._id, ...filter }).select('_id').lean();
+        if (hit) return true;
+    }
+    return false;
+}
+
+/**
+ * Set integrationExternalId for an org-shared project (project managers / org admins).
+ * @param {string} userEmail
+ * @param {string} projectId
+ * @param {{ integrationExternalId?: string | null }} body
+ */
+async function setProjectIntegrationExternalId(userEmail, projectId, body) {
+    if (!body || typeof body !== 'object' || !Object.prototype.hasOwnProperty.call(body, 'integrationExternalId')) {
+        const e = new Error(
+            'Body must include integrationExternalId (string; use empty string or null to clear)'
+        );
+        e.status = 400;
+        throw e;
+    }
+    const norm = normalizeIntegrationExternalId(body.integrationExternalId);
+    if (!norm.ok) {
+        const e = new Error(norm.error);
+        e.status = 400;
+        throw e;
+    }
+    if (!mongoose.isValidObjectId(projectId)) {
+        const e = new Error('Invalid project id');
+        e.status = 400;
+        throw e;
+    }
+    const project = await Project.findById(projectId);
+    if (!project) {
+        const e = new Error('Project not found');
+        e.status = 404;
+        throw e;
+    }
+    const allowed = await userMaySetOrganisationIntegrationExternalId(userEmail, project);
+    if (!allowed) {
+        const e = new Error(
+            'You do not have permission to set this reference, or the evaluation is not shared with your organisation'
+        );
+        e.status = 403;
+        throw e;
+    }
+    const oid = project._id;
+    if (!norm.value) {
+        await Project.updateOne({ _id: oid }, { $unset: { integrationExternalId: 1 } });
+    } else {
+        await Project.updateOne({ _id: oid }, { $set: { integrationExternalId: norm.value } });
+    }
+    const fresh = await Project.findById(oid).select('integrationExternalId').lean();
+    const out =
+        fresh && fresh.integrationExternalId != null ? String(fresh.integrationExternalId) : '';
+    return { integrationExternalId: out };
+}
+
+module.exports = {
+    getUserProjects,
+    getCompletionState,
+    getUserProjectMetrics,
+    addRiskScoreToProject,
+    getProjectOwner,
+    setProjectIntegrationExternalId,
+};

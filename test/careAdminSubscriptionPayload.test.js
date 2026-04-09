@@ -2,6 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   validateCreatePayload,
+  validateSubscriptionPeriodPayload,
   parseSubscriptionDateRange,
 } = require('../lib/careAdminSubscriptionPayload');
 
@@ -69,6 +70,33 @@ describe('careAdminSubscriptionPayload', () => {
             validBody({ startDate: '2025-12-31', endDate: '2025-01-01' })
           ),
         { message: /endDate must be on or after startDate/ }
+      );
+    });
+  });
+
+  describe('validateSubscriptionPeriodPayload', () => {
+    it('returns parsed values for renewal body (no org name/domain)', () => {
+      const out = validateSubscriptionPeriodPayload({
+        planTier: 'gold',
+        seatLimit: '5',
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+        amount: '0',
+      });
+      assert.equal(out.seatLimit, 5);
+      assert.equal(out.amount, 0);
+    });
+
+    it('rejects missing planTier', () => {
+      assert.throws(
+        () =>
+          validateSubscriptionPeriodPayload({
+            seatLimit: '5',
+            startDate: '2026-01-01',
+            endDate: '2026-12-31',
+            amount: '0',
+          }),
+        { message: /Missing required field: planTier/ }
       );
     });
   });

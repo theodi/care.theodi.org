@@ -6,6 +6,7 @@ const {
   findActiveMembershipsForEmail,
   normalizeMemberEmail,
   isSubscriptionActive,
+  getActiveSubscriptionForTenantId,
 } = require('../lib/organisationEntitlements');
 
 const pages = require('../pages.json');
@@ -59,6 +60,17 @@ const loadProject = async (req, res, next) => {
     next(); // Call the next middleware function in the chain
 };
 
+async function resolveProjectTenantId(project) {
+    if (project.tenantId) return project.tenantId;
+    if (project.organisationSubscriptionId) {
+        const sub = await OrganisationSubscription.findById(project.organisationSubscriptionId)
+            .select('tenantId')
+            .lean();
+        return sub && sub.tenantId;
+    }
+    return null;
+}
+
 // Middleware to check project access
 const checkProjectAccess = async (req, res, next) => {
     try {
@@ -87,14 +99,18 @@ const checkProjectAccess = async (req, res, next) => {
             return next(); // Project is shared with the user, allow access
         }
 
-        if (project.sharedWithOrganisation && project.organisationSubscriptionId) {
-            const memberships = await findActiveMembershipsForEmail(userEmail);
-            const sid = project.organisationSubscriptionId.toString();
-            const inOrg = memberships.some(
-                (m) => m.subscriptionId && m.subscriptionId._id.toString() === sid
-            );
-            if (inOrg) {
-                return next();
+        if (project.sharedWithOrganisation) {
+            const projectTenantId = await resolveProjectTenantId(project);
+            if (projectTenantId) {
+                const memberships = await findActiveMembershipsForEmail(userEmail);
+                const inOrg = memberships.some(
+                    (m) =>
+                        m.tenantId &&
+                        (m.tenantId._id || m.tenantId).toString() === projectTenantId.toString()
+                );
+                if (inOrg) {
+                    return next();
+                }
             }
         }
 
@@ -147,13 +163,19 @@ const checkOrgAdminCanTransferProjectOwner = async (req, res, next) => {
             error.status = 404;
             throw error;
         }
-        if (!project.sharedWithOrganisation || !project.organisationSubscriptionId) {
+        if (!project.sharedWithOrganisation) {
             const error = new Error("Owner transfer is only available for organisation-shared evaluations");
             error.status = 400;
             throw error;
         }
-        const sub = await OrganisationSubscription.findById(project.organisationSubscriptionId);
-        if (!sub || !isSubscriptionActive(sub)) {
+        const tenantId = await resolveProjectTenantId(project);
+        if (!tenantId) {
+            const error = new Error("Organisation tenant not linked to this evaluation");
+            error.status = 400;
+            throw error;
+        }
+        const activeSub = await getActiveSubscriptionForTenantId(tenantId);
+        if (!activeSub || !isSubscriptionActive(activeSub)) {
             const error = new Error("Organisation subscription is not active");
             error.status = 403;
             throw error;
@@ -161,7 +183,7 @@ const checkOrgAdminCanTransferProjectOwner = async (req, res, next) => {
         const userEmail = req.session.passport.user.email;
         const emailLower = normalizeMemberEmail(userEmail);
         const adminMembership = await OrganisationMembership.findOne({
-            subscriptionId: project.organisationSubscriptionId,
+            tenantId,
             emailLower,
             role: 'admin',
         });

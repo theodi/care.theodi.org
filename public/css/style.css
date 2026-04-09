@@ -408,6 +408,54 @@ a.eval-title-link:focus {
     outline-offset: 2px;
 }
 
+.eval-title-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    line-height: 1.25;
+}
+.eval-project-id-row {
+    font-size: 0.8125rem;
+    color: #555;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    max-width: 100%;
+}
+.eval-project-id-label {
+    font-weight: 600;
+    color: var(--color-dark-blue);
+}
+.eval-project-id-code {
+    font-size: 0.75rem;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    word-break: break-all;
+}
+button.eval-copy-project-id {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0.15rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-dark-blue);
+    border-radius: 4px;
+    line-height: 0;
+    vertical-align: middle;
+}
+button.eval-copy-project-id:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+.eval-copy-project-id__icon {
+    display: block;
+}
+
 /* My evaluations: sharing column (Share button or clickable icons) */
 table.dataTable td.eval-shares-col {
     vertical-align: middle;
@@ -876,6 +924,82 @@ table.dataTable td.eval-shares-col .eval-share-open.btn {
 }
 .organisation-page__summary p {
     margin-top: 0;
+}
+
+.org-integration-api-section .org-integration-label {
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    margin-right: 0.35rem;
+}
+.org-integration-api-section .org-integration-url-field {
+    max-width: 100%;
+    width: min(100%, 42rem);
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+}
+.org-integration-api-section .org-integration-subhead {
+    margin-top: 1.25rem;
+}
+.org-integration-api-section .org-integration-keys-table {
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+}
+.org-integration-api-section .org-integration-api-doc-links {
+    margin: 0.5rem 0 1rem;
+    padding-left: 1.25rem;
+    line-height: 1.5;
+}
+.org-integration-api-section .org-integration-api-doc-links li {
+    margin: 0.35rem 0;
+}
+.org-integration-api-section .org-integration-keys__add-bar {
+    margin-bottom: 0.5rem;
+}
+.org-integration-key-dialog .org-integration-key-reveal-input {
+    max-width: 100%;
+    width: 100%;
+    font-size: 0.8125rem;
+    font-family: ui-monospace, monospace;
+}
+
+/* Organisation evaluations: optional integration reference (project managers) */
+table.dataTable td.eval-org-integration-id-col {
+    vertical-align: middle;
+    max-width: 14rem;
+}
+button.org-eval-integration-edit {
+    display: inline-block;
+    max-width: 100%;
+    text-align: left;
+    font: inherit;
+    font-size: 0.8125rem;
+    color: var(--color-dark-blue);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    padding: 0.15rem 0;
+    border: none;
+    background: transparent;
+    word-break: break-word;
+    line-height: 1.3;
+}
+button.org-eval-integration-edit:hover {
+    text-decoration-thickness: 2px;
+}
+table.dataTable td.eval-org-integration-id-col .org-eval-integration-add {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.65rem;
+}
+.org-integration-id-dialog .org-integration-id-dialog__lead {
+    margin-bottom: 1rem;
+    line-height: 1.45;
+}
+.org-integration-id-dialog .org-integration-id-dialog__lead code {
+    font-size: 0.85em;
+}
+.org-integration-id-dialog .org-integration-id-dialog__actions {
+    margin-top: 1rem;
 }
 
 /* Organisation page: DataTables toolbars + zebra rows on light-blue blocks */

@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const editIdEl = document.getElementById('subscriptionEditId');
   const editId = editIdEl && editIdEl.value.trim();
+  const renewalTenantIdEl = document.getElementById('renewalTenantId');
+  const renewalTenantId = renewalTenantIdEl && renewalTenantIdEl.value.trim();
+  const isRenewal = !editId && !!renewalTenantId;
   const emailDomainInput = document.getElementById('sub-emailDomain');
   const initialAdminInput = document.getElementById('sub-initialAdminEmail');
   const adminEmailsTa = document.getElementById('sub-adminEmails');
@@ -110,16 +113,25 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    const body = {
-      organisationName: form.organisationName.value.trim(),
-      emailDomain: form.emailDomain.value.trim(),
-      initialAdminEmail: form.initialAdminEmail.value.trim(),
-      planTier: form.planTier.value,
-      seatLimit: form.seatLimit.value,
-      startDate: form.startDate.value,
-      endDate: form.endDate.value,
-      amount: form.amount.value,
-    };
+    const body = isRenewal
+      ? {
+          tenantId: renewalTenantId,
+          planTier: form.planTier.value,
+          seatLimit: form.seatLimit.value,
+          startDate: form.startDate.value,
+          endDate: form.endDate.value,
+          amount: form.amount.value,
+        }
+      : {
+          organisationName: form.organisationName.value.trim(),
+          emailDomain: form.emailDomain.value.trim(),
+          initialAdminEmail: form.initialAdminEmail.value.trim(),
+          planTier: form.planTier.value,
+          seatLimit: form.seatLimit.value,
+          startDate: form.startDate.value,
+          endDate: form.endDate.value,
+          amount: form.amount.value,
+        };
     showMessage('Saving…', false);
     try {
       const res = await fetch('/subscriptions', {

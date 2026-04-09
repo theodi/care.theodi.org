@@ -34,6 +34,16 @@ describe('formatApiError', () => {
     assert.ok(String(body.message).includes('already'));
   });
 
+  it('maps duplicate key on tenantId + emailLower to friendly text', () => {
+    const err = new Error('E11000');
+    err.code = 11000;
+    err.keyPattern = { tenantId: 1, emailLower: 1 };
+    const { statusCode, body } = formatApiError(err);
+    assert.equal(statusCode, 409);
+    assert.equal(body.code, 'DUPLICATE_KEY');
+    assert.ok(String(body.message).includes('already'));
+  });
+
   it('maps legacy subscriptionId+userId duplicate to fix-script hint', () => {
     const err = new Error('E11000');
     err.code = 11000;

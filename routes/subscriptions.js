@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { ensureCareStaff } = require('../middleware/careStaff');
 const careAdminController = require('../controllers/careAdmin');
+const Tenant = require('../models/tenant');
 
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) return next();
@@ -14,13 +15,28 @@ function ensureAuthenticated(req, res, next) {
   res.redirect('/');
 }
 
-router.get('/new', ensureAuthenticated, ensureCareStaff, (req, res) => {
-  res.locals.page = {
-    title: 'New organisation subscription',
-    link: '/subscriptions/new',
-  };
-  res.locals.subscriptionEditId = '';
-  res.render('pages/subscriptions-new');
+router.get('/new', ensureAuthenticated, ensureCareStaff, async (req, res, next) => {
+  try {
+    const tenantId = String((req.query && req.query.tenantId) || '').trim();
+    let renewalTenant = null;
+    if (tenantId) {
+      renewalTenant = await Tenant.findById(tenantId).lean();
+      if (!renewalTenant) {
+        const err = new Error('Tenant not found');
+        err.status = 404;
+        throw err;
+      }
+    }
+    res.locals.page = {
+      title: renewalTenant ? 'Add subscription period' : 'New organisation subscription',
+      link: '/subscriptions/new',
+    };
+    res.locals.subscriptionEditId = '';
+    res.locals.renewalTenant = renewalTenant;
+    res.render('pages/subscriptions-new');
+  } catch (e) {
+    next(e);
+  }
 });
 
 router.get('/:id/edit', ensureAuthenticated, ensureCareStaff, async (req, res, next) => {
@@ -78,10 +94,12 @@ router.post('/', ensureAuthenticated, ensureCareStaff, async (req, res, next) =>
   try {
     const userId = req.session.passport.user.id;
     const sub = await careAdminController.createSubscription(req.body, userId);
+    const full = await careAdminController.getSubscription(sub._id);
     res.status(201).json({
       id: sub._id,
-      organisationName: sub.organisationName,
-      emailDomain: sub.emailDomain,
+      tenantId: full && full.tenantId,
+      organisationName: full && full.organisationName,
+      emailDomain: full && full.emailDomain,
       planTier: sub.planTier,
       seatLimit: sub.seatLimit,
       amount: sub.amount,
@@ -97,11 +115,15 @@ router.patch('/:id', ensureAuthenticated, ensureCareStaff, async (req, res, next
   try {
     const userId = req.session.passport.user.id;
     const sub = await careAdminController.updateSubscription(req.params.id, req.body, userId);
-    const adminEmails = await careAdminController.adminEmailsForSubscriptionId(sub._id);
+    const full = await careAdminController.getSubscription(sub._id);
+    const adminEmails = full
+      ? full.adminEmails
+      : await careAdminController.adminEmailsForSubscriptionId(sub._id);
     res.json({
       id: sub._id,
-      organisationName: sub.organisationName,
-      emailDomain: sub.emailDomain,
+      tenantId: full && full.tenantId,
+      organisationName: full && full.organisationName,
+      emailDomain: full && full.emailDomain,
       planTier: sub.planTier,
       seatLimit: sub.seatLimit,
       amount: sub.amount,

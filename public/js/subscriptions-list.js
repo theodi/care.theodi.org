@@ -29,6 +29,10 @@ function renderSubscriptionsTable(rows) {
   rows.forEach((s) => {
     const tr = document.createElement('tr');
     const id = String(s.id);
+    const tenantId = String(s.tenantId || '');
+    const renewControl = tenantId
+      ? `<button type="button" class="transparent subscription-row-renew" data-href="/subscriptions/new?tenantId=${encodeURIComponent(tenantId)}">Renew</button>`
+      : '<span class="small">Renew unavailable</span>';
     tr.innerHTML = `
       <td>${escapeHtml(s.organisationName)}<br/><small>id: ${escapeHtml(id)}</small></td>
       <td>${escapeHtml(s.emailDomain)}</td>
@@ -37,11 +41,20 @@ function renderSubscriptionsTable(rows) {
       <td>${formatDate(s.startDate)} – ${formatDate(s.endDate)}</td>
       <td>${s.status === 'active' ? 'Active' : 'Expired'}</td>
       <td>${escapeHtml((s.adminEmails || []).join(', ') || '—')}</td>
-      <td><button type="button" class="transparent subscription-row-edit" data-href="/subscriptions/${encodeURIComponent(id)}/edit">Edit</button></td>
+      <td>
+        <button type="button" class="transparent subscription-row-edit" data-href="/subscriptions/${encodeURIComponent(id)}/edit">Edit</button>
+        ${renewControl}
+      </td>
     `;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll('.subscription-row-edit').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const href = this.getAttribute('data-href');
+      if (href) window.location.href = href;
+    });
+  });
+  tbody.querySelectorAll('.subscription-row-renew').forEach(function (btn) {
     btn.addEventListener('click', function () {
       const href = this.getAttribute('data-href');
       if (href) window.location.href = href;

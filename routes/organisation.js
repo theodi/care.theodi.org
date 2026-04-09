@@ -211,4 +211,30 @@ router.delete('/report-template', ensureAuthenticated, async (req, res, next) =>
   }
 });
 
+router.post('/integration-api-keys', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.createTenantIntegrationApiKey(userId, req.body || {});
+    res.status(201).json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete('/integration-api-keys/:keyId', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.deleteTenantIntegrationApiKey(
+      userId,
+      req.params.keyId
+    );
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+const tenantIntegrationApiRoutes = require('./tenantIntegrationApi');
+router.use(tenantIntegrationApiRoutes);
+
 module.exports = router;

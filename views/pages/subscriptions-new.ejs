@@ -1,9 +1,12 @@
 <% const isEdit = typeof subscriptionEditId !== 'undefined' && subscriptionEditId; %>
+<% const renewalTenantData = typeof renewalTenant !== 'undefined' ? renewalTenant : null; %>
+<% const isRenewal = !isEdit && renewalTenantData && renewalTenantData._id; %>
 <div class="main-content">
   <section class="page-title container white">
     <h1 style="text-align: center;"><%= page.title %></h1>
     <input type="hidden" value="<%= page.link %>" id="pageId"/>
     <input type="hidden" id="subscriptionEditId" value="<%= isEdit ? subscriptionEditId : '' %>"/>
+    <input type="hidden" id="renewalTenantId" value="<%= isRenewal ? renewalTenantData._id : '' %>"/>
   </section>
 
   <div class="content-block white">
@@ -15,12 +18,12 @@
       <div class="sub-form__row">
         <label class="sub-form__label" for="sub-organisationName">Organisation name</label>
         <div class="sub-form__control">
-          <input type="text" id="sub-organisationName" name="organisationName" required class="input inputText" placeholder="e.g. Example Ltd" autocomplete="organization"/>
+          <input type="text" id="sub-organisationName" name="organisationName" required class="input inputText" placeholder="e.g. Example Ltd" autocomplete="organization"<% if (isRenewal) { %> value="<%= renewalTenantData.organisationName || '' %>" readonly<% } %>/>
         </div>
         <p class="sub-form__hint">Shown in the list so you can confirm you created the right customer. Not shown to organisation users.</p>
       </div>
 
-      <div class="sub-form__row" id="subscriptionCreateDomainRow"<% if (isEdit) { %> style="display: none;"<% } %>>
+      <div class="sub-form__row" id="subscriptionCreateDomainRow"<% if (isEdit || isRenewal) { %> style="display: none;"<% } %>>
         <label class="sub-form__label" for="sub-emailDomain">Email domain</label>
         <div class="sub-form__control">
           <input type="text" id="sub-emailDomain" name="emailDomain" required class="input inputText" placeholder="example.com" autocapitalize="none" autocomplete="off" spellcheck="false"/>
@@ -28,15 +31,15 @@
         <p class="sub-form__hint">Members you invite must sign in with an address on this domain (e.g. <kbd>name@example.com</kbd>). Enter the host only, without <kbd>@</kbd>.</p>
       </div>
 
-      <div class="sub-form__row" id="subscriptionEditDomainRow"<% if (!isEdit) { %> style="display: none;"<% } %>>
+      <div class="sub-form__row" id="subscriptionEditDomainRow"<% if (!(isEdit || isRenewal)) { %> style="display: none;"<% } %>>
         <label class="sub-form__label">Email domain</label>
         <div class="sub-form__control">
-          <strong>@<span id="sub-emailDomainDisplay"></span></strong>
+          <strong>@<span id="sub-emailDomainDisplay"><%= isRenewal ? (renewalTenantData.emailDomain || '') : '' %></span></strong>
           <p class="sub-form__hint">The domain cannot be changed; existing members are tied to it.</p>
         </div>
       </div>
 
-      <div class="sub-form__row" id="subscriptionCreateAdminRow"<% if (isEdit) { %> style="display: none;"<% } %>>
+      <div class="sub-form__row" id="subscriptionCreateAdminRow"<% if (isEdit || isRenewal) { %> style="display: none;"<% } %>>
         <label class="sub-form__label" for="sub-initialAdminEmail">Initial admin (email)</label>
         <div class="sub-form__control">
           <input type="email" id="sub-initialAdminEmail" name="initialAdminEmail" required class="input inputText" placeholder="admin@example.com" autocomplete="email"/>
@@ -96,7 +99,7 @@
       </div>
 
       <div class="sub-form__actions">
-        <button type="submit" class="btn btn-primary" id="subscriptionFormSubmit"><%= isEdit ? 'Save changes' : 'Create subscription' %></button>
+        <button type="submit" class="btn btn-primary" id="subscriptionFormSubmit"><%= isEdit ? 'Save changes' : (isRenewal ? 'Create period' : 'Create subscription') %></button>
         <button type="button" class="transparent" onclick="window.location.href='/subscriptions'">Cancel</button>
       </div>
     </form>

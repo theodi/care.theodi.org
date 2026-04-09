@@ -7,14 +7,8 @@ const projectController = require('../controllers/project');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
-const { buildDocx } = require('../lib/docxBuilder'); // Import the buildDocx function
 const OrganisationSubscription = require('../models/organisationSubscription');
-const {
-  readOrgReportTemplateBuffer,
-  orgTemplateFileExists,
-} = require('../lib/orgReportTemplateStorage');
-const { extractAccentHexFromDocxBuffer } = require('../lib/reportTemplateValidation');
-const docx = require('docx');
+const { exportProjectToDocxTempFile } = require('../lib/projectDocxExport');
 
 // Middleware to ensure user is authenticated
 async function ensureAuthenticated(req, res, next) {
@@ -184,6 +178,25 @@ router.delete('/:id/sharedUsers/:userId', ensureAuthenticated, checkProjectOwner
     }
 });
 
+router.patch(
+    '/:id/integration-external-id',
+    ensureAuthenticated,
+    async (req, res, next) => {
+        try {
+            const email = req.session.passport.user.email;
+            const result = await projectController.setProjectIntegrationExternalId(
+                email,
+                req.params.id,
+                req.body || {}
+            );
+            res.json(result);
+        } catch (e) {
+            const status = e.status || 500;
+            res.status(status).json({ message: e.message || 'Error' });
+        }
+    }
+);
+
 router.patch('/:id/organisation-share', ensureAuthenticated, checkProjectOwner, async (req, res, next) => {
     try {
         const { sharedWithOrganisation } = req.body;
@@ -200,8 +213,9 @@ router.patch('/:id/organisation-share', ensureAuthenticated, checkProjectOwner, 
             if (!memberships.length) {
                 return res.status(403).json({ message: 'No active organisation membership' });
             }
-            const subId = memberships[0].subscriptionId._id;
-            project.organisationSubscriptionId = subId;
+            const tenantOid = memberships[0].tenantId._id || memberships[0].tenantId;
+            project.tenantId = tenantOid;
+            project.organisationSubscriptionId = undefined;
             project.sharedWithOrganisation = true;
         } else {
             project.sharedWithOrganisation = false;
@@ -210,6 +224,7 @@ router.patch('/:id/organisation-share', ensureAuthenticated, checkProjectOwner, 
         res.json({
             message: 'Updated',
             sharedWithOrganisation: project.sharedWithOrganisation,
+            tenantId: project.tenantId,
             organisationSubscriptionId: project.organisationSubscriptionId,
         });
     } catch (error) {
@@ -251,8 +266,18 @@ router.patch('/:id/owner', ensureAuthenticated, checkOrgAdminCanTransferProjectO
             return res.status(400).json({ message: 'Invalid owner email' });
         }
 
+        let projectTenantId = project.tenantId;
+        if (!projectTenantId && project.organisationSubscriptionId) {
+            const s = await OrganisationSubscription.findById(project.organisationSubscriptionId)
+                .select('tenantId')
+                .lean();
+            projectTenantId = s && s.tenantId;
+        }
+        if (!projectTenantId) {
+            return res.status(400).json({ message: 'Project is not linked to an organisation tenant' });
+        }
         const targetMembership = await OrganisationMembership.findOne({
-            subscriptionId: project.organisationSubscriptionId,
+            tenantId: projectTenantId,
             emailLower: targetEmailLower,
         });
         if (!targetMembership) {
@@ -329,127 +354,37 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
             res.setHeader('Content-Type', 'text/csv');
             return res.send(csv);
         } else if (acceptHeader === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-            // Respond with DOCX
             console.log('Starting DOCX generation for project:', project._id);
-            
             try {
-                project = await projectController.addRiskScoreToProject(project);
-                console.log('Risk scores added to project');
-                
-                let owner = await projectController.getProjectOwner(project);
-                console.log('Project owner retrieved:', owner?.name);
-                
-                const userProjects = [];
-                userProjects.push(project);
-                let metrics = await projectController.getUserProjectMetrics(userProjects);
-                console.log('Project metrics retrieved:', Object.keys(metrics || {}));
-                
-                const appendGlossaryRaw = req.query.appendGlossary;
-                const includeGlossaryAppendix =
-                    appendGlossaryRaw !== undefined &&
-                    appendGlossaryRaw !== null &&
-                    appendGlossaryRaw !== '' &&
-                    ['1', 'true', 'yes'].includes(String(appendGlossaryRaw).toLowerCase());
-
-                const includeAiRaw = req.query.includeAiProvenance;
-                const includeAiProvenance =
-                    includeAiRaw !== undefined &&
-                    includeAiRaw !== null &&
-                    includeAiRaw !== '' &&
-                    ['1', 'true', 'yes'].includes(String(includeAiRaw).toLowerCase());
-
-                /** Org template/accent: explicit share link, else owner's active licence (same rule as organisation-share). */
-                let subscriptionIdForTemplate = project.organisationSubscriptionId;
-                if (!subscriptionIdForTemplate && owner?.email) {
-                    const ownerMemberships = await findActiveMembershipsForEmail(owner.email);
-                    const first = ownerMemberships[0];
-                    if (first?.subscriptionId?._id) {
-                        subscriptionIdForTemplate = first.subscriptionId._id;
-                    }
-                }
-
-                let templateBuffer = null;
-                let accentHex = undefined;
-                if (subscriptionIdForTemplate) {
-                    try {
-                        const orgSub = await OrganisationSubscription.findById(
-                            subscriptionIdForTemplate
-                        ).lean();
-                        if (orgSub) {
-                            if (orgSub.reportTemplateUploadedAt && orgTemplateFileExists(orgSub._id)) {
-                                const buf = readOrgReportTemplateBuffer(orgSub._id);
-                                if (buf && Buffer.isBuffer(buf) && buf.length >= 1000) {
-                                    templateBuffer = buf;
-                                    accentHex = extractAccentHexFromDocxBuffer(buf);
-                                } else {
-                                    console.warn(
-                                        '[docx] Organisation template file missing or invalid; using default template'
-                                    );
-                                }
-                            }
-                        }
-                    } catch (orgErr) {
-                        console.warn('[docx] Could not load organisation template:', orgErr.message);
-                    }
-                }
-
-                console.log('Calling buildDocx...', {
-                    includeGlossaryAppendix,
-                    includeAiProvenance,
-                    customTemplate: !!templateBuffer,
-                });
-                const tempFilePath = await buildDocx(project, metrics, owner, {
-                    includeGlossaryAppendix,
-                    includeAiProvenance,
-                    templateBuffer: templateBuffer || undefined,
-                    accentHex,
-                });
+                const { tempFilePath, attachmentFileName } = await exportProjectToDocxTempFile(
+                    project,
+                    req.query
+                );
                 console.log('buildDocx completed, temp file:', tempFilePath);
-                
-                // Validate the generated file
-                if (!tempFilePath || !fs.existsSync(tempFilePath)) {
-                    throw new Error('Generated file does not exist');
-                }
-                
-                const fileStats = fs.statSync(tempFilePath);
-                console.log('Generated file size:', fileStats.size, 'bytes');
-                
-                if (fileStats.size < 1000) {
-                    throw new Error(`Generated file is too small (${fileStats.size} bytes), likely corrupted`);
-                }
-                
-                // Sanitize filename for HTTP headers - remove invalid characters
-                const sanitizedTitle = project.title
-                    .replace(/[^\w\s-]/g, '') // Remove special characters except spaces and hyphens
-                    .replace(/\s+/g, '_') // Replace spaces with underscores
-                    .trim();
-                const fileName = `${sanitizedTitle}.docx`;
-                console.log('Sending file:', fileName, 'size:', fileStats.size);
-                
-                // Use a simple, safe filename for the header to avoid encoding issues
-                const safeFileName = `project_report.docx`;
-                res.set('Content-Disposition', `attachment; filename="${safeFileName}"`);
-                res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-                
+                res.set(
+                    'Content-Disposition',
+                    `attachment; filename="${attachmentFileName}"`
+                );
+                res.set(
+                    'Content-Type',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
                 res.sendFile(path.resolve(tempFilePath), async (err) => {
                     if (err) {
-                        console.error("Error sending file:", err);
+                        console.error('Error sending file:', err);
                     } else {
-                        console.log('File sent successfully, cleaning up...');
-                        // Cleanup temporary file after sending
                         try {
                             await fs.promises.unlink(tempFilePath);
-                            console.log('Temporary file cleaned up');
                         } catch (error) {
-                            console.error("Error deleting temporary file:", error);
+                            console.error('Error deleting temporary file:', error);
                         }
                     }
                 });
             } catch (docxError) {
                 console.error('Error in DOCX generation:', docxError);
-                return res.status(500).json({ 
-                    error: 'Failed to generate DOCX file', 
-                    details: docxError.message 
+                return res.status(500).json({
+                    error: 'Failed to generate DOCX file',
+                    details: docxError.message,
                 });
             }
         } else {
@@ -474,6 +409,7 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
 
         const createPayload = { ...req.body };
         delete createPayload.aiInteractionHistory;
+        delete createPayload.integrationExternalId;
         const project = new Project(createPayload);
         const savedProject = await project.save();
         if (req.session.authMethod !== 'local') {
@@ -492,7 +428,9 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, nex
         const payload = { ...req.body };
         delete payload.owner;
         delete payload.organisationSubscriptionId;
+        delete payload.tenantId;
         delete payload.sharedWithOrganisation;
+        delete payload.integrationExternalId;
         delete payload.aiInteractionHistory;
         const updatedProject = await Project.findByIdAndUpdate(id, payload, { new: false });
         if (!updatedProject) {

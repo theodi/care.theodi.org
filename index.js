@@ -156,6 +156,10 @@ function unauthorised(res) {
 
 // Routes
 
+app.get('/docs/tenant-integration', (req, res) => {
+  res.redirect(301, '/docs/tenant-integration.html');
+});
+
 app.use(express.static(__dirname + '/public')); // Public directory
 
 // Use authentication routes

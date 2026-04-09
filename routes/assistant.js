@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const Project = require('../models/project');
 const User = require('../models/user');
-const OrganisationSubscription = require('../models/organisationSubscription');
+const Tenant = require('../models/tenant');
 
 const { chatCompletion } = require('../services/aiChat');
 const { parseModelJsonResponse } = require('../services/parseAIJson');
@@ -806,10 +806,9 @@ async function resolveOrganisationScanContextAppend(req, messageId) {
   const user = await User.findById(userId);
   if (!user || !user.email) return '';
   const m = await findMembershipForEmail(user.email);
-  if (!m || !m.subscriptionId) return '';
-  const subId = m.subscriptionId._id || m.subscriptionId;
-  const sub = await OrganisationSubscription.findById(subId);
-  return getScanContextTextForSubscription(sub, messageId);
+  if (!m || !m.tenantId) return '';
+  const tenant = m.tenantId._id ? m.tenantId : await Tenant.findById(m.tenantId);
+  return getScanContextTextForSubscription(tenant, messageId);
 }
 
 async function resolveOrganisationAiOverrides(req) {
@@ -823,11 +822,10 @@ async function resolveOrganisationAiOverrides(req) {
     if (!userId) return {};
     const user = await User.findById(userId);
     if (!user || !user.email) return {};
-    const m = await findMembershipForEmail(user.email);
-    if (!m || !m.subscriptionId) return {};
-    const subId = m.subscriptionId._id || m.subscriptionId;
-    const sub = await OrganisationSubscription.findById(subId);
-    const ov = orgAiToRuntimeOverrides(sub && sub.organisationAi);
+  const m = await findMembershipForEmail(user.email);
+  if (!m || !m.tenantId) return {};
+  const tenant = m.tenantId._id ? m.tenantId : await Tenant.findById(m.tenantId);
+  const ov = orgAiToRuntimeOverrides(tenant && tenant.organisationAi);
     return ov || {};
 }
 

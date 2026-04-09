@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Tenant integrations API — developer documentation · CARE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #faf9f7;
+      --ink: #1a1f2e;
+      --muted: #5c6478;
+      --accent: #003057;
+      --border: #e2e0dc;
+    }
+    body { margin: 0; font-family: 'Source Sans 3', system-ui, sans-serif; color: var(--ink); background: var(--bg); }
+    .dev-doc-wrap {
+      box-sizing: border-box;
+      width: 100%;
+      max-width: min(96vw, 112rem);
+      margin: 0 auto;
+      padding: 2rem clamp(1.25rem, 4vw, 3rem) 3rem;
+    }
+    .dev-doc-wrap h1 { font-family: 'Source Serif 4', Georgia, serif; font-size: 1.75rem; font-weight: 600; margin: 0 0 0.35rem; color: var(--accent); }
+    .dev-doc-meta { font-size: 0.875rem; color: var(--muted); margin: 0 0 1.5rem; }
+    .dev-doc-intro { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 1.35rem clamp(1.25rem, 3vw, 2.25rem); margin-bottom: 2rem; line-height: 1.6; font-size: 1rem; }
+    .dev-doc-intro h2 { font-family: 'Source Serif 4', Georgia, serif; font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--accent); }
+    .dev-doc-intro h2:first-child { margin-top: 0; }
+    .dev-doc-intro ul { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+    .dev-doc-intro li { margin: 0.35rem 0; }
+    .dev-doc-intro a { color: var(--accent); }
+    .dev-doc-intro a:hover { text-decoration: underline; }
+    .dev-doc-intro code { font-size: 0.88em; background: #f0eeea; padding: 0.12em 0.38em; border-radius: 3px; }
+    .dev-doc-note { margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.875rem; color: var(--muted); line-height: 1.5; }
+    .dev-doc-note a { color: var(--accent); }
+    #redoc-container {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      min-height: 24rem;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="dev-doc-wrap">
+    <h1>Tenant integrations API</h1>
+    <p class="dev-doc-meta">Developer documentation · CARE read-only organisation API · v1</p>
+
+    <article class="dev-doc-intro">
+      <h2>Overview</h2>
+      <p>This API exposes <strong>machine-readable JSON</strong> for evaluations that are <strong>shared with your organisation</strong>. Put your <strong>Tenant ID</strong> in the URL path and an <strong>integration API key</strong> in the <code>Authorization: Bearer …</code> header. Organisation admins create and revoke keys on the <a href="/organisation">Organisation</a> page (active subscription required).</p>
+      <p>JSON endpoints require <code>Accept: application/json</code> (otherwise <strong>406</strong>). The <strong>Word report</strong> endpoint (<code>GET …/projects/{id}/report</code>) requires <code>Accept: application/vnd.openxmlformats-officedocument.wordprocessingml.document</code> instead.</p>
+
+      <h2>Finding IDs</h2>
+      <ul>
+        <li><strong>Tenant ID</strong> — On the Organisation page under Integrations API, or as <code>tenantId</code> in <code>GET /organisation</code> with <code>Accept: application/json</code>.</li>
+        <li><strong>Project ID</strong> — On <a href="/projects">Evaluations</a>, under each title (copy control), or <code>id</code> from the API list response.</li>
+        <li><strong>Your project ID (<code>integrationExternalId</code>)</strong> — Optional. Organisation admins and <strong>Project managers</strong> set <strong>Your project ID</strong> on organisation-shared evaluations (modal from the organisation evaluations table). When set, it appears on list, detail, summary, and work-item payloads for easier matching in Zapier, Make, n8n, or custom integrations.</li>
+      </ul>
+
+      <h2>Downloads</h2>
+      <ul>
+        <li><a href="/docs/tenant-integration-openapi.yaml" download>OpenAPI 3 specification (YAML)</a></li>
+        <li><a href="/docs/tenant-integration-zapier.md">Zapier / Make / n8n cookbook</a> (Markdown)</li>
+        <li><a href="/organisation">Back to Organisation</a> (keys and Tenant ID)</li>
+      </ul>
+
+      <p class="dev-doc-note"><strong>API reference below</strong> is rendered from <code>tenant-integration-openapi.yaml</code> in this folder using <a href="https://github.com/Redocly/redoc" rel="noopener noreferrer">Redoc</a>. The interactive reference stays aligned with the downloadable YAML—describe endpoints and schemas once in OpenAPI, not twice by hand.</p>
+    </article>
+
+    <div id="redoc-container"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.5/bundles/redoc.standalone.min.js"></script>
+  <script>
+    Redoc.init(
+      'tenant-integration-openapi.yaml',
+      {
+        scrollYOffset: 0,
+        theme: {
+          /* Match wide page; Redoc centers content within this max */
+          layout: { maxWidth: '1800px' },
+          spacing: { unit: 6, sectionHorizontal: 48 },
+          colors: { primary: { main: '#003057' } },
+          typography: {
+            fontFamily: 'Source Sans 3, system-ui, sans-serif',
+            fontSize: '15px',
+            lineHeight: '1.55',
+            headings: { fontFamily: 'Source Serif 4, Georgia, serif' }
+          }
+        }
+      },
+      document.getElementById('redoc-container')
+    );
+  </script>
+</body>
+</html>
