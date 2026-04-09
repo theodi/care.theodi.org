@@ -1,93 +1,131 @@
-# ODI Care Tool
+# ODI CARE Tool
 
-The ODI Care Tool is designed to help organisations think about the potential impact of their product or service on people and society through consequence scanning. This interactive tool provides a framework to carry out a consequence scanning activity and generate a risk register that can be downloaded and incorporated into your project planning and governance.
+CARE helps teams think through the real-world impact of a product, service, or data project before problems appear. It gives you a clear way to spot risks early, plan actions, and export useful outputs for governance and delivery teams.
 
-## Dependencies
+## What CARE is
 
-- OAuth credentials for Google and Django
-- MongoDB (for storing user and token records)
-- OpenAI - For using AI to assist form completion
-- Node.js
-- Express.js
-- Passport.js
-- Mongoose
+CARE is a guided workflow for:
 
-## Installation and Setup
+- capturing project and context details
+- identifying intended and unintended consequences
+- evaluating risk and likelihood
+- defining mitigation actions and KPIs
+- producing outputs you can use in governance, assurance, and planning
 
-1. Clone this repository to your local machine.
-2. Install dependencies using `npm install`.
-3. Create a `config.env` file in the root directory based on the provided `config.env.example` file. Fill in the required environment variables, including the HubSpot API key and the limit for the number of free projects.
-4. Start the server using `npm start`.
-5. Access the server at `http://localhost:3080`.
+You can use CARE as an individual, or as part of a larger organisation with shared controls for AI, report templates, permissions, and integrations.
 
-## Usage
+## v3.0.0 Feature Changelog
 
-- Visit `http://localhost:3080/` and login.
-- Use the interactive tool to conduct a consequence scan by selecting from example case studies or starting a new project.
-- Document potential outcomes to mitigate or address potential harms or disasters before they happen.
-- Generate and download a risk register to incorporate into your project planning and governance.
+This release adds major organisation features and a stronger integrations API, while also improving the day-to-day scanning experience for all users.
 
-## Features
+### Enterprise and organisation management
 
-### Supported by AI
+- Customer organisations get a shared workspace to manage licensed users, seat usage, and active participation in one place.
+- Teams can add and remove licensed users and keep seat allocation aligned with current delivery needs.
+- Organisation admins can assign scoped permissions so people get access based on their role:
+  - license manager
+  - AI model admin
+  - prompt manager
+  - report manager
+  - project manager
+- Built-in role protections help reduce accidental changes to important organisation settings.
 
-The tool uses a ChatGPT plugin to assist you in the process of consequence scanning. Throughout the tool, you will have the option to generate suggestions and ideas for your project to help you identify consequences and plan risk mitigation.
+Example use:
+- If your policy team owns report templates, your data team owns AI setup, and your PM team owns project references, each group can get the access they need without everyone becoming a full admin.
+- Benefit: better governance and fewer accidental changes.
 
-The tool will:
-- **Analyse data**: The AI reads and analyses the content you input, including project descriptions, data details, and stakeholder information.
-- **Suggest consequences**: Based on this analysis, the AI suggests potential consequences, both positive and negative, that might arise from your data project.
-- **Assess risk**: The tool will assess the impact and likelihood of these consequences to help you prioritize and manage risks effectively.
-- **Create actions**: The AI will generate specific actions to mitigate and manage identified consequences.
-- **Recommend KPIs**: The tool will also recommend Key Performance Indicators (KPIs) for your actions to track the effectiveness of your risk mitigation actions.
+### Organisation AI controls
 
-Please note: Suggestions from the AI assistant are provided for consideration and should be taken as presented.
+- Policy-led bring-your-own AI so an organisation can use its approved provider, bespoke internal model, or managed AI service as the default for licensed users.
+- Provider support for OpenAI, OpenAI-compatible endpoints, Anthropic, Google Gemini, and Azure OpenAI-compatible setups.
+- Where supported by the chosen provider, organisations can enable in-flight reasoning and set the reasoning level.
+- During AI-assisted scans, users can view the model's live reasoning when this feature is enabled.
+- In-app AI configuration testing:
+  - test saved settings
+  - test unsaved form values before committing changes
+- Additional model behaviour options, including token limits and structured output controls.
 
-### Authentication Methods
+Example use:
+- If your organisation policy says teams must use an internal AI gateway or a specific approved model, admins can configure that once and make it the default for all licensed users.
+- Benefit: aligned with your governance policy, with consistent AI behaviour, faster onboarding, and fewer configuration errors.
 
-1. **Google Authentication**:
-   - Provides admin access.
-   - Admins have additional privileges, including the ability to change the local account password.
-   - Once logged in with Google, an option to change the local password will appear in the navigation tool bar.
+### Prompt customisation by scan stage
 
-2. **Django Authentication**:
-   - Represents users with accounts on the ODI's website.
-   - These users have access to the tool based on their ODI membership.
+- Organisations can tailor the AI prompts used in each scan stage.
+- Prompt customisation can be managed globally, so every licensed user benefits from the same organisation-level setup.
+- Stage coverage visibility helps teams see where prompt customisation exists and where gaps remain.
+- Managed editing workflow supports creating, updating, and removing scan-stage prompt customisations.
 
-3. **Local Accounts**:
-   - Equivalent to free accounts and are limited to the FREE_PROJECT_LIMIT.
-   - These accounts are designed for short-term use and demonstrations.
+Example use:
+- An organisation can include key elements from internal governance documents and ethical frameworks in specific scan stages, so AI responses are guided in the right direction for that context.
+- Benefit: stronger consistency with organisational governance and values across all scans.
 
-### Local Login for Test Accounts
+### Customisable reports for all users
 
-The ODI Care Tool provides a local login feature for test accounts to facilitate easy demonstration and testing of the tool without requiring OAuth logins. Here's how it works:
+- Users can choose what to include in report exports.
+- Reports can include the tool glossary when needed.
+- Where AI is used, this is explicitly marked in the report.
+- Users can choose to include the full AI conversation history, which is now recorded for provenance:
+  - every prompt
+  - in-flight reasoning (where enabled)
+  - every AI response
+  - the AI configuration used
+- This gives teams a transparent audit trail from AI input to AI output.
 
-- **Local accounts creation**: Local accounts can be created using a predefined password that is set for all test accounts. These accounts are intended for short-term use and demonstrations.
-- **Password reset**: The default password for local accounts can be reset through a secure form accessible after logging in with Google authentication. This reset process will also delete all existing local accounts and associated projects to ensure a clean slate for new demonstrations.
-- **Daily cleanup**: All local accounts and their associated projects are automatically deleted every day at 03:30 UTC. This cleanup ensures that local accounts are only used temporarily and do not persist beyond their intended short-term use.
+Example use:
+- A team preparing for governance review can export a report that includes the glossary, AI usage disclosure, and full AI history to show exactly how conclusions were generated.
+- Benefit: full transparency and stronger assurance evidence.
 
-#### Using the Local Login Feature
+### Organisation report templates (new in v3.0.0)
 
-1. **Access the reset password page**:
-   - Login with Google authentication to access the reset password option in the navigation tool bar.
-   - Navigate to the reset password page to view and change the current default password for local accounts.
-   - The current password is displayed on this page, and you can set a new password that will be applied to all local accounts.
+- Organisation admins and report managers can upload a custom Word template (`.docx`) for branded exports.
+- Validation checks required CARE placeholders before a template is accepted.
+- Lifecycle controls allow teams to upload, replace, or remove custom templates.
+- Users still choose what content to include in each report; organisations control the template format and branding.
 
-2. **Resetting the password**:
-   - Enter and confirm the new password.
-   - Upon submission, the current password will be updated, and all existing local accounts and projects will be deleted.
-   - The new password will then be used for any new local account logins.
+Example use:
+- Upload your organisation's branded template once, then let project teams export reports in a consistent format while choosing the sections they need for each audience.
+- Benefit: standard presentation plus flexible, context-specific reporting.
 
-3. **Automatic daily deletion**:
-   - Every day at 03:30 UTC, a scheduled task will run to delete all local accounts and their associated projects. This ensures that any test data does not persist longer than necessary.
+### Integrations API for organisations
 
-### HubSpot Integration (ODI only!)
+- A secure, read-only API gives access to evaluations that are shared with the organisation.
+- This makes it easier to connect CARE into internal reporting, dashboards, and workflow tools without manual copy and paste.
+- Teams can pull project lists, project summaries, normalised work items, and the same Word report export used in the app.
+- Developer support is built in:
+  - a human-readable integration guide
+  - interactive API documentation generated from OpenAPI
+  - an OpenAPI contract for codegen and tooling
+  - a practical automation cookbook for Zapier, Make, and n8n
 
-The ODI Care Tool integrates with the ODI HubSpot to manage user memberships and track tool usage statistics. Ensure you have a valid HubSpot API key and set it in the `config.env` file. You can also set the FREE_PROJECT_LIMIT. This enables anyone to use the tool who has an account, no valid membership is required.
+Example use:
+- A developer can connect CARE to a programme dashboard so governance teams can monitor progress, risks, and actions across evaluations in near real time.
+- Benefit: faster insight, less admin overhead, and clearer visibility across programmes.
+
+### Improvements for all users
+
+- Tidier scan interface for a cleaner, easier workflow.
+- Multi-stage AI for the all-in-one scan flow.
+- General UX and reliability improvements across scanning and management screens.
+
+Example use:
+- New users can run a complete scan with less friction, while experienced users can move faster through each stage.
+- Benefit: better completion rates and clearer outputs from the same process.
+
+## Quick Start
+
+Installation and setup documentation is now in [`INSTALLING.md`](INSTALLING.md).
+
+For local development after setup:
+
+1. Start the app with `npm start`.
+2. Open `http://localhost:3080`.
+3. Sign in and create or open an evaluation.
 
 ## Contributing
 
-Feel free to contribute to this project by opening issues or pull requests on GitHub.
+Contributions are welcome via issues and pull requests.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the MIT License. See [LICENSE.md](LICENSE.md).

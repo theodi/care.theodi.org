@@ -424,6 +424,9 @@ a.eval-title-link:focus {
     gap: 0.25rem;
     max-width: 100%;
 }
+.eval-project-id-row button {
+  background-color: transparent !important;
+}
 .eval-project-id-label {
     font-weight: 600;
     color: var(--color-dark-blue);
@@ -434,6 +437,7 @@ a.eval-title-link:focus {
     padding: 0.1rem 0.35rem;
     border-radius: 3px;
     word-break: break-all;
+    color: var(--color-dark-blue);
 }
 button.eval-copy-project-id {
     display: inline-flex;
@@ -454,6 +458,7 @@ button.eval-copy-project-id:hover {
 }
 .eval-copy-project-id__icon {
     display: block;
+    background-color: transparent !important
 }
 
 /* My evaluations: sharing column (Share button or clickable icons) */

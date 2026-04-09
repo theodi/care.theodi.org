@@ -235,18 +235,28 @@ function populateMissingElements(schema,data) {
 }
 
 function moveSubmitButton() {
-    const submitButtonContainer = document.createElement('div');
-    submitButtonContainer.setAttribute('id', 'submitButtonContainer'); // Add quotes around the attribute name
-    submitButtonContainer.classList.add('content-block', 'white', 'proceed'); // Separate class names with commas
+    const formElement = document.getElementById('dataForm');
+    const submitButton = document.querySelector('.submitButton');
 
-    const submitButton = document.querySelector('.submitButton'); // Use vanilla JavaScript to select the submit button
-
-    if (submitButtonContainer && submitButton) { // Check if both elements exist
-        submitButtonContainer.appendChild(submitButton); // Use appendChild() to append the submit button
-        document.getElementById('dataForm').appendChild(submitButtonContainer); // Move container inside #dataForm
-    } else {
+    if (!formElement || !submitButton) {
         console.error("submitButtonContainer or submitButton not found.");
+        return;
     }
+
+    // Prevent duplicate proceed containers when re-rendering via quick navigation.
+    const existingContainer = document.getElementById('submitButtonContainer');
+    if (existingContainer) {
+        existingContainer.remove();
+    }
+
+    const submitButtonContainer = document.createElement('div');
+    submitButtonContainer.setAttribute('id', 'submitButtonContainer');
+    submitButtonContainer.classList.add('content-block', 'white', 'proceed');
+
+    // Preserve jsonForm layout styles by moving the wrapper when present.
+    const submitButtonWrapper = submitButton.closest('li') || submitButton;
+    submitButtonContainer.appendChild(submitButtonWrapper);
+    formElement.appendChild(submitButtonContainer);
 }
 
 async function sendDataToServer(inputObject, navigationOverride) {
