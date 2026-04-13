@@ -288,8 +288,84 @@ async function addRiskScoreToProject(project) {
 }
 
 
+/**
+ * Whether a value counts as filled for sidebar completion (empty string is incomplete).
+ * @param {unknown} v
+ * @returns {boolean}
+ */
+function hasValue(v) {
+    if (v == null) return false;
+    return String(v).trim() !== '';
+}
+
+/**
+ * Unintended-consequences data is shared across several steps; the form only collects a
+ * subset of fields per step. Hidden fields stay empty until later pages, so the generic
+ * schema check (which required every property on every item) never marked those steps
+ * complete, and positive outcomes hidden on risk/action pages still blocked completion.
+ *
+ * @param {string} stage
+ * @param {object | null | undefined} item
+ * @returns {boolean}
+ */
+function unintendedConsequenceItemCompleteForStage(stage, item) {
+    if (!item || !hasValue(item.consequence) || !hasValue(item.outcome)) {
+        return false;
+    }
+    if (stage === 'unintendedConsequences') {
+        return true;
+    }
+    if (item.outcome === 'Positive') {
+        return true;
+    }
+    if (stage === 'riskEvaluation') {
+        return hasValue(item.impact) && hasValue(item.likelihood);
+    }
+    if (stage === 'actionPlanning') {
+        const a = item.action || {};
+        return (
+            hasValue(item.impact) &&
+            hasValue(item.likelihood) &&
+            hasValue(item.role) &&
+            hasValue(a.description) &&
+            hasValue(a.stakeholder) &&
+            hasValue(a.date) &&
+            hasValue(a.KPI)
+        );
+    }
+    return false;
+}
+
+/**
+ * @param {Array<{ consequence?: string, outcome?: string }>} items
+ * @param {string} stage
+ * @returns {'done'|'inProgress'|'todo'}
+ */
+function completionStateFromUnintendedConsequences(items, stage) {
+    if (!Array.isArray(items) || items.length === 0) {
+        return 'todo';
+    }
+    let allDone = true;
+    let someDone = false;
+    for (const item of items) {
+        const ok = unintendedConsequenceItemCompleteForStage(stage, item);
+        if (ok) {
+            someDone = true;
+        } else {
+            allDone = false;
+        }
+    }
+    if (allDone) {
+        return 'done';
+    }
+    if (someDone) {
+        return 'inProgress';
+    }
+    return 'todo';
+}
+
 // Function to calculate completion state for a section
-async function getCompletionState(projectId, schema) {
+async function getCompletionState(projectId, schema, pageLink) {
     try {
         // Find the project by ID
         const project = await Project.findById(projectId);
@@ -301,6 +377,16 @@ async function getCompletionState(projectId, schema) {
         let allDone = true;
         let someDone = false;
         const properties = schema.properties;
+
+        if (
+            pageLink &&
+            ['unintendedConsequences', 'riskEvaluation', 'actionPlanning'].includes(pageLink) &&
+            properties &&
+            properties.unintendedConsequences
+        ) {
+            return completionStateFromUnintendedConsequences(project.unintendedConsequences, pageLink);
+        }
+
         // Extract data for the section based on the schema
         for (const key in properties) {
             if (!project[key] || (Array.isArray(project[key]) && project[key].length === 0)) {
@@ -429,4 +515,7 @@ module.exports = {
     addRiskScoreToProject,
     getProjectOwner,
     setProjectIntegrationExternalId,
+    /** @internal exposed for tests */
+    completionStateFromUnintendedConsequences,
+    unintendedConsequenceItemCompleteForStage,
 };

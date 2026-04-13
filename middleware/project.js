@@ -47,7 +47,7 @@ const loadProject = async (req, res, next) => {
             const updatedPages = await Promise.all(pages.map(async (page) => {
                 const schemaPath = `../public/data/schemas/partials/${page.link}.json`;
                 const schema = require(schemaPath);
-                const completionState = await projectController.getCompletionState(id, schema); // Assuming the project ID is passed to the completion state function
+                const completionState = await projectController.getCompletionState(id, schema, page.link);
                 return { ...page, completionState };
             }));
 
