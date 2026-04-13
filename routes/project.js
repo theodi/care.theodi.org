@@ -32,6 +32,10 @@ const {
 } = require('../middleware/project');
 const { checkLimit } = require('../middleware/hubspot');
 const { updateToolStatistics } = require('../controllers/hubspot');
+const {
+    buildProjectJsonForClient,
+    wantsFullAiInteractionHistory,
+} = require('../lib/projectClientJson');
 
 // GET route to retrieve a project by ID
 router.get('/:id/completeAssessment', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
@@ -291,6 +295,57 @@ router.patch('/:id/owner', ensureAuthenticated, checkOrgAdminCanTransferProjectO
     }
 });
 
+// Full AI interaction history (lazy-loaded in the scan UI; avoids huge default GET /project/:id JSON)
+router.get(
+    '/:id/ai-interaction-history',
+    ensureAuthenticated,
+    checkProjectAccess,
+    async (req, res, next) => {
+        try {
+            const accept = req.get('Accept') || '';
+            if (accept && !accept.includes('application/json')) {
+                return res.status(406).json({ message: 'Use Accept: application/json' });
+            }
+            const proj = await Project.findById(req.params.id).select('aiInteractionHistory').lean();
+            if (!proj) {
+                return res.status(404).json({ message: 'Project not found' });
+            }
+            return res.json({ aiInteractionHistory: proj.aiInteractionHistory || [] });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// Full detail for one AI run (lazy-loaded when a run row is expanded)
+router.get(
+    '/:id/ai-interaction-history/:runId',
+    ensureAuthenticated,
+    checkProjectAccess,
+    async (req, res, next) => {
+        try {
+            const accept = req.get('Accept') || '';
+            if (accept && !accept.includes('application/json')) {
+                return res.status(406).json({ message: 'Use Accept: application/json' });
+            }
+            const runId = String(req.params.runId || '');
+            if (!runId) {
+                return res.status(400).json({ message: 'runId is required' });
+            }
+            const proj = await Project.findOne(
+                { _id: req.params.id, aiInteractionHistory: { $elemMatch: { runId } } },
+                { aiInteractionHistory: { $elemMatch: { runId } } }
+            ).lean();
+            if (!proj || !Array.isArray(proj.aiInteractionHistory) || proj.aiInteractionHistory.length === 0) {
+                return res.status(404).json({ message: 'AI run not found' });
+            }
+            return res.json({ aiInteractionRun: proj.aiInteractionHistory[0] });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
 // GET route to retrieve a project by ID
 router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
     try {
@@ -301,8 +356,10 @@ router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, a
         const acceptHeader = req.get('Accept');
 
         if (acceptHeader === 'application/json') {
-            // Respond with JSON (filter it according to the schema?)
-            return res.json(project);
+            if (wantsFullAiInteractionHistory(req)) {
+                return res.json(project.toObject ? project.toObject() : project);
+            }
+            return res.json(buildProjectJsonForClient(project));
         } else {
             // Check if the page parameter is provided
             const pages = require('../pages.json');
@@ -336,8 +393,10 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
         const acceptHeader = req.get('Accept');
 
         if (acceptHeader === 'application/json') {
-            // Respond with JSON (filter it according to the schema?)
-            return res.json(project);
+            if (wantsFullAiInteractionHistory(req)) {
+                return res.json(project.toObject ? project.toObject() : project);
+            }
+            return res.json(buildProjectJsonForClient(project));
         } else if (acceptHeader === 'text/csv') {
             // Respond with CSV
             const fields = ['consequence', 'outcome', 'impact', 'likelihood', 'role', 'action.description', 'action.date', 'action.stakeholder', 'action.KPI'];
@@ -409,6 +468,8 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
 
         const createPayload = { ...req.body };
         delete createPayload.aiInteractionHistory;
+        delete createPayload.aiInteractionHistoryCount;
+        delete createPayload.aiInteractionHistoryStepCounts;
         delete createPayload.integrationExternalId;
         const project = new Project(createPayload);
         const savedProject = await project.save();
@@ -432,6 +493,8 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, nex
         delete payload.sharedWithOrganisation;
         delete payload.integrationExternalId;
         delete payload.aiInteractionHistory;
+        delete payload.aiInteractionHistoryCount;
+        delete payload.aiInteractionHistoryStepCounts;
         const updatedProject = await Project.findByIdAndUpdate(id, payload, { new: false });
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });

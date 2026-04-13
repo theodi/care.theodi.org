@@ -1203,6 +1203,16 @@ table.dataTable td.eval-org-integration-id-col .org-eval-integration-add {
     background: #fff;
     margin-left: 20px;
 }
+.care-ai-history-lazy-root {
+    border: 1px solid rgba(30, 64, 175, 0.25);
+    border-radius: 4px;
+    background: #fff;
+    margin-left: 20px;
+}
+.care-ai-history-lazy-body {
+    border-top: 1px solid rgba(30, 64, 175, 0.12);
+    padding: 0.5rem 0.75rem 0.85rem;
+}
 .care-ai-history-run .care-ai-history-summary {
   margin-left: 20px;
   color: var(--background) !important;
@@ -1756,6 +1766,15 @@ a:hover {
   overflow-y: auto;
   padding: 0.75rem;
   background: #f8fafc;
+}
+.ai-reasoning-notice {
+  margin-bottom: 0.65rem;
+  padding: 0.45rem 0.65rem;
+  border-left: 3px solid #b45309;
+  background: rgba(180, 83, 9, 0.08);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: #1e293b;
 }
 .ai-reasoning-msg__title {
   font-weight: 600;

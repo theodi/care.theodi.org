@@ -20,8 +20,8 @@ This release adds major organisation features and a stronger integrations API, w
 
 ### Enterprise and organisation management
 
-- Customer organisations get a shared workspace to manage licensed users, seat usage, and active participation in one place.
-- Teams can add and remove licensed users and keep seat allocation aligned with current delivery needs.
+- Organisations get a shared workspace to manage licensed users, seat usage, and active participation in one place.
+- Admins can add and remove licensed users and keep seat allocation aligned with current delivery needs.
 - Organisation admins can assign scoped permissions so people get access based on their role:
   - license manager
   - AI model admin

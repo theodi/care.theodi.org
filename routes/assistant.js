@@ -135,9 +135,22 @@ function normalizeParsedResponseForStep(messageId, parsedResponse) {
         const src = Array.isArray(payload.unintendedConsequences) ? payload.unintendedConsequences : [];
         return {
             unintendedConsequences: src
-                .map((item) => (item && typeof item === 'object' ? item.consequence : item))
-                .filter((v) => typeof v === 'string' && v.trim() !== '')
-                .map((consequence) => ({ consequence: consequence.trim() })),
+                .map((item) => {
+                    if (item && typeof item === 'object') {
+                        const consequence = typeof item.consequence === 'string' ? item.consequence.trim() : '';
+                        const outcome = typeof item.outcome === 'string' ? item.outcome.trim() : '';
+                        if (!consequence) return null;
+                        return {
+                            consequence,
+                            outcome,
+                        };
+                    }
+                    if (typeof item === 'string' && item.trim() !== '') {
+                        return { consequence: item.trim(), outcome: '' };
+                    }
+                    return null;
+                })
+                .filter(Boolean),
         };
     }
     if (messageId === 'stakeholders') {
@@ -366,6 +379,7 @@ router.post('/:id/:messageId/start', ensureAuthenticated, checkProjectAccess, lo
             messageId,
             status: 'running',
             thinking: '',
+            reasoningNotice: null,
             result: null,
             error: null,
             startedAt: new Date().toISOString(),
@@ -377,10 +391,27 @@ router.post('/:id/:messageId/start', ensureAuthenticated, checkProjectAccess, lo
             req,
             projectData,
             messageId,
-            (delta) => {
+            (thinkingEvent) => {
                 const current = assistantStepRuns.get(runId);
                 if (!current) return;
-                current.thinking += delta;
+                if (
+                    thinkingEvent &&
+                    typeof thinkingEvent === 'object' &&
+                    thinkingEvent.type === 'structured_retry'
+                ) {
+                    current.thinking = '';
+                    current.reasoningNotice =
+                        typeof thinkingEvent.userMessage === 'string'
+                            ? thinkingEvent.userMessage
+                            : '';
+                    return;
+                }
+                if (typeof thinkingEvent === 'string') {
+                    if (current.reasoningNotice) {
+                        delete current.reasoningNotice;
+                    }
+                    current.thinking += thinkingEvent;
+                }
             },
             { runId, startedAt: state.startedAt }
         )
@@ -421,6 +452,7 @@ router.get('/:id/:messageId/status/:runId', ensureAuthenticated, checkProjectAcc
         status: state.status,
         messageId: state.messageId,
         thinking: state.thinking,
+        reasoningNotice: state.reasoningNotice || null,
         result: state.result,
         error: state.error,
         startedAt: state.startedAt,
@@ -540,6 +572,7 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
         }
         step.status = 'running';
         delete step.error;
+        delete step.reasoningNotice;
         step.thinking = '';
         if (typeof onProgress === 'function') {
             onProgress({
@@ -571,7 +604,32 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
                 orgOverrides,
                 (evt) => {
                     if (!evt || evt.type !== 'thinking_delta' || !evt.text) return;
+                    if (step.reasoningNotice) {
+                        delete step.reasoningNotice;
+                    }
                     step.thinking = (step.thinking || '') + evt.text;
+                    if (typeof onProgress === 'function') {
+                        onProgress({
+                            steps: progress.map((s) => ({ ...s })),
+                            counts: {
+                                intendedConsequencesCount: (projectData.intendedConsequences || []).length,
+                                unintendedConsequencesCount: (projectData.unintendedConsequences || []).length,
+                                stakeholdersCount: (projectData.stakeholders || []).length,
+                            },
+                        });
+                    }
+                }
+                ,
+                (meta) => {
+                    if (!meta || meta.type !== 'structured_retry') return;
+                    step.thinking = '';
+                    step.reasoningNotice =
+                        typeof meta.userMessage === 'string'
+                            ? meta.userMessage
+                            : meta.message || '';
+                    console.warn(
+                        `[assistant] ${stepId} structured tool use failed; cleared reasoning and retried without tool use. ${meta.message || ''}`
+                    );
                     if (typeof onProgress === 'function') {
                         onProgress({
                             steps: progress.map((s) => ({ ...s })),
@@ -683,6 +741,23 @@ async function runAssistantSingleStep(req, projectData, messageId, onThinkingDel
                 if (typeof onThinkingDelta === 'function') {
                     onThinkingDelta(evt.text);
                 }
+            }
+            ,
+            (meta) => {
+                if (!meta || meta.type !== 'structured_retry') return;
+                reasoning = '';
+                if (typeof onThinkingDelta === 'function') {
+                    onThinkingDelta({
+                        type: 'structured_retry',
+                        userMessage:
+                            typeof meta.userMessage === 'string'
+                                ? meta.userMessage
+                                : '',
+                    });
+                }
+                console.warn(
+                    `[assistant] ${messageId} structured tool use failed; cleared reasoning and retried without tool use. ${meta.message || ''}`
+                );
             }
         );
         rawResponseText = typeof response === 'string' ? response : '';
@@ -829,22 +904,66 @@ async function resolveOrganisationAiOverrides(req) {
     return ov || {};
 }
 
-async function getAIReponse(message, messageId, rawSchema, orgOverrides, streamObserver) {
+async function getAIReponse(
+    message,
+    messageId,
+    rawSchema,
+    orgOverrides,
+    streamObserver,
+    onMetaEvent
+) {
     const rawClone = JSON.parse(JSON.stringify(rawSchema));
+    const provider =
+      orgOverrides && typeof orgOverrides.provider === 'string'
+        ? orgOverrides.provider
+        : undefined;
     const streamingForAnthropic =
       orgOverrides &&
-      orgOverrides.provider === 'anthropic' &&
+      provider === 'anthropic' &&
       typeof orgOverrides.anthropicThinkingBudget === 'number' &&
       orgOverrides.anthropicThinkingBudget > 0 &&
       typeof streamObserver === 'function';
-    return chatCompletion([{ role: 'user', content: message }], {
+    const runtime = {
+      ...orgOverrides,
+      streamObserver: streamingForAnthropic ? streamObserver : undefined,
+      disableStructuredFallback: true,
+      structuredResponse: {
+        schemaName: `care_${messageId}`,
+        rawSchema: rawClone,
+      },
+    };
+
+    try {
+      return await chatCompletion([{ role: 'user', content: message }], runtime);
+    } catch (err) {
+      const isStructuredFailure =
+        err &&
+        err.code === 'STRUCTURED_OUTPUT_FAILED' &&
+        err.provider === 'anthropic';
+      if (!isStructuredFailure) {
+        throw err;
+      }
+
+      if (typeof onMetaEvent === 'function') {
+        onMetaEvent({
+          type: 'structured_retry',
+          message:
+            'Anthropic structured tool use failed. Reasoning cleared, retrying without tool use.',
+          userMessage:
+            'The model could not return structured output on the first attempt, so the reasoning view was cleared and we started again. New reasoning will appear below.',
+          error: err.message || String(err),
+        });
+      }
+      console.warn(
+        `[assistant] Structured Anthropic tool call failed for ${messageId}; retrying without tool use. ${err.message || err}`
+      );
+      return chatCompletion([{ role: 'user', content: message }], {
         ...orgOverrides,
+        disableStructuredOutput: true,
+        disableStructuredFallback: true,
         streamObserver: streamingForAnthropic ? streamObserver : undefined,
-        structuredResponse: {
-            schemaName: `care_${messageId}`,
-            rawSchema: rawClone,
-        },
-    });
+      });
+    }
 }
 
 module.exports = router;

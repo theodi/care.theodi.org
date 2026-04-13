@@ -259,6 +259,15 @@ function moveSubmitButton() {
     formElement.appendChild(submitButtonContainer);
 }
 
+function projectPayloadForSave(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const out = { ...obj };
+  delete out.aiInteractionHistory;
+  delete out.aiInteractionHistoryCount;
+  delete out.aiInteractionHistoryStepCounts;
+  return out;
+}
+
 async function sendDataToServer(inputObject, navigationOverride) {
   inputObject = cleanArrays(inputObject);
   console.log(inputObject);
@@ -282,7 +291,7 @@ async function sendDataToServer(inputObject, navigationOverride) {
         "Content-Type": "application/json",
         "Accept": "application/json"
       },
-      body: JSON.stringify(inputObject),
+      body: JSON.stringify(projectPayloadForSave(inputObject)),
     });
 
     if (response.ok) {

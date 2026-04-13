@@ -194,22 +194,154 @@ function projectMergeKeyForAiStep(messageId) {
 
 async function refreshProjectAiHistory(projectId) {
     if (!projectId) {
-        return;
+        return false;
     }
     try {
-        const pr = await fetch('/project/' + encodeURIComponent(projectId), {
-            headers: { Accept: 'application/json' },
-        });
+        const pr = await fetch(
+            '/project/' + encodeURIComponent(projectId) + '/ai-interaction-history',
+            { headers: { Accept: 'application/json' } }
+        );
         if (!pr.ok) {
-            return;
+            return false;
         }
-        const p = await pr.json();
-        if (Array.isArray(p.aiInteractionHistory)) {
-            projectData.aiInteractionHistory = p.aiInteractionHistory;
+        const data = await pr.json();
+        if (Array.isArray(data.aiInteractionHistory)) {
+            projectData.aiInteractionHistory = data.aiInteractionHistory;
+            return true;
         }
     } catch (e) {
         console.warn('Could not refresh AI history', e);
     }
+    return false;
+}
+
+function getStepHistoryCount(messageId) {
+    const c = projectData && projectData.aiInteractionHistoryStepCounts;
+    if (c && typeof c === 'object' && typeof c[messageId] === 'number') {
+        return c[messageId];
+    }
+    return 0;
+}
+
+function hasLoadedAiHistoryArray() {
+    return Array.isArray(projectData.aiInteractionHistory);
+}
+
+function runHistoryMetaForStep(messageId) {
+    if (hasLoadedAiHistoryArray()) {
+        return projectData.aiInteractionHistory
+            .filter(function (r) {
+                return r && r.stepId === messageId;
+            })
+            .map(function (r) {
+                return {
+                    runId: r.runId,
+                    stepId: r.stepId,
+                    startedAt: r.startedAt || '',
+                    completedAt: r.completedAt || '',
+                    status: r.status || '',
+                    aiSource: r.aiSource || '',
+                    model: r.model || {},
+                };
+            });
+    }
+    const all = projectData && projectData.aiInteractionHistoryStepSummaries;
+    if (!all || typeof all !== 'object' || !Array.isArray(all[messageId])) {
+        return [];
+    }
+    return all[messageId].map(function (r) {
+        return {
+            runId: r && r.runId ? r.runId : '',
+            stepId: r && r.stepId ? r.stepId : messageId,
+            startedAt: r && r.startedAt ? r.startedAt : '',
+            completedAt: r && r.completedAt ? r.completedAt : '',
+            status: r && r.status ? r.status : '',
+            aiSource: r && r.aiSource ? r.aiSource : '',
+            model: (r && r.model) || {},
+        };
+    });
+}
+
+function sortRunsNewestFirst(arr) {
+    return arr.sort(function (a, b) {
+        const ta = a.completedAt || a.startedAt || '';
+        const tb = b.completedAt || b.startedAt || '';
+        return String(tb).localeCompare(String(ta));
+    });
+}
+
+async function fetchAiRunDetail(projectId, runId) {
+    const response = await fetch(
+        '/project/' +
+            encodeURIComponent(projectId) +
+            '/ai-interaction-history/' +
+            encodeURIComponent(runId),
+        { headers: { Accept: 'application/json' } }
+    );
+    if (!response.ok) {
+        throw new Error('Could not load AI run detail');
+    }
+    const data = await response.json();
+    return data && data.aiInteractionRun ? data.aiInteractionRun : null;
+}
+
+function renderAiRunDetailBody(body, run, projectIdLocal, messageId) {
+    var applied = getAppliedIndicesUnion(run);
+    var sug = Array.isArray(run.suggestions) ? run.suggestions : [];
+    var rows = '';
+    sug.forEach(function (row, i) {
+        var dis = applied.has(i) ? ' disabled checked' : '';
+        rows +=
+            '<tr><td><input type="checkbox" name="historyResponseSelect" value="' +
+            i +
+            '"' +
+            dis +
+            '/></td><td>' +
+            parseJsonToHtml(row) +
+            '</td></tr>';
+    });
+    body.innerHTML =
+        '<div class="care-ai-history-body-inner">' +
+        '<details class="care-ai-prompt-details"><summary>Prompt sent to the model</summary><pre class="care-ai-pre">' +
+        escapeHtml(run.promptFull || '') +
+        '</pre></details>' +
+        (run.reasoning
+            ? '<details class="care-ai-prompt-details"><summary>AI reasoning</summary><pre class="care-ai-pre">' +
+              escapeHtml(run.reasoning) +
+              '</pre></details>'
+            : '') +
+        (run.rawResponseText
+            ? '<details class="care-ai-prompt-details"><summary>Raw model response</summary><pre class="care-ai-pre">' +
+              escapeHtml(prettyPrintRawModelResponse(run.rawResponseText)) +
+              '</pre></details>'
+            : '') +
+        '<p class="small care-ai-history-flags">Flags: existing answers in prompt: ' +
+        !!run.includeExistingStepData +
+        '; org context: ' +
+        !!run.includeOrganisationContext +
+        '</p>' +
+        '<table class="care-ai-history-suggestions"><thead><tr><th>Select</th><th>Response</th></tr></thead><tbody>' +
+        rows +
+        '</tbody></table>' +
+        '<p class="care-ai-history-add-wrap"><button type="button" class="btn btn-primary care-ai-add-from-history">Add selected from this run</button></p>' +
+        '</div>';
+    body.setAttribute('data-care-populated', '1');
+    body.querySelector('.care-ai-add-from-history').addEventListener('click', function () {
+        activeAiRunId = run.runId;
+        var selectedResponses = [];
+        var indices = [];
+        body.querySelectorAll('input[name="historyResponseSelect"]').forEach(function (cb) {
+            if (cb.checked && !cb.disabled) {
+                var responseIndex = parseInt(cb.value, 10);
+                indices.push(responseIndex);
+                selectedResponses.push(sug[responseIndex]);
+            }
+        });
+        if (selectedResponses.length === 0) {
+            return;
+        }
+        void postSelectionsAndMerge(projectIdLocal, run.runId, messageId, indices, selectedResponses, body);
+    });
 }
 
 function renderAiRunHistoryPanel(messageId) {
@@ -219,21 +351,18 @@ function renderAiRunHistoryPanel(messageId) {
     }
     const form = document.getElementById('dataForm');
     const projectIdLocal = form && form.dataset ? form.dataset.projectId : '';
-    const hist = Array.isArray(projectData.aiInteractionHistory) ? projectData.aiInteractionHistory : [];
-    const forStep = hist.filter(function (r) {
-        return r && r.stepId === messageId;
-    });
-    forStep.sort(function (a, b) {
-        const ta = a.completedAt || a.startedAt || '';
-        const tb = b.completedAt || b.startedAt || '';
-        return tb.localeCompare(ta);
-    });
-    if (forStep.length === 0) {
-        wrap.innerHTML = '<p class="small care-ai-history-empty">No saved AI runs for this step yet.</p>';
+    const runs = sortRunsNewestFirst(runHistoryMetaForStep(messageId));
+
+    if (runs.length === 0) {
+        if (getStepHistoryCount(messageId) > 0) {
+            wrap.innerHTML = '<p class="small care-ai-history-empty">Saved runs are available but could not be listed.</p>';
+        } else {
+            wrap.innerHTML = '<p class="small care-ai-history-empty">No saved AI runs for this step yet.</p>';
+        }
         return;
     }
     var html = '<h3 class="care-ai-history-title">AI run history</h3><ul class="care-ai-history-list">';
-    forStep.forEach(function (run, idx) {
+    runs.forEach(function (run) {
         const when = run.completedAt || run.startedAt || '';
         const modelBits = run.model || {};
         const modelLabel =
@@ -245,8 +374,8 @@ function renderAiRunHistoryPanel(messageId) {
         const st = run.status === 'failed' ? 'Failed' : 'Completed';
         html +=
             '<li class="care-ai-history-item">' +
-            '<details class="care-ai-history-run" data-care-run-idx="' +
-            idx +
+            '<details class="care-ai-history-run" data-care-run-id="' +
+            escapeHtml(run.runId || '') +
             '">' +
             '<summary class="care-ai-history-summary">' +
             escapeHtml(when) +
@@ -270,67 +399,34 @@ function renderAiRunHistoryPanel(messageId) {
             if (!body || body.getAttribute('data-care-populated') === '1') {
                 return;
             }
-            const idx = parseInt(detEl.getAttribute('data-care-run-idx'), 10);
-            const run = forStep[idx];
-            if (!run) {
+            if (body.getAttribute('data-care-loading') === '1') {
                 return;
             }
-            body.setAttribute('data-care-populated', '1');
-            var applied = getAppliedIndicesUnion(run);
-            var sug = Array.isArray(run.suggestions) ? run.suggestions : [];
-            var rows = '';
-            sug.forEach(function (row, i) {
-                var dis = applied.has(i) ? ' disabled checked' : '';
-                rows +=
-                    '<tr><td><input type="checkbox" name="historyResponseSelect" value="' +
-                    i +
-                    '"' +
-                    dis +
-                    '/></td><td>' +
-                    parseJsonToHtml(row) +
-                    '</td></tr>';
-            });
-            body.innerHTML =
-                '<div class="care-ai-history-body-inner">' +
-                '<details class="care-ai-prompt-details"><summary>Prompt sent to the model</summary><pre class="care-ai-pre">' +
-                escapeHtml(run.promptFull || '') +
-                '</pre></details>' +
-                (run.reasoning
-                    ? '<details class="care-ai-prompt-details"><summary>AI reasoning</summary><pre class="care-ai-pre">' +
-                      escapeHtml(run.reasoning) +
-                      '</pre></details>'
-                    : '') +
-                (run.rawResponseText
-                    ? '<details class="care-ai-prompt-details"><summary>Raw model response</summary><pre class="care-ai-pre">' +
-                      escapeHtml(prettyPrintRawModelResponse(run.rawResponseText)) +
-                      '</pre></details>'
-                    : '') +
-                '<p class="small care-ai-history-flags">Flags: existing answers in prompt: ' +
-                !!run.includeExistingStepData +
-                '; org context: ' +
-                !!run.includeOrganisationContext +
-                '</p>' +
-                '<table class="care-ai-history-suggestions"><thead><tr><th>Select</th><th>Response</th></tr></thead><tbody>' +
-                rows +
-                '</tbody></table>' +
-                '<p class="care-ai-history-add-wrap"><button type="button" class="btn btn-primary care-ai-add-from-history">Add selected from this run</button></p>' +
-                '</div>';
-            body.querySelector('.care-ai-add-from-history').addEventListener('click', function () {
-                activeAiRunId = run.runId;
-                var selectedResponses = [];
-                var indices = [];
-                body.querySelectorAll('input[name="historyResponseSelect"]').forEach(function (cb) {
-                    if (cb.checked && !cb.disabled) {
-                        var responseIndex = parseInt(cb.value, 10);
-                        indices.push(responseIndex);
-                        selectedResponses.push(sug[responseIndex]);
+            const runId = detEl.getAttribute('data-care-run-id');
+            if (!runId) {
+                return;
+            }
+            body.setAttribute('data-care-loading', '1');
+            body.innerHTML = '<p class="small care-ai-history-loading">Loading…</p>';
+            void (async function () {
+                try {
+                    const loaded = hasLoadedAiHistoryArray()
+                        ? projectData.aiInteractionHistory.find(function (r) {
+                              return r && String(r.runId) === String(runId);
+                          })
+                        : null;
+                    const run = loaded || (await fetchAiRunDetail(projectIdLocal, runId));
+                    if (!run) {
+                        throw new Error('Run not found');
                     }
-                });
-                if (selectedResponses.length === 0) {
-                    return;
+                    renderAiRunDetailBody(body, run, projectIdLocal, messageId);
+                } catch (e) {
+                    body.innerHTML = '<p class="small">Could not load AI run history. Try again.</p>';
+                    body.setAttribute('data-care-populated', '0');
+                } finally {
+                    body.setAttribute('data-care-loading', '0');
                 }
-                void postSelectionsAndMerge(projectIdLocal, run.runId, messageId, indices, selectedResponses, body);
-            });
+            })();
         });
     });
 }
@@ -538,7 +634,6 @@ async function loadAI() {
         });
     }
 
-    await refreshProjectAiHistory(projectId);
     renderAiRunHistoryPanel(messageId);
 }
 
@@ -631,6 +726,84 @@ function setReasoningStatus(message) {
 }
 
 const reasoningAnimState = {};
+
+/** Minimum time (ms) a structured-retry notice stays visible so users can read it. */
+const REASONING_NOTICE_MIN_READ_MS = 12000;
+
+var singleStepReasoningNoticeDwell = { messageId: '', text: '', hideAfter: 0 };
+var singleStepNoticeDwellTimeout = null;
+var lastSingleStepReasoningRender = { messageId: '', thinking: '' };
+
+var completeAssessmentNoticeDwell = {};
+var completeStepNoticeTimers = {};
+var lastCompleteAssessmentRunStateRef = null;
+
+function getEffectiveSingleStepNotice(messageId, serverNotice) {
+    var fromServer = typeof serverNotice === 'string' ? serverNotice.trim() : '';
+    if (singleStepReasoningNoticeDwell.messageId !== messageId) {
+        singleStepReasoningNoticeDwell = { messageId: messageId, text: '', hideAfter: 0 };
+    }
+    if (fromServer) {
+        singleStepReasoningNoticeDwell.text = fromServer;
+        singleStepReasoningNoticeDwell.hideAfter = Date.now() + REASONING_NOTICE_MIN_READ_MS;
+        return fromServer;
+    }
+    if (singleStepReasoningNoticeDwell.text && Date.now() < singleStepReasoningNoticeDwell.hideAfter) {
+        return singleStepReasoningNoticeDwell.text;
+    }
+    if (Date.now() >= singleStepReasoningNoticeDwell.hideAfter) {
+        singleStepReasoningNoticeDwell.text = '';
+    }
+    return '';
+}
+
+function scheduleSingleStepNoticeDwellRerender(messageId) {
+    if (singleStepNoticeDwellTimeout) {
+        clearTimeout(singleStepNoticeDwellTimeout);
+        singleStepNoticeDwellTimeout = null;
+    }
+    singleStepNoticeDwellTimeout = setTimeout(function () {
+        singleStepNoticeDwellTimeout = null;
+        renderSingleStepReasoningFeed(
+            messageId,
+            lastSingleStepReasoningRender.thinking,
+            ''
+        );
+    }, REASONING_NOTICE_MIN_READ_MS);
+}
+
+function getEffectiveCompleteStepNotice(stepId, serverNotice) {
+    var fromServer = typeof serverNotice === 'string' ? serverNotice.trim() : '';
+    var dwell = completeAssessmentNoticeDwell[stepId];
+    if (!dwell) {
+        dwell = { text: '', hideAfter: 0 };
+    }
+    if (fromServer) {
+        dwell.text = fromServer;
+        dwell.hideAfter = Date.now() + REASONING_NOTICE_MIN_READ_MS;
+        completeAssessmentNoticeDwell[stepId] = dwell;
+        return fromServer;
+    }
+    if (dwell.text && Date.now() < dwell.hideAfter) {
+        return dwell.text;
+    }
+    if (Date.now() >= dwell.hideAfter && dwell.text) {
+        delete completeAssessmentNoticeDwell[stepId];
+    }
+    return '';
+}
+
+function scheduleCompleteStepNoticeDwellRerender(stepId) {
+    if (completeStepNoticeTimers[stepId]) {
+        clearTimeout(completeStepNoticeTimers[stepId]);
+    }
+    completeStepNoticeTimers[stepId] = setTimeout(function () {
+        delete completeStepNoticeTimers[stepId];
+        if (lastCompleteAssessmentRunStateRef) {
+            renderCompleteAssessmentReasoningFeed(lastCompleteAssessmentRunStateRef);
+        }
+    }, REASONING_NOTICE_MIN_READ_MS);
+}
 
 function stopReasoningAnimation(key) {
     const state = reasoningAnimState[key];
@@ -777,16 +950,19 @@ function renderCompleteAssessmentStatusTable(runState) {
 }
 
 function renderCompleteAssessmentReasoningFeed(runState) {
+    lastCompleteAssessmentRunStateRef = runState;
     const panel = document.getElementById('aiReasoningPanel');
     const feed = document.getElementById('aiReasoningFeed');
     if (!panel || !feed) return;
     const labels = getCompleteAssessmentStepLabels();
     const steps = (runState && Array.isArray(runState.steps)) ? runState.steps : [];
-    const withThinking = steps.filter(function (s) {
-        return typeof s.thinking === 'string' && s.thinking.trim() !== '';
+    const withContent = steps.filter(function (s) {
+        const t = typeof s.thinking === 'string' && s.thinking.trim() !== '';
+        const n = getEffectiveCompleteStepNotice(s.id, s.reasoningNotice).trim() !== '';
+        return t || n;
     });
-    updateReasoningProgressTracker(withThinking.map(function (s) { return s.thinking; }));
-    if (withThinking.length === 0) {
+    updateReasoningProgressTracker(withContent.map(function (s) { return s.thinking || ''; }));
+    if (withContent.length === 0) {
         // Keep current output if we are mid-animation to avoid visible reset flicker.
         if (Object.keys(reasoningAnimState).length > 0) {
             panel.style.display = 'block';
@@ -799,7 +975,7 @@ function renderCompleteAssessmentReasoningFeed(runState) {
     panel.style.display = 'block';
     const terminal = runState && (runState.status === 'completed' || runState.status === 'failed');
     const activeKeys = {};
-    withThinking.forEach(function (s) {
+    withContent.forEach(function (s) {
         const msgKey = 'complete:' + s.id;
         activeKeys[msgKey] = true;
         let msg = feed.querySelector('.ai-reasoning-msg[data-reasoning-key="' + s.id + '"]');
@@ -818,10 +994,31 @@ function renderCompleteAssessmentReasoningFeed(runState) {
         const title = msg.querySelector('.ai-reasoning-msg__title');
         const body = msg.querySelector('.ai-reasoning-msg__body');
         title.textContent = labels[s.id] || s.id;
-        if (terminal) {
-            setReasoningTextStatic(body, s.thinking, msgKey);
+        const noticeFromServer = typeof s.reasoningNotice === 'string' ? s.reasoningNotice.trim() : '';
+        const effectiveNotice = getEffectiveCompleteStepNotice(s.id, s.reasoningNotice);
+        if (noticeFromServer) {
+            scheduleCompleteStepNoticeDwellRerender(s.id);
+        }
+        if (effectiveNotice) {
+            let noticeEl = msg.querySelector('.ai-reasoning-notice');
+            if (!noticeEl) {
+                noticeEl = document.createElement('div');
+                noticeEl.className = 'ai-reasoning-notice';
+                msg.insertBefore(noticeEl, body);
+            }
+            noticeEl.textContent = effectiveNotice;
         } else {
-            animateReasoningText(body, s.thinking, msgKey);
+            const oldNotice = msg.querySelector('.ai-reasoning-notice');
+            if (oldNotice) oldNotice.remove();
+        }
+        const thinkingText = typeof s.thinking === 'string' ? s.thinking : '';
+        if (!thinkingText.trim()) {
+            stopReasoningAnimation(msgKey);
+            body.innerHTML = '';
+        } else if (terminal) {
+            setReasoningTextStatic(body, thinkingText, msgKey);
+        } else {
+            animateReasoningText(body, thinkingText, msgKey);
         }
     });
     feed.querySelectorAll('.ai-reasoning-msg').forEach(function (el) {
@@ -835,23 +1032,52 @@ function renderCompleteAssessmentReasoningFeed(runState) {
     feed.scrollTop = feed.scrollHeight;
 }
 
-function renderSingleStepReasoningFeed(messageId, thinkingText) {
+function renderSingleStepReasoningFeed(messageId, thinkingText, reasoningNotice) {
     const panel = document.getElementById('aiReasoningPanel');
     const feed = document.getElementById('aiReasoningFeed');
     if (!panel || !feed) return;
     const text = typeof thinkingText === 'string' ? thinkingText.trim() : '';
+    lastSingleStepReasoningRender = {
+        messageId: messageId,
+        thinking: typeof thinkingText === 'string' ? thinkingText : '',
+    };
+    const noticeFromServer = typeof reasoningNotice === 'string' ? reasoningNotice.trim() : '';
+    const notice = getEffectiveSingleStepNotice(messageId, reasoningNotice);
+    if (noticeFromServer) {
+        scheduleSingleStepNoticeDwellRerender(messageId);
+    }
     updateReasoningProgressTracker(text);
-    if (!text) {
+    if (!text && !notice) {
         panel.style.display = 'none';
         feed.innerHTML = '';
         return;
     }
     panel.style.display = 'block';
-    const labels = getCompleteAssessmentStepLabels();
     const msgKey = 'single:' + messageId;
+    let noticeEl = feed.querySelector('.ai-reasoning-notice');
+    if (notice) {
+        if (!noticeEl) {
+            noticeEl = document.createElement('div');
+            noticeEl.className = 'ai-reasoning-notice';
+            feed.insertBefore(noticeEl, feed.firstChild);
+        }
+        noticeEl.textContent = notice;
+    } else if (noticeEl) {
+        noticeEl.remove();
+    }
+    if (!text) {
+        stopReasoningAnimation(msgKey);
+        const msg = feed.querySelector('.ai-reasoning-msg[data-reasoning-key="single"]');
+        if (msg) {
+            const body = msg.querySelector('.ai-reasoning-msg__body');
+            if (body) body.innerHTML = '';
+        }
+        return;
+    }
+    const labels = getCompleteAssessmentStepLabels();
     let msg = feed.querySelector('.ai-reasoning-msg[data-reasoning-key="single"]');
     if (!msg) {
-        feed.innerHTML = '';
+        feed.querySelectorAll('.ai-reasoning-msg').forEach(function (el) { el.remove(); });
         msg = document.createElement('div');
         msg.className = 'ai-reasoning-msg';
         msg.dataset.reasoningKey = 'single';
@@ -877,6 +1103,16 @@ function normalizeReasoningWhitespace(text) {
 }
 
 function hideReasoningFeed() {
+    if (singleStepNoticeDwellTimeout) {
+        clearTimeout(singleStepNoticeDwellTimeout);
+        singleStepNoticeDwellTimeout = null;
+    }
+    singleStepReasoningNoticeDwell = { messageId: '', text: '', hideAfter: 0 };
+    Object.keys(completeStepNoticeTimers).forEach(function (id) {
+        clearTimeout(completeStepNoticeTimers[id]);
+    });
+    completeStepNoticeTimers = {};
+    completeAssessmentNoticeDwell = {};
     const panel = document.getElementById('aiReasoningPanel');
     const feed = document.getElementById('aiReasoningFeed');
     if (panel) panel.style.display = 'none';
@@ -1137,6 +1373,11 @@ function parseJsonToHtml(json) {
 async function getInlineAIReponse(projectId) {
     try {
         const messageId = document.getElementById("pageId").value;
+        if (singleStepNoticeDwellTimeout) {
+            clearTimeout(singleStepNoticeDwellTimeout);
+            singleStepNoticeDwellTimeout = null;
+        }
+        singleStepReasoningNoticeDwell = { messageId: messageId, text: '', hideAfter: 0 };
         stopReasoningAnimation('single:' + messageId);
         // Hide preAI and mergeOverwrite elements, show aiRunning elements
         document.querySelectorAll('.preAI').forEach(el => el.style.display = 'none');
@@ -1178,7 +1419,11 @@ async function getInlineAIReponse(projectId) {
                 throw new Error('Failed to fetch AI progress');
             }
             finalData = await statusResponse.json();
-            renderSingleStepReasoningFeed(messageId, finalData.thinking || '');
+            renderSingleStepReasoningFeed(
+                messageId,
+                finalData.thinking || '',
+                finalData.reasoningNotice || ''
+            );
             updateReasoningWaitStatus();
             if (finalData.status === 'completed' || finalData.status === 'failed') {
                 break;
@@ -1217,6 +1462,11 @@ async function getInlineAIReponse(projectId) {
 async function getCompleteAIResponse(projectId) {
     try {
         const messageId = document.getElementById("pageId").value;
+        Object.keys(completeStepNoticeTimers).forEach(function (id) {
+            clearTimeout(completeStepNoticeTimers[id]);
+        });
+        completeStepNoticeTimers = {};
+        completeAssessmentNoticeDwell = {};
         Object.keys(reasoningAnimState).forEach(stopReasoningAnimation);
         // Hide preAI and mergeOverwrite elements, show aiRunning elements
         document.querySelectorAll('.preAI').forEach(el => el.style.display = 'none');

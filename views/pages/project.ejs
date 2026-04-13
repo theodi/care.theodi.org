@@ -238,8 +238,10 @@
                 const hint = document.getElementById("reportAiProvenanceHint");
                 if (hint) {
                     const hasAi =
-                        Array.isArray(projectData.aiInteractionHistory) &&
-                        projectData.aiInteractionHistory.length > 0;
+                        (typeof projectData.aiInteractionHistoryCount === 'number' &&
+                            projectData.aiInteractionHistoryCount > 0) ||
+                        (Array.isArray(projectData.aiInteractionHistory) &&
+                            projectData.aiInteractionHistory.length > 0);
                     hint.hidden = !hasAi;
                 }
                 if (typeof reportDownloadDialog.showModal === "function") {
@@ -271,11 +273,14 @@
             projectDownloadInProgress = true;
             setDownloadButtonsDisabled(true);
             try {
-                const response = await fetch(`/project/${projectId}`, {
-                    headers: {
-                        "Accept": "application/json"
+                const response = await fetch(
+                    `/project/${projectId}?includeAiInteractionHistory=true`,
+                    {
+                        headers: {
+                            "Accept": "application/json"
+                        }
                     }
-                });
+                );
                 if (!response.ok) {
                     throw new Error(`Download failed (${response.status})`);
                 }
@@ -340,8 +345,10 @@
         const aiBanner = document.getElementById("aiProvenanceBanner");
         if (aiBanner) {
             const hasAi =
-                Array.isArray(projectData.aiInteractionHistory) &&
-                projectData.aiInteractionHistory.length > 0;
+                (typeof projectData.aiInteractionHistoryCount === 'number' &&
+                    projectData.aiInteractionHistoryCount > 0) ||
+                (Array.isArray(projectData.aiInteractionHistory) &&
+                    projectData.aiInteractionHistory.length > 0);
             aiBanner.hidden = !hasAi;
         }
         document.getElementById("objectives").textContent = projectData.objectives || "No objectives provided.";
