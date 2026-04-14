@@ -36,6 +36,34 @@ const checkLimit = async (req, res, next) => {
     } catch (error) {
         return next(error);
     }
-}
+};
 
-module.exports = { checkLimit };
+/**
+ * AI assistant routes: same entitlement as unlimited projects — active ODI membership (HubSpot)
+ * or an active organisation subscription seat.
+ */
+const requireAiEntitlement = async (req, res, next) => {
+    try {
+        const user = req.session.passport.user;
+        if (!user || !user.id) {
+            const err = new Error('Unauthorized');
+            err.status = 401;
+            throw err;
+        }
+        const hubspotUser = await Hubspot.findOne({ userId: user.id });
+        if (hubspotUser && hubspotUser.membershipStatus === 'Active') {
+            return next();
+        }
+        if (user.email && (await userHasActiveOrgEntitlementByEmail(user.email))) {
+            return next();
+        }
+        return res.status(403).json({
+            message:
+                'AI features require ODI membership or an active organisation subscription.',
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+module.exports = { checkLimit, requireAiEntitlement };

@@ -17,6 +17,7 @@ const {
 } = require('../lib/organisationScanContext');
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
+const { requireAiEntitlement } = require('../middleware/hubspot');
 const {
     buildAiInteractionRecord,
     appendAiInteractionRun,
@@ -42,6 +43,8 @@ async function ensureAuthenticated(req, res, next) {
     }
     res.redirect('/login'); // Redirect to login page if not authenticated
 }
+
+router.use(ensureAuthenticated, requireAiEntitlement);
 
 function includeExistingStepDataRequested(req) {
     const q = req.query && req.query.includeExisting;
@@ -170,7 +173,7 @@ function normalizeParsedResponseForStep(messageId, parsedResponse) {
     return payload;
 }
 
-router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
+router.get('/:id/:messageId', checkProjectAccess, loadProject, async (req, res, next) => {
     try {
         let projectData = res.locals.project;
         const messageId = req.params.messageId;
@@ -200,7 +203,7 @@ router.get('/:id/:messageId', ensureAuthenticated, checkProjectAccess, loadProje
     }
 });
 
-router.post('/:id/completeAssessment/start', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+router.post('/:id/completeAssessment/start', checkProjectAccess, loadProject, async (req, res) => {
     try {
         const projectData = res.locals.project;
         const merge = !(req.body && req.body.merge === false);
@@ -263,7 +266,7 @@ router.post('/:id/completeAssessment/start', ensureAuthenticated, checkProjectAc
     }
 });
 
-router.get('/:id/completeAssessment/status/:runId', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+router.get('/:id/completeAssessment/status/:runId', checkProjectAccess, loadProject, async (req, res) => {
     const state = completeAssessmentRuns.get(req.params.runId);
     if (!state || state.projectId !== String(req.params.id)) {
         return res.status(404).json({ message: 'Run not found' });
@@ -279,7 +282,7 @@ router.get('/:id/completeAssessment/status/:runId', ensureAuthenticated, checkPr
     });
 });
 
-router.post('/:id/completeAssessment/retry/:runId/:stepId', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+router.post('/:id/completeAssessment/retry/:runId/:stepId', checkProjectAccess, loadProject, async (req, res) => {
     try {
         const state = completeAssessmentRuns.get(req.params.runId);
         if (!state || state.projectId !== String(req.params.id)) {
@@ -364,7 +367,7 @@ router.post('/:id/completeAssessment/retry/:runId/:stepId', ensureAuthenticated,
     }
 });
 
-router.post('/:id/:messageId/start', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+router.post('/:id/:messageId/start', checkProjectAccess, loadProject, async (req, res) => {
     try {
         const projectData = res.locals.project;
         const messageId = req.params.messageId;
@@ -442,7 +445,7 @@ router.post('/:id/:messageId/start', ensureAuthenticated, checkProjectAccess, lo
     }
 });
 
-router.get('/:id/:messageId/status/:runId', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res) => {
+router.get('/:id/:messageId/status/:runId', checkProjectAccess, loadProject, async (req, res) => {
     const state = assistantStepRuns.get(req.params.runId);
     if (!state || state.projectId !== String(req.params.id) || state.messageId !== req.params.messageId) {
         return res.status(404).json({ message: 'Run not found' });

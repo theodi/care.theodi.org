@@ -127,6 +127,29 @@ function escapeHtml(text) {
         .replace(/'/g, '&#39;');
 }
 
+/** Shown when POST /assistant/* returns 403 (no membership / org entitlement). */
+var CARE_AI_PLAN_FORBIDDEN_MESSAGE =
+    'Your plan does not include AI use. Please consider upgrading.';
+
+/**
+ * @param {Response} response — non-ok fetch response (body not yet read)
+ * @param {string} fallback — if status is not 403 and JSON has no message
+ */
+async function assistantErrorMessageFromResponse(response, fallback) {
+    if (response.status === 403) {
+        return CARE_AI_PLAN_FORBIDDEN_MESSAGE;
+    }
+    try {
+        const data = await response.json();
+        if (data && typeof data.message === 'string' && data.message.trim()) {
+            return data.message.trim();
+        }
+    } catch (e) {
+        /* ignore */
+    }
+    return fallback;
+}
+
 /** Pretty-print JSON in raw model output for <pre>; otherwise return original text (newlines preserved). */
 function prettyPrintRawModelResponse(raw) {
     if (raw == null) {
@@ -1426,7 +1449,8 @@ async function getInlineAIReponse(projectId) {
         );
 
         if (!startResponse.ok) {
-            throw new Error('Network response was not ok');
+            const msg = await assistantErrorMessageFromResponse(startResponse, 'Network response was not ok');
+            throw new Error(msg);
         }
 
         const startData = await startResponse.json();
@@ -1442,7 +1466,8 @@ async function getInlineAIReponse(projectId) {
                 { headers: { 'Accept': 'application/json' } }
             );
             if (!statusResponse.ok) {
-                throw new Error('Failed to fetch AI progress');
+                const msg = await assistantErrorMessageFromResponse(statusResponse, 'Failed to fetch AI progress');
+                throw new Error(msg);
             }
             finalData = await statusResponse.json();
             renderSingleStepReasoningFeed(
@@ -1509,7 +1534,8 @@ async function getCompleteAIResponse(projectId) {
         });
 
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            const msg = await assistantErrorMessageFromResponse(response, 'Network response was not ok');
+            throw new Error(msg);
         }
 
         const startData = await response.json();
@@ -1561,7 +1587,8 @@ async function pollCompleteAssessmentRun(projectId, runId) {
             { headers: { 'Accept': 'application/json' } }
         );
         if (!statusResponse.ok) {
-            throw new Error('Failed to fetch assessment progress');
+            const msg = await assistantErrorMessageFromResponse(statusResponse, 'Failed to fetch assessment progress');
+            throw new Error(msg);
         }
         responseData = await statusResponse.json();
         renderCompleteAssessmentStatusTable(responseData);
@@ -1597,8 +1624,8 @@ async function retryCompleteAssessmentStep(stepId) {
             }
         );
         if (!response.ok) {
-            const err = await response.json().catch(function () { return {}; });
-            throw new Error(err.message || 'Failed to retry stage');
+            const msg = await assistantErrorMessageFromResponse(response, 'Failed to retry stage');
+            throw new Error(msg);
         }
         const restartState = await response.json();
         renderCompleteAssessmentStatusTable(restartState);

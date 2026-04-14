@@ -26,6 +26,104 @@
     <h2>How to use the tool</h2>
     <p>In order to use the tool you will need to first create an <a href="https://theodi.org/account/register/" target="_blank">ODI Account</a>.<p>You can then use this to <a href="/auth/django">login</a>.</p>
     <p>All free accounts are limited to one assessment, while becoming a <a href="https://theodi.org/membership/" target="_blank">member of the ODI</a> removes this limitation.</p>
+
+    <h2>Plans</h2>
+    <p class="home-plans-intro">Use CARE with a free ODI account, or upgrade through <a href="https://theodi.org/membership/" target="_blank" rel="noopener noreferrer">ODI membership</a> for more capacity and AI. Enterprise adds organisation licensing, optional custom AI, and integrations.</p>
+    <div class="home-plans-wrap">
+      <table class="home-plans-table">
+        <caption class="visually-hidden">Plans: Free, ODI Member, Enterprise — grouped by AI assistance, reports, and sharing and integrations</caption>
+        <thead>
+          <tr class="home-plans-table__head-row">
+            <th scope="col" class="home-plans-table__corner"></th>
+            <th scope="col" class="home-plans-table__plan">
+              <span class="home-plans-table__plan-title">Free</span>
+              <span class="home-plans-table__plan-sub">Standard ODI account</span>
+            </th>
+            <th scope="col" class="home-plans-table__plan">
+              <span class="home-plans-table__plan-title">ODI Member</span>
+              <span class="home-plans-table__plan-sub">Active membership</span>
+            </th>
+            <th scope="col" class="home-plans-table__plan">
+              <span class="home-plans-table__plan-title">Enterprise</span>
+              <span class="home-plans-table__plan-sub">Organisation subscription</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="home-plans-table__section-row">
+            <th scope="colgroup" colspan="4" class="home-plans-table__section-title">Evaluation content</th>
+          </tr>
+          <tr>
+            <th scope="row">Evaluations you can own</th>
+            <td>1</td>
+            <td>Unlimited</td>
+            <td>Unlimited</td>
+          </tr>
+          <tr>
+            <th scope="row">Consequence scanning, risk register, exports</th>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Bespoke report templates</th>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr class="home-plans-table__section-row">
+            <th scope="colgroup" colspan="4" class="home-plans-table__section-title">AI assistance</th>
+          </tr>
+          <tr>
+            <th scope="row">AI assistance (suggestions, full assessment, etc.)</th>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Custom AI provider</th>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Live AI reasoning</th>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Organisation guidance in AI prompts</th>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr class="home-plans-table__section-row">
+            <th scope="colgroup" colspan="4" class="home-plans-table__section-title">Sharing and integrations</th>
+          </tr>
+          <tr>
+            <th scope="row">Share evaluations by email</th>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Organisation workspace (shared evaluations, roles, licensing)</th>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Integration API &amp; automation</th>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small home-plans-footnote">Enterprise plans are agreed with the ODI. <a href="https://theodi.org/about-the-odi/contact-us/" target="_blank" rel="noopener noreferrer">Contact the ODI</a> about organisation subscriptions.</p>
+
     <p><b>Once you login there are two routes through the tool:</b></p>
     <div class="grid-two-by-two">
         <div>
@@ -39,8 +137,8 @@
     </div>
 
   <h2>Supported by AI</h2>
-  <p>The tool uses a ChatGPT plugin to assist you in the process of consequence scanning. Throughout the tool, you will have the option to generate suggestions and ideas for your project in order to help you identify consequences and plan risk mitigation.</p>
-  <b>You can use the AI to help you:</b>
+  <p>AI features use a compatible model via CARE&rsquo;s integration (see <a href="/about#useOfAI">your privacy</a> for the current provider). <b>AI is available once you have ODI membership or an active organisation subscription</b> — it is not enabled on a free account alone.</p>
+  <p>Where you have access, the AI can help you:</p>
     <ul>
         <li><b>Carry out an automated risk assessment:</b> Provide a detailed description of your project as well as data used and let the AI do a first draft for you of everything from consequenes to actions, giving you a risk regisiter in less that 10 minutes.</li>
         <li><b>Suggest consequences:</b> Both positive and negative, that might arise from your data project, which you can selectively add to your evaluation.</li>
@@ -65,5 +163,97 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       grid-gap: 1rem;
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .home-plans-intro {
+      max-width: 52rem;
+    }
+    .home-plans-wrap {
+      overflow-x: auto;
+      margin: 1rem 0 0.5rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .home-plans-table {
+      --home-plans-blue: var(--color-dark-blue, #072589);
+      width: 100%;
+      min-width: 44rem;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      border: 2px solid var(--home-plans-blue);
+    }
+    .home-plans-table__head-row th {
+      background: var(--home-plans-blue);
+      color: #fff;
+      border: 1px solid var(--home-plans-blue);
+      padding: 0.65rem 0.75rem;
+      text-align: left;
+      vertical-align: bottom;
+      font-weight: 600;
+    }
+    .home-plans-table__corner {
+      width: 11rem;
+    }
+    .home-plans-table__plan {
+      min-width: 9.5rem;
+    }
+    .home-plans-table__plan-title {
+      display: block;
+      font-size: 1.05rem;
+      line-height: 1.3;
+    }
+    .home-plans-table__plan-sub {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 400;
+      opacity: 0.92;
+      margin-top: 0.2rem;
+      line-height: 1.35;
+    }
+    .home-plans-table tbody th,
+    .home-plans-table tbody td {
+      border: 1px solid var(--home-plans-blue);
+      padding: 0.5rem 0.65rem;
+      text-align: left;
+      vertical-align: top;
+      color: var(--color-dark-blue, #072589);
+    }
+    .home-plans-table__section-row th.home-plans-table__section-title {
+      background: rgba(7, 37, 137, 0.1);
+      color: var(--color-dark-blue, #072589);
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 0.45rem 0.65rem;
+      border: 1px solid var(--home-plans-blue);
+    }
+    .home-plans-table tbody th[scope="row"] {
+      font-weight: 600;
+      max-width: 14rem;
+      color: var(--color-dark-grey, #333);
+    }
+    .home-plans-table tbody td {
+      font-weight: 400;
+    }
+    .home-plans-yes {
+      font-weight: 700;
+      color: var(--color-dark-blue, #072589);
+    }
+    .home-plans-footnote {
+      max-width: 52rem;
+      margin-top: 0.75rem;
+    }
+    @media (max-width: 40rem) {
+      .home-plans-table {
+        font-size: 0.85rem;
+      }
     }
 </style>
