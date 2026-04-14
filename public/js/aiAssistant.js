@@ -583,17 +583,39 @@ function injectCareAiStepOptions(orgAiAvailable, scanContextByStage, messageId) 
     });
 }
 
+/**
+ * The full-assessment pipeline sends one request per stage (same templates as each section).
+ * Legacy completeAssessment.txt describes a single monolithic prompt and must not be shown as the “query sent”.
+ */
+function getCompleteAssessmentPromptExplanationText() {
+    return (
+        'This full run does not send one combined prompt.\n\n' +
+        'The server runs five separate AI requests, in order, each using the same message template as that step elsewhere in the tool:\n' +
+        '1. Intended consequences\n' +
+        '2. Unintended consequences\n' +
+        '3. Stakeholders\n' +
+        '4. Risk evaluation\n' +
+        '5. Action planning\n\n' +
+        'Each request includes your project details (title, objectives, data used) and, where relevant, existing answers from earlier steps. Options such as organisation guidance and “include existing answers” apply per stage, using your settings when you start the run.\n\n' +
+        'To see the exact wording and placeholders for a stage, open that section of the evaluation and expand “Click here to view the query and data sent to the AI” there.'
+    );
+}
+
 async function loadAI() {
     const form = document.getElementById("dataForm");
     const projectId = form.dataset.projectId;
     const messageId = document.getElementById("pageId").value;
     let message;
     try {
-        const response = await fetch('/data/messageTemplates/' + messageId + '.txt');
-        if (!response.ok) {
-            throw new Error('Failed to fetch message');
+        if (messageId === 'completeAssessment') {
+            message = getCompleteAssessmentPromptExplanationText();
+        } else {
+            const response = await fetch('/data/messageTemplates/' + messageId + '.txt');
+            if (!response.ok) {
+                throw new Error('Failed to fetch message');
+            }
+            message = await response.text();
         }
-        message = await response.text();
     } catch (error) {
         return;
     }
@@ -634,7 +656,9 @@ async function loadAI() {
         });
     }
 
-    renderAiRunHistoryPanel(messageId);
+    if (messageId !== 'completeAssessment') {
+        renderAiRunHistoryPanel(messageId);
+    }
 }
 
 async function addAIElements() {
@@ -670,7 +694,9 @@ async function addAIElements() {
     aiContainer.appendChild(aiRunning);
     aiContainer.appendChild(postAI);
 
-    if (aiContainer && !document.getElementById('careAiHistory')) {
+    const pageIdEl = document.getElementById('pageId');
+    const mid = pageIdEl ? pageIdEl.value : '';
+    if (mid !== 'completeAssessment' && aiContainer && !document.getElementById('careAiHistory')) {
         const historyWrap = document.createElement('div');
         historyWrap.id = 'careAiHistory';
         historyWrap.className = 'care-ai-history-wrap';

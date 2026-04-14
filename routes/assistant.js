@@ -545,6 +545,7 @@ async function persistAiInteractionRecord(req, projectData, stepId, detail) {
         reasoning: reasoning || '',
         status: status === 'failed' ? 'failed' : 'completed',
         error,
+        markAllSuggestionsApplied: !!pipelineRunId && status !== 'failed',
     });
     try {
         await appendAiInteractionRun(String(projectData._id), record);

@@ -45,6 +45,11 @@ const { deleteUser, retrieveOrCreateUser } = require('./controllers/user'); // I
 const { getHubspotProfile, updateToolStatistics } = require('./controllers/hubspot');
 const app = express();
 const port = process.env.PORT || 3080;
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 const expressLayouts = require('express-ejs-layouts');
@@ -73,10 +78,44 @@ if (mongoDB) {
 }
 app.use(session({
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   secret: process.env.SESSION_SECRET,
   store: MongoStore.create(mongoSessionStoreOpts),
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isProduction,
+    maxAge: 1000 * 60 * 60 * 12,
+  },
 }));
+
+function sameOrigin(urlString, req) {
+  if (!urlString) return false;
+  try {
+    const parsed = new URL(urlString);
+    const forwardedProto = req.get('x-forwarded-proto');
+    const proto = forwardedProto || req.protocol;
+    const expectedOrigin = `${proto}://${req.get('host')}`;
+    return parsed.origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    return next();
+  }
+  const origin = req.get('Origin');
+  const referer = req.get('Referer');
+  const valid = sameOrigin(origin, req) || sameOrigin(referer, req);
+  if (valid) {
+    return next();
+  }
+  const err = new Error('Cross-site request blocked');
+  err.status = 403;
+  return next(err);
+});
 
 // Middleware for user object
 
@@ -316,9 +355,7 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
             const organisationMeta = await getUserOrganisationMetaByEmail(userEmail);
             res.json({ ...userProjects, organisationMeta });
         } else {
-            if (req.session.authMethod !== 'local') {
-              updateToolStatistics(req.session.passport.user.id);
-            }
+            updateToolStatistics(req.session.passport.user.id);
             const page = {
               title: "Evaluations",
               link: "/projects"

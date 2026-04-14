@@ -10,6 +10,11 @@ let form = {};
 let schema = {};
 let projectData = {};
 let projectId = "";
+let autosaveTimer = null;
+let autosaveInFlight = false;
+let autosaveQueued = false;
+let autosaveBindingsAttached = false;
+const AUTOSAVE_DEBOUNCE_MS = 1200;
 
 $('#dataForm').html("");
 $('#result').html("");
@@ -37,6 +42,7 @@ async function loadPage(formName,projectId) {
     extractDisabledFieldValues("dataForm");
     loadAI();
     moveSubmitButton();
+    attachAutosaveBindings();
 }
 
 async function reloadPage() {
@@ -268,9 +274,132 @@ function projectPayloadForSave(obj) {
   return out;
 }
 
+function isTextEntryElement(element) {
+  if (!element) return false;
+  const tag = (element.tagName || '').toUpperCase();
+  if (tag === 'TEXTAREA') return true;
+  if (tag !== 'INPUT') return false;
+  const type = (element.type || '').toLowerCase();
+  return ['text', 'search', 'email', 'url', 'tel', 'password', 'number'].includes(type);
+}
+
+function isAutosaveTarget(element) {
+  if (!element || element.disabled) return false;
+  const tag = (element.tagName || '').toUpperCase();
+  if (!['INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return false;
+  if (element.classList && element.classList.contains('disabled')) return false;
+  if (tag === 'INPUT') {
+    const type = (element.type || '').toLowerCase();
+    if (['hidden', 'submit', 'button', 'reset', 'file'].includes(type)) return false;
+  }
+  return true;
+}
+
+function clearAutosaveTimer() {
+  if (!autosaveTimer) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = null;
+}
+
+function scheduleAutosave(delayMs = AUTOSAVE_DEBOUNCE_MS) {
+  clearAutosaveTimer();
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = null;
+    void runAutosave();
+  }, delayMs);
+}
+
+async function runAutosave() {
+  if (autosaveInFlight) {
+    autosaveQueued = true;
+    return;
+  }
+  const $ = window.jQuery;
+  if (!$ || typeof window.mergeFormValuesIntoProjectData !== 'function' || typeof window.sendDataToServer !== 'function') {
+    return;
+  }
+  const $form = $('#dataForm');
+  if (!$form || $form.length === 0) return;
+  const tree = $form.data('jsonform-tree');
+  if (!tree) return;
+
+  autosaveInFlight = true;
+  try {
+    const values = $form.jsonFormValue();
+    const payload = window.mergeFormValuesIntoProjectData(values);
+    await window.sendDataToServer(payload, { autoSave: true });
+  } finally {
+    autosaveInFlight = false;
+    if (autosaveQueued) {
+      autosaveQueued = false;
+      scheduleAutosave(400);
+    }
+  }
+}
+
+function attachAutosaveBindings() {
+  if (autosaveBindingsAttached) return;
+  const formEl = document.getElementById('dataForm');
+  if (!formEl) return;
+
+  // Text entries save on blur to avoid interrupting typing.
+  formEl.addEventListener('focusout', (event) => {
+    const target = event.target;
+    if (!isAutosaveTarget(target) || !isTextEntryElement(target)) return;
+    scheduleAutosave();
+  });
+
+  // Non-text controls (select, checkbox, radio, etc.) save on change.
+  formEl.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!isAutosaveTarget(target)) return;
+    if (isTextEntryElement(target)) return;
+    scheduleAutosave(300);
+  });
+
+  // Avoid duplicate save when explicit submit/navigation is triggered.
+  formEl.addEventListener('submit', () => {
+    clearAutosaveTimer();
+  });
+
+  autosaveBindingsAttached = true;
+}
+
+function updateSidebarCompletionStates(pages) {
+  if (!Array.isArray(pages)) return;
+  pages.forEach((page) => {
+    if (!page || !page.link || !page.completionState) return;
+    const link = document.getElementById(page.link);
+    if (!link) return;
+    const listItem = link.closest('li');
+    if (!listItem) return;
+    listItem.classList.remove('todo', 'inProgress', 'done');
+    listItem.classList.add(page.completionState);
+  });
+}
+
+async function refreshSidebarCompletionStates(id) {
+  if (!id) return;
+  try {
+    const response = await fetch(`/project/${id}/progress`, {
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+    if (!response.ok) {
+      return;
+    }
+    const responseData = await response.json();
+    updateSidebarCompletionStates(responseData.pages);
+  } catch (error) {
+    console.error("Unable to refresh sidebar completion states", error);
+  }
+}
+
 async function sendDataToServer(inputObject, navigationOverride) {
   inputObject = cleanArrays(inputObject);
   console.log(inputObject);
+  const autoSave = !!(navigationOverride && navigationOverride.autoSave);
   let url;
   let method;
   const form = document.getElementById("dataForm");
@@ -301,6 +430,10 @@ async function sendDataToServer(inputObject, navigationOverride) {
         projectId = id;
         form.dataset.projectId = id;
       }
+      await refreshSidebarCompletionStates(id);
+      if (autoSave) {
+        return;
+      }
       if (navigationOverride && navigationOverride.navigateQuickNavTo) {
         await quickNav(navigationOverride.navigateQuickNavTo);
         return;
@@ -319,12 +452,20 @@ async function sendDataToServer(inputObject, navigationOverride) {
         // Request failed, handle errors
         const errorData = await response.json();
         const errorMessage = errorData.message;
-        showErrorOverlay(errorMessage);
+        if (autoSave) {
+          console.warn("Autosave failed:", errorMessage);
+        } else {
+          showErrorOverlay(errorMessage);
+        }
     }
   } catch (error) {
     // Handle network errors
     const errorMessage = "An error occurred. Please try again later.";
-    showErrorOverlay(errorMessage);
+    if (autoSave) {
+      console.warn("Autosave network error");
+    } else {
+      showErrorOverlay(errorMessage);
+    }
   }
 }
 

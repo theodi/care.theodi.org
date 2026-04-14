@@ -346,6 +346,37 @@ router.get(
     }
 );
 
+// GET completion states for each assessment section (for live sidebar refresh)
+router.get('/:id/progress', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
+    try {
+        const accept = req.get('Accept') || '';
+        if (accept && !accept.includes('application/json')) {
+            return res.status(406).json({ message: 'Use Accept: application/json' });
+        }
+        const id = req.params.id;
+        const pages = require('../pages.json');
+        const updatedPages = await Promise.all(
+            pages.map(async (page) => {
+                const schemaPath = `../public/data/schemas/partials/${page.link}.json`;
+                const schema = require(schemaPath);
+                const completionState = await projectController.getCompletionState(
+                    id,
+                    schema,
+                    page.link
+                );
+                return {
+                    link: page.link,
+                    title: page.title,
+                    completionState,
+                };
+            })
+        );
+        return res.json({ pages: updatedPages });
+    } catch (error) {
+        return next(error);
+    }
+});
+
 // GET route to retrieve a project by ID
 router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
     try {
@@ -473,9 +504,7 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
         delete createPayload.integrationExternalId;
         const project = new Project(createPayload);
         const savedProject = await project.save();
-        if (req.session.authMethod !== 'local') {
-            updateToolStatistics(req.session.passport.user.id);
-        }
+        updateToolStatistics(req.session.passport.user.id);
         res.status(201).json(savedProject);
     } catch (error) {
         next(error);
@@ -499,9 +528,7 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, nex
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });
         }
-        if (req.session.authMethod !== 'local') {
-            updateToolStatistics(req.session.passport.user.id);
-        }
+        updateToolStatistics(req.session.passport.user.id);
         res.json(updatedProject);
     } catch (error) {
         res.status(400).json({ message: error.message });

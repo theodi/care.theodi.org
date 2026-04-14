@@ -100,9 +100,6 @@
             <ul>
                 <li><a href="/glossary" id="glossary-link"<% if (typeof page !== 'undefined' && page && page.link === '/glossary') { %> class="footer-link--current"<% } %>>Glossary</a></li>
                 <li><a href="/about" id="privacy-link"<% if (typeof page !== 'undefined' && page && page.link === '/about') { %> class="footer-link--current"<% } %>>Your privacy</a></li>
-                <% if (user && user.authMethod === 'google') { %>
-                <li><a href="/auth/local/reset-password">View/change local password</a></li>
-                <% } %>
                 <% if (typeof isCareStaff !== 'undefined' && isCareStaff) { %>
                 <li><a href="/subscriptions"<% if (typeof page !== 'undefined' && page && page.link && (page.link === '/subscriptions' || page.link === '/subscriptions/new' || page.link.indexOf('/subscriptions/') === 0)) { %> class="footer-link--current"<% } %>>Enterprise subscriptions</a></li>
                 <% } %>
