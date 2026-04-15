@@ -22,7 +22,8 @@ You may also be given a JSON block listing existing stakeholders that have alrea
 
 Using this context suggest some stakeholders (e.g. roles, teams or organisations) that are involved in, or impacted by the project.
 
-Return a maximum of 10 stakeholders total, and generally aim for 7–10 high‑value stakeholders. Keep entries specific and non-duplicative.
+Return a maximum of 10 stakeholders total, and generally aim for 7–10 high‑value stakeholders. Keep entries specific and non-duplicative. Note that if you have been given existing stakeholders, these don't count towards this number.
+
 
  For each stakeholder, indicate whether they are an internal stakeholder (part of the organisation or project team) or an external stakeholder (outside the organisation or project team).
 

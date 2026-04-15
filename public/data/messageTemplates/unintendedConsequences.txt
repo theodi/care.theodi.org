@@ -18,7 +18,7 @@ Using this context suggest some unintended consequences for the project. These u
 
 You may also be given a JSON block listing existing unintended consequences that have already been recorded for this project. Treat those as already collected answers: do not repeat or lightly rephrase them. Only suggest additional, distinct unintended consequences that are not already present.
 
-Return a maximum of 10 unintended consequences total, including both positive and negative where reasonable for the project context, and generally aim for 7–10 high‑value items. Prefer distinct, high-value items.
+Return a maximum of 10 unintended consequences total, including both positive and negative where reasonable for the project context, and generally aim for 7–10 high‑value items. Prefer distinct, high-value Note that if you have been given existing consequences, these don't count towards this number.
 
 {{orgContext}}
 

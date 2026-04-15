@@ -14,7 +14,7 @@ Using this context suggest some intended consequences for the project. Intended 
 
 You may also be given a JSON block listing existing intended consequences that have already been recorded for this project. Treat those as already collected answers: do not repeat or lightly rephrase them. Only suggest additional, distinct intended consequences that are not already present.
 
-Return a maximum of 10 intended consequences, and generally aim for 7–10 high‑quality items. Prefer quality and distinct ideas over quantity.
+Return a maximum of 10 intended consequences, and generally aim for 7–10 high‑quality items. Prefer quality and distinct ideas over quantity. Note that if you have been given existing consequences, these don't count towards this number.
 
 {{orgContext}}
 
