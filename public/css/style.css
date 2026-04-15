@@ -153,7 +153,7 @@ li {
   background-color: rgb(255 255 255);
   color: black;
 }
-.white h1, .white h2, .white h3 {
+.white h1, .white h2, .white h3, .white h4 {
   color: var(--color-dark-blue);
 }
 .dark-blue {

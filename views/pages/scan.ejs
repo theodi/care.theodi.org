@@ -240,11 +240,15 @@ function populateMissingElements(schema,data) {
     return data;
 }
 
-function moveSubmitButton() {
+function moveSubmitButton(retryCount = 0) {
     const formElement = document.getElementById('dataForm');
-    const submitButton = document.querySelector('.submitButton');
+    const submitButton = formElement ? formElement.querySelector('.submitButton') : null;
 
     if (!formElement || !submitButton) {
+        if (retryCount < 6) {
+            setTimeout(() => moveSubmitButton(retryCount + 1), 80);
+            return;
+        }
         console.error("submitButtonContainer or submitButton not found.");
         return;
     }
@@ -260,7 +264,10 @@ function moveSubmitButton() {
     submitButtonContainer.classList.add('content-block', 'white', 'proceed');
 
     // Preserve jsonForm layout styles by moving the wrapper when present.
-    const submitButtonWrapper = submitButton.closest('li') || submitButton;
+    const submitButtonWrapper =
+        submitButton.closest('.form-actions') ||
+        submitButton.closest('li') ||
+        submitButton;
     submitButtonContainer.appendChild(submitButtonWrapper);
     formElement.appendChild(submitButtonContainer);
 }
