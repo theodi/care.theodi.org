@@ -7,7 +7,7 @@ const Project = require('../models/project');
 const User = require('../models/user');
 const Tenant = require('../models/tenant');
 
-const { chatCompletion } = require('../services/aiChat');
+const { chatCompletion, loadConfig } = require('../services/aiChat');
 const { parseModelJsonResponse } = require('../services/parseAIJson');
 const { findMembershipForEmail } = require('../lib/organisationEntitlements');
 const { orgAiToRuntimeOverrides } = require('../lib/organisationAiConfig');
@@ -917,15 +917,19 @@ async function getAIReponse(
     onMetaEvent
 ) {
     const rawClone = JSON.parse(JSON.stringify(rawSchema));
+    const envAiConfig = loadConfig();
     const provider =
       orgOverrides && typeof orgOverrides.provider === 'string'
         ? orgOverrides.provider
-        : undefined;
+        : envAiConfig.provider;
+    const anthropicThinkingBudget =
+      orgOverrides && typeof orgOverrides.anthropicThinkingBudget === 'number'
+        ? orgOverrides.anthropicThinkingBudget
+        : envAiConfig.anthropicThinkingBudget;
     const streamingForAnthropic =
-      orgOverrides &&
       provider === 'anthropic' &&
-      typeof orgOverrides.anthropicThinkingBudget === 'number' &&
-      orgOverrides.anthropicThinkingBudget > 0 &&
+      typeof anthropicThinkingBudget === 'number' &&
+      anthropicThinkingBudget > 0 &&
       typeof streamObserver === 'function';
     const runtime = {
       ...orgOverrides,
