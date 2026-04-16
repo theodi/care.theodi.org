@@ -1,6 +1,71 @@
 <link href="/lib/DataTables/datatables.min.css" rel="stylesheet">
 <script src="/lib/DataTables/datatables.min.js"></script>
 
+<div id="shareOverlay" class="overlay">
+    <div class="overlay-content share-overlay-panel">
+        <span class="close-btn" onclick="closeShareOverlay()" aria-label="Close">&times;</span>
+        <h2 class="share-overlay-title">Share evaluation</h2>
+        <p class="share-overlay-lead small">Invite people by email or share with your whole organisation. Everyone with access can edit this evaluation.</p>
+        <div id="shareOverlayMessage" class="alert share-overlay-message" style="display:none;" role="status"></div>
+        <table class="share-access-table">
+            <thead>
+                <tr>
+                    <th scope="col">Who has access</th>
+                    <th scope="col" class="share-access-col-action" aria-label="Actions"></th>
+                </tr>
+            </thead>
+            <tbody id="shareAccessOrgTbody" style="display:none;">
+                <tr class="share-access-row share-access-row--org">
+                    <td>
+                        <div class="share-access-who">
+                            <span class="share-access-avatar share-access-avatar--org" aria-hidden="true">Org</span>
+                            <div>
+                                <div class="share-access-primary">Everyone in your organisation</div>
+                                <p id="shareOrgOrganisationName" class="share-access-hint small share-access-org-name">&nbsp;</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="share-access-col-action share-access-col-action--toggle">
+                        <label class="share-access-toggle" for="orgShareCheckbox">
+                            <input type="checkbox" id="orgShareCheckbox" class="visually-hidden" aria-describedby="orgShareHint"/>
+                            <span class="share-access-toggle-ui" aria-hidden="true"></span>
+                            <span class="share-access-toggle-text" id="orgShareToggleText">Off</span>
+                        </label>
+                        <span id="orgShareHint" class="visually-hidden">Toggle sharing with all organisation members</span>
+                    </td>
+                </tr>
+            </tbody>
+            <tbody id="shareAccessPeopleTbody">
+                <tr class="share-access-subhead-row" id="shareAccessPeopleSubhead">
+                    <td colspan="2">People you’ve shared with</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="share-access-add">
+            <input type="email" id="shareInviteEmail" class="input inputText" placeholder="Add people by email..." autocomplete="email" aria-label="Email address to invite"/>
+            <button type="button" class="btn btn-primary" id="shareAddPersonBtn">Add</button>
+        </div>
+    </div>
+</div>
+<div id="transferOwnerOverlay" class="overlay">
+    <div class="overlay-content share-overlay-panel">
+        <span class="close-btn" onclick="closeTransferOwnerOverlay()" aria-label="Close">&times;</span>
+        <h2 class="share-overlay-title">Transfer ownership</h2>
+        <p class="share-overlay-lead small">The new owner must be listed on your organisation and must already have a CARE account. Evaluations are always owned by a user account in CARE.</p>
+        <div id="transferOwnerMessage" class="alert share-overlay-message" style="display:none;" role="alert"></div>
+        <input type="hidden" id="transferProjectId" value=""/>
+        <div class="transfer-owner-body">
+            <label class="transfer-owner-label" for="transferOwnerSelect">New owner</label>
+            <select id="transferOwnerSelect" class="input inputText transfer-owner-select" aria-describedby="transferOwnerHelp"></select>
+            <p id="transferOwnerHelp" class="small transfer-owner-hint">Members without a CARE account cannot be selected until they have signed in at least once.</p>
+        </div>
+        <div class="transfer-owner-actions">
+            <button type="button" class="btn btn-primary" id="transferOwnerSubmit">Transfer ownership</button>
+            <button type="button" class="transparent transfer-owner-cancel" onclick="closeTransferOwnerOverlay()">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <div class="main-content">
     <section class="page-title container white">
         <h1 style="text-align: center;"><%= page.title %></h1>
@@ -42,6 +107,7 @@
 </div>
 
 <script>
+var organisationMetaGlobal = {};
 var selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
 var assessmentsPayload = [];
 
@@ -74,6 +140,112 @@ function renderScopeTagPills(tags) {
             return '<span class="scope-pill">' + escapeHtml(String(t)) + '</span>';
         })
         .join(' ');
+}
+
+function shareOverlayProjectId() {
+    return $('#shareOverlay').attr('data-projectid');
+}
+
+function showShareOverlayMessage(text, isError) {
+    var el = document.getElementById('shareOverlayMessage');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#b00020' : '';
+}
+
+function clearShareOverlayMessage() {
+    var el = document.getElementById('shareOverlayMessage');
+    if (!el) return;
+    el.style.display = 'none';
+    el.textContent = '';
+}
+
+function updateOrgShareToggleLabel() {
+    var cb = document.getElementById('orgShareCheckbox');
+    var label = document.getElementById('orgShareToggleText');
+    if (!cb || !label) return;
+    label.textContent = cb.checked ? 'On' : 'Off';
+}
+
+function getSharedUsers(projectId) {
+    return fetch('/project/' + projectId + '/sharedUsers', { headers: { Accept: 'application/json' } })
+        .then(function (response) { return response.json(); })
+        .catch(function (error) {
+            console.error('Error fetching shared users:', error);
+        });
+}
+
+function renderSharedUsers(sharedUsers) {
+    var $tb = $('#shareAccessPeopleTbody');
+    if (!$tb.length) return;
+    $tb.find('.share-access-person-row, .share-access-empty-row').remove();
+    var list = sharedUsers && sharedUsers.sharedUsers ? sharedUsers.sharedUsers : [];
+    if (list.length === 0) {
+        $tb.append(
+            $('<tr class="share-access-empty-row"><td colspan="2"><span class="small share-access-muted">No individual invites yet. Add an email below.</span></td></tr>')
+        );
+        return;
+    }
+    list.forEach(function (email) {
+        var initials = String(email).trim().charAt(0).toUpperCase();
+        if (!initials) initials = '?';
+        var $tr = $('<tr class="share-access-person-row"></tr>');
+        var $whoTd = $('<td></td>');
+        var $who = $('<div class="share-access-who"></div>');
+        $who.append($('<span class="share-access-avatar" aria-hidden="true"></span>').text(initials));
+        var $inner = $('<div></div>');
+        $inner.append($('<div class="share-access-primary"></div>').text(email));
+        $who.append($inner);
+        $whoTd.append($who);
+        var $btn = $('<button type="button" class="btn btn-primary share-access-remove"></button>')
+            .text('Remove')
+            .data('email', email);
+        var $actTd = $('<td class="share-access-col-action"></td>').append($btn);
+        $tr.append($whoTd, $actTd);
+        $tb.append($tr);
+    });
+}
+
+function renderSharingCell(type, row) {
+    if (type === 'sort' || type === 'filter' || type === 'type') {
+        return '';
+    }
+    if (!row || !row.ownedByCurrentUser) {
+        return '<span class="small share-access-muted">—</span>';
+    }
+    var pid = String(row.id != null ? row.id : '');
+    var n = parseInt(row.sharedWithCount, 10) || 0;
+    var hasPeople = n > 0;
+    var hasOrg = !!row.sharedWithOrganisation;
+    var hasAny = hasOrg || hasPeople;
+    var buildingSvg =
+        '<svg class="eval-share-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12h12"/><path d="M6 16h12"/><path d="M10 6h4"/><path d="M10 22v-4h4v4"/></svg>';
+    var personSvg =
+        '<svg class="eval-share-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+    if (!hasAny) {
+        return '<button type="button" class="btn btn-primary eval-share-open" data-id="' + escapeHtml(pid) + '">Share</button>';
+    }
+    var parts = [];
+    if (hasOrg) {
+        parts.push('<span class="eval-share-stack"><span class="eval-share-icon-wrap">' + buildingSvg + '</span><span class="eval-share-below" aria-hidden="true">&#10003;</span></span>');
+    }
+    if (hasPeople) {
+        parts.push('<span class="eval-share-stack"><span class="eval-share-icon-wrap">' + personSvg + '</span><span class="eval-share-below" aria-hidden="true">' + n + '</span></span>');
+    }
+    return '<button type="button" class="eval-share-open eval-share-open--icons" data-id="' + escapeHtml(pid) + '" title="Edit sharing" aria-label="Edit sharing"><span class="eval-share-icons">' + parts.join('') + '</span></button>';
+}
+
+function renderActionsCell(type, row) {
+    if (type === 'sort' || type === 'filter' || type === 'type') {
+        return '';
+    }
+    if (!row) return '<span class="small share-access-muted">—</span>';
+    if (organisationMetaGlobal && organisationMetaGlobal.isAdmin && row.scopeTags && row.scopeTags.indexOf('Organisation') !== -1) {
+        return '<button type="button" class="transferOwnerOpenBtn" data-id="' + escapeHtml(String(row.id || '')) + '">Transfer ownership</button>';
+    }
+    if (row.ownedByCurrentUser) return '<span class="small share-access-muted">Owner</span>';
+    return '<span class="small share-access-muted">—</span>';
 }
 
 function renderEvalTitleCell(data, type, row) {
@@ -141,10 +313,32 @@ function renderEvaluationsTable(rows) {
             },
             { data: 'owner', title: 'Owner', defaultContent: '', width: '10rem' },
             {
+                data: null,
+                title: 'Sharing',
+                orderable: false,
+                searchable: false,
+                width: '6.75rem',
+                className: 'eval-shares-col',
+                render: function (data, type, row) {
+                    return renderSharingCell(type, row);
+                }
+            },
+            {
                 data: 'lastModified',
                 title: 'Last modified',
                 width: '10rem',
                 render: function (data) { return data ? new Date(data).toLocaleString() : ''; }
+            },
+            {
+                data: null,
+                title: 'Actions',
+                orderable: false,
+                searchable: false,
+                width: '10rem',
+                className: 'eval-actions-col',
+                render: function (data, type, row) {
+                    return renderActionsCell(type, row);
+                }
             }
         ],
         order: [[0, 'asc']],
@@ -159,6 +353,19 @@ function refreshEvaluationsScreen() {
     renderSummary();
 }
 
+function openShareOverlay() {
+    document.getElementById('shareOverlay').style.display = 'block';
+}
+
+function closeShareOverlay() {
+    document.getElementById('shareOverlay').style.display = 'none';
+}
+
+function closeTransferOwnerOverlay() {
+    var overlay = document.getElementById('transferOwnerOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
 $(document).on('change', '.scope-filter', function () {
     var scope = String($(this).val() || '');
     if (!scope) return;
@@ -167,11 +374,253 @@ $(document).on('change', '.scope-filter', function () {
     refreshEvaluationsScreen();
 });
 
+$(document).on('click', '.eval-share-open', function () {
+    var id = $(this).data('id');
+    var orgTbody = document.getElementById('shareAccessOrgTbody');
+    openShareOverlay();
+    $('#shareOverlay').attr('data-projectid', id);
+    $('#shareInviteEmail').val('');
+    clearShareOverlayMessage();
+    if (orgTbody) {
+        orgTbody.style.display = organisationMetaGlobal && organisationMetaGlobal.organisationName ? '' : 'none';
+    }
+    getSharedUsers(id).then(function (sharedUsers) {
+        renderSharedUsers(sharedUsers);
+    });
+    var cb = document.getElementById('orgShareCheckbox');
+    if (cb && orgTbody && orgTbody.style.display !== 'none') {
+        fetch('/project/' + id, { headers: { Accept: 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (proj) {
+                cb.checked = !!(proj && proj.sharedWithOrganisation);
+                updateOrgShareToggleLabel();
+            })
+            .catch(function () {
+                cb.checked = false;
+                updateOrgShareToggleLabel();
+            });
+    }
+});
+
+$('#shareAddPersonBtn').on('click', function () {
+    var email = ($('#shareInviteEmail').val() || '').trim();
+    var projectId = shareOverlayProjectId();
+    clearShareOverlayMessage();
+    if (!projectId) return;
+    if (!email) {
+        showShareOverlayMessage('Enter an email address.', true);
+        return;
+    }
+    fetch('/project/' + projectId + '/sharedUsers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email })
+    })
+        .then(function (response) {
+            if (response.ok) return response.json();
+            return response.json().then(function (d) {
+                throw new Error(d.message || 'Could not add this person');
+            });
+        })
+        .then(function () {
+            $('#shareInviteEmail').val('');
+            return getSharedUsers(projectId);
+        })
+        .then(function (sharedUsers) {
+            renderSharedUsers(sharedUsers);
+            refreshOwnedAssessmentState(projectId);
+        })
+        .catch(function (e) {
+            showShareOverlayMessage(e.message || String(e), true);
+        });
+});
+
+$('#shareOverlay').on('click', '.share-access-remove', function () {
+    var email = $(this).data('email');
+    var projectId = shareOverlayProjectId();
+    clearShareOverlayMessage();
+    if (!projectId || !email) return;
+    fetch('/project/' + projectId + '/sharedUsers/' + encodeURIComponent(email), { method: 'DELETE' })
+        .then(function (response) {
+            if (response.ok) return response.json();
+            return response.json().then(function (d) {
+                throw new Error(d.message || 'Could not remove access');
+            });
+        })
+        .then(function () {
+            return getSharedUsers(projectId);
+        })
+        .then(function (sharedUsers) {
+            renderSharedUsers(sharedUsers);
+            refreshOwnedAssessmentState(projectId);
+        })
+        .catch(function (e) {
+            showShareOverlayMessage(e.message || String(e), true);
+        });
+});
+
+$('#shareInviteEmail').on('keydown', function (e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        $('#shareAddPersonBtn').trigger('click');
+    }
+});
+
+$(document).on('change', '#orgShareCheckbox', function () {
+    var checkboxEl = this;
+    updateOrgShareToggleLabel();
+    var overlay = document.getElementById('shareOverlay');
+    if (!overlay) return;
+    var projectId = overlay.getAttribute('data-projectid');
+    if (!projectId) return;
+    var checked = checkboxEl.checked;
+    fetch('/project/' + projectId + '/organisation-share', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ sharedWithOrganisation: checked })
+    })
+        .then(function (res) {
+            if (!res.ok) {
+                return res.json().then(function (d) {
+                    throw new Error(d.message || 'Update failed');
+                });
+            }
+            return res.json();
+        })
+        .then(function () {
+            clearShareOverlayMessage();
+            refreshOwnedAssessmentState(projectId, { sharedWithOrganisation: checked });
+        })
+        .catch(function (e) {
+            showShareOverlayMessage(e.message || String(e), true);
+            checkboxEl.checked = !checked;
+            updateOrgShareToggleLabel();
+        });
+});
+
+function refreshOwnedAssessmentState(projectId, patch) {
+    var id = String(projectId || '');
+    if (!id) return;
+    fetch('/projects', {
+        headers: { Accept: 'application/json' }
+    })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            organisationMetaGlobal = data.organisationMeta || organisationMetaGlobal || {};
+            var fresh = ((data && data.assessments) || []).find(function (a) {
+                return String(a.id) === id;
+            });
+            assessmentsPayload = ((data && data.assessments) || []).map(function (a) {
+                if (String(a.id) !== id) return a;
+                if (!patch) return a;
+                return Object.assign({}, a, patch);
+            });
+            if (fresh) {
+                assessmentsPayload = assessmentsPayload.map(function (a) {
+                    return String(a.id) === id ? fresh : a;
+                });
+            }
+            refreshEvaluationsScreen();
+        });
+}
+
+$(document).on('click', '.transferOwnerOpenBtn', function () {
+    var pid = $(this).data('id');
+    var pidEl = document.getElementById('transferProjectId');
+    var overlayEl = document.getElementById('transferOwnerOverlay');
+    if (!pidEl || !overlayEl) return;
+    pidEl.value = pid;
+    var tmsg = document.getElementById('transferOwnerMessage');
+    if (tmsg) tmsg.style.display = 'none';
+    fetch('/organisation', { headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (ctx) {
+            var sel = document.getElementById('transferOwnerSelect');
+            if (!sel) return;
+            sel.innerHTML = '';
+            var ph = document.createElement('option');
+            ph.value = '';
+            ph.textContent = 'Choose new owner...';
+            ph.disabled = true;
+            ph.selected = true;
+            sel.appendChild(ph);
+            (ctx.members || []).forEach(function (m) {
+                var opt = document.createElement('option');
+                opt.value = m.email;
+                opt.textContent = (m.name || m.email) + ' <' + m.email + '>' + (m.hasAccount ? '' : ' (needs CARE account to own)');
+                opt.disabled = !m.hasAccount;
+                sel.appendChild(opt);
+            });
+            overlayEl.style.display = 'block';
+        })
+        .catch(function (e) {
+            alert(e.message || String(e));
+        });
+});
+
+$(document).on('click', '#transferOwnerSubmit', function () {
+    var pidEl = document.getElementById('transferProjectId');
+    if (!pidEl) return;
+    var pid = pidEl.value;
+    var sel = document.getElementById('transferOwnerSelect');
+    var email = sel ? sel.value : '';
+    var msg = document.getElementById('transferOwnerMessage');
+    if (msg) msg.style.display = 'none';
+    if (!email) {
+        if (msg) {
+            msg.style.display = 'block';
+            msg.textContent = 'Choose a member who already has a CARE account.';
+            msg.style.color = '#c00';
+        }
+        return;
+    }
+    fetch('/project/' + pid + '/owner', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ ownerEmail: email })
+    })
+        .then(function (res) {
+            return res.json().then(function (d) {
+                if (!res.ok) throw new Error(d.message || 'Transfer failed');
+                closeTransferOwnerOverlay();
+                return fetch('/projects', { headers: { Accept: 'application/json' } });
+            });
+        })
+        .then(function (r) {
+            if (!r || !r.ok) return;
+            return r.json();
+        })
+        .then(function (data) {
+            if (!data) return;
+            organisationMetaGlobal = data.organisationMeta || {};
+            assessmentsPayload = (data && data.assessments) || [];
+            refreshEvaluationsScreen();
+        })
+        .catch(function (e) {
+            if (msg) {
+                msg.style.display = 'block';
+                msg.textContent = e.message;
+                msg.style.color = '#c00';
+            } else {
+                alert(e.message || String(e));
+            }
+        });
+});
+
 fetch('/projects', {
     headers: { Accept: 'application/json' }
 })
     .then(function (response) { return response.json(); })
     .then(function (data) {
+        organisationMetaGlobal = data.organisationMeta || {};
+        var orgNameEl = document.getElementById('shareOrgOrganisationName');
+        var orgTbody = document.getElementById('shareAccessOrgTbody');
+        if (orgNameEl) {
+            orgNameEl.textContent = organisationMetaGlobal.organisationName || 'Your organisation';
+        }
+        if (orgTbody) {
+            orgTbody.style.display = organisationMetaGlobal.organisationName ? '' : 'none';
+        }
         assessmentsPayload = (data && data.assessments) || [];
         refreshEvaluationsScreen();
     });

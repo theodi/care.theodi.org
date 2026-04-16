@@ -21,89 +21,101 @@
     <h2>Positive unintended consequences</h2>
     <ul id="positiveUnintendedConsequencesList">
     </ul>
+    <h2>Risk matrix entries (static)</h2>
+    <section class="riskGrid">
+        <div class="table-scroll">
+            <table id="riskEntryMatrixTable" class="riskHeatmap">
+                <thead>
+                    <tr>
+                        <th>Likelihood →<br>Impact ↓</th>
+                        <th>High</th>
+                        <th>Medium</th>
+                        <th>Low</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
     <h2>Risk dashboard</h2>
+    <div class="dashboard-global-actions">
+        <button type="button" class="transparent" id="clearAllDashboardFilters">Clear all filters</button>
+    </div>
+    <p id="activeFilterSummary" class="small" style="margin:0 0 0.75rem 0;" style="display: none;"></p>
     <section class="dashboard">
         <subsection class="dashboard-box">
-            <div class="dashboard-header">
-                <h2>Risks</h2>
+            <div class="dashboard-header dashboard-card-title">
+                <h2>Project risk matrix</h2>
+                <button type="button" class="transparent filter-reset-btn" id="clearMatrixFilters" hidden>Reset</button>
             </div>
             <div class="dashboard-chart">
-                <canvas id="riskChart" width="200" height="100"></canvas> <!-- Add canvas for the donut chart -->
+                <div class="table-scroll">
+                    <table id="riskMatrixTable" class="riskHeatmap riskHeatmap--compact">
+                        <thead>
+                            <tr>
+                                <th>Likelihood →<br>Impact ↓</th>
+                                <th>High</th>
+                                <th>Medium</th>
+                                <th>Low</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </subsection>
         <subsection class="dashboard-box">
-            <div class="dashboard-header">
-                <h2>Stats <span class="small">(average)</span></h2>
+            <div class="dashboard-header dashboard-card-title">
+                <h2>Risk bands</h2>
+                <button type="button" class="transparent filter-reset-btn" id="clearRiskBandFilters" hidden>Reset</button>
             </div>
-            <div class="dashboard-chart">
-                <h3>Likelihood</h3>
-                <div class="progress-bar">
-                    <div id="likelihood-bar" class="bar"></div>
-                </div>
-                <h3>Impact</h3>
-                <div class="progress-bar">
-                    <div id="impact-bar" class="bar"></div>
-                </div>
-                <h3>Risk</h3>
-                <div class="progress-bar">
-                    <div id="risk-bar" class="bar"></div>
+            <div class="dashboard-chart report-risk-summary-chart">
+                <div class="report-risk-chart-canvas-wrap">
+                    <canvas id="riskChart" width="200" height="100"></canvas>
                 </div>
             </div>
         </subsection>
-        <subsection class="dashboard-box top-risks">
+        <subsection class="dashboard-box dashboard-box--total">
             <div class="dashboard-header">
-                <h2>Priority <span class="small">(top 5)</span></h2>
+                <h2>Total risks</h2>
             </div>
-            <div class="dashboard-chart">
-                <table id="topRisksTable">
-                    <thead>
-                        <tr>
-                            <th>Risk</th>
-                            <th style="width: 60px;">Level</th>
-                            <th style="width: 50px;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="topRisksTableBody">
-                        <!-- Table rows will be dynamically added here -->
-                    </tbody>
-                </table>
+            <div class="dashboard-chart report-total-risks-chart">
+                <div id="totalRisksPanel" class="dashboard-kpi">0</div>
             </div>
         </subsection>
-    </section>
-    <section class="riskGrid">
-        <h2>Risk heatmap</h2>
-        <div class="table-scroll">
-        <table class="riskHeatmap">
-            <thead>
-                <tr>
-                    <th>Impact →<br>Likelihood ↓</th>
-                    <th>Low</th>
-                    <th>Medium</th>
-                    <th>High</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <th>High</th>
-                    <td id="cell-high-low"></td>
-                    <td id="cell-high-medium"></td>
-                    <td id="cell-high-high"></td>
-                </tr>
-                <tr>
-                    <th>Medium</th>
-                    <td id="cell-medium-low"></td>
-                    <td id="cell-medium-medium"></td>
-                    <td id="cell-medium-high"></td>
-                </tr>
-                <tr>
-                    <th>Low</th>
-                    <td id="cell-low-low"></td>
-                    <td id="cell-low-medium"></td>
-                    <td id="cell-low-high"></td>
-                </tr>
-            </tbody>
-        </table>
-        </div>
+        <subsection class="dashboard-box">
+            <div class="dashboard-header dashboard-card-title">
+                <h2>Action ownership</h2>
+                <button type="button" class="transparent filter-reset-btn" id="clearOwnerFilters" hidden>Reset</button>
+            </div>
+            <div class="dashboard-chart report-risk-summary-chart">
+                <div class="report-risk-chart-canvas-wrap">
+                    <canvas id="ownerChart" width="200" height="100"></canvas>
+                </div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box">
+            <div class="dashboard-header dashboard-card-title">
+                <h2>Target dates</h2>
+                <button type="button" class="transparent filter-reset-btn" id="clearTargetDateFilters" hidden>Reset</button>
+            </div>
+            <div class="dashboard-chart report-risk-summary-chart">
+                <div class="report-risk-chart-canvas-wrap">
+                    <canvas id="targetDateChart" width="200" height="100"></canvas>
+                </div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box">
+            <div class="dashboard-header dashboard-card-title">
+                <h2>Overdue status</h2>
+                <button type="button" class="transparent filter-reset-btn" id="clearOverdueFilters" hidden>Reset</button>
+            </div>
+            <div class="dashboard-chart report-risk-summary-chart">
+                <div class="report-risk-chart-canvas-wrap">
+                    <canvas id="overdueChart" width="200" height="100"></canvas>
+                </div>
+            </div>
+        </subsection>
     </section>
     <h2>Risk management table</h2>
     <div class="table-scroll">
@@ -155,6 +167,12 @@
 
     let projectData = {};
     let projectId = "";
+    let allNegativeRisks = [];
+    const selectedMatrixCells = new Set();
+    const selectedRiskBands = new Set();
+    const selectedOwnerStates = new Set();
+    const selectedTargetDateStates = new Set();
+    const selectedOverdueStates = new Set();
 
     document.addEventListener("DOMContentLoaded", function () {
 
@@ -162,9 +180,9 @@
         const form = document.getElementById("dataForm");
         projectId = form.dataset.projectId;
 
-        // load the data
         loadPage(projectId);
         addButtonListeners(projectId);
+        addDashboardFilterListeners();
     });
 
     function getDownloadButtons() {
@@ -336,11 +354,417 @@
         });
     }
 
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function renderBandBadge(band) {
+        const label = String(band || "Unclassified");
+        const cls =
+            label === "High" ? "risk-band-badge risk-band-badge--high"
+                : label === "Medium" ? "risk-band-badge risk-band-badge--medium"
+                    : label === "Low" ? "risk-band-badge risk-band-badge--low"
+                        : "risk-band-badge risk-band-badge--unclassified";
+        return `<span class="${cls}">${escapeHtml(label)}</span>`;
+    }
+
+    function buildMatrixCountsFromRisks(risks) {
+        const counts = {
+            High: { High: 0, Medium: 0, Low: 0 },
+            Medium: { High: 0, Medium: 0, Low: 0 },
+            Low: { High: 0, Medium: 0, Low: 0 }
+        };
+        (risks || []).forEach((risk) => {
+            const impact = risk && risk.impact ? String(risk.impact) : "";
+            const likelihood = risk && risk.likelihood ? String(risk.likelihood) : "";
+            if (!counts[impact] || typeof counts[impact][likelihood] === "undefined") {
+                return;
+            }
+            counts[impact][likelihood] += 1;
+        });
+        return counts;
+    }
+
+    function buildMatrixEntryMapFromRisks(risks) {
+        const entries = {
+            High: { High: [], Medium: [], Low: [] },
+            Medium: { High: [], Medium: [], Low: [] },
+            Low: { High: [], Medium: [], Low: [] }
+        };
+        (risks || []).forEach((risk) => {
+            const impact = risk && risk.impact ? String(risk.impact) : "";
+            const likelihood = risk && risk.likelihood ? String(risk.likelihood) : "";
+            if (!entries[impact] || !entries[impact][likelihood]) {
+                return;
+            }
+            const consequence = String((risk && risk.consequence) || "").trim();
+            if (consequence) {
+                entries[impact][likelihood].push(consequence);
+            }
+        });
+        return entries;
+    }
+
+    function getMatrixCellBackground(impact, likelihood) {
+        const i = String(impact || "");
+        const l = String(likelihood || "");
+        if (i === "High" && l === "High") return "#f8d7da";
+        if ((i === "High" && l === "Medium") || (i === "Medium" && l === "High")) return "#fad8cb";
+        if (
+            (i === "Medium" && l === "Medium") ||
+            (i === "High" && l === "Low") ||
+            (i === "Low" && l === "High")
+        ) {
+            return "#fff3cd";
+        }
+        if (i === "Low" && l === "Low") return "#d4edda";
+        if ((i === "Medium" && l === "Low") || (i === "Low" && l === "Medium")) return "#faffdc";
+        return "#ffffff";
+    }
+
+    function renderStaticRiskEntryMatrix(risks) {
+        const table = document.getElementById("riskEntryMatrixTable");
+        if (!table) return;
+        const body = table.querySelector("tbody");
+        if (!body) return;
+
+        const levels = ["High", "Medium", "Low"];
+        const entries = buildMatrixEntryMapFromRisks(risks);
+        body.innerHTML = "";
+
+        levels.forEach((impact) => {
+            const row = document.createElement("tr");
+            const head = document.createElement("th");
+            head.scope = "row";
+            head.textContent = impact;
+            row.appendChild(head);
+
+            levels.forEach((likelihood) => {
+                const cell = document.createElement("td");
+                cell.style.backgroundColor = getMatrixCellBackground(impact, likelihood);
+                const items = entries[impact][likelihood] || [];
+                if (!items.length) {
+                    const empty = document.createElement("span");
+                    empty.className = "small";
+                    empty.textContent = "—";
+                    cell.appendChild(empty);
+                } else {
+                    items.forEach((name) => {
+                        const item = document.createElement("div");
+                        item.className = "risk-entry";
+                        item.textContent = name;
+                        cell.appendChild(item);
+                    });
+                }
+                row.appendChild(cell);
+            });
+            body.appendChild(row);
+        });
+    }
+
+    function riskCountsFromRisks(risks) {
+        const out = { unclassified: 0, high: 0, medium: 0, low: 0 };
+        (risks || []).forEach((risk) => {
+            const band = getBandFromScore(risk && risk.riskScore != null ? Number(risk.riskScore) : NaN);
+            if (band === "High") out.high += 1;
+            else if (band === "Medium") out.medium += 1;
+            else if (band === "Low") out.low += 1;
+            else out.unclassified += 1;
+        });
+        return out;
+    }
+
+    function riskMatchesMatrixFilters(risk) {
+        if (!selectedMatrixCells.size) return true;
+        const cellId = buildMatrixCellId(risk && risk.impact, risk && risk.likelihood);
+        return !!cellId && selectedMatrixCells.has(cellId);
+    }
+
+    function riskMatchesBandFilters(risk) {
+        if (!selectedRiskBands.size) return true;
+        const band = getBandFromScore(risk && risk.riskScore != null ? Number(risk.riskScore) : NaN);
+        return selectedRiskBands.has(band);
+    }
+
+    function hasRiskOwner(risk) {
+        const role = String(risk && risk.role ? risk.role : "").trim();
+        const assignee = String(risk && risk.action && risk.action.stakeholder ? risk.action.stakeholder : "").trim();
+        return role.length > 0 || assignee.length > 0;
+    }
+
+    function parseRiskDateValue(rawDate) {
+        const raw = String(rawDate || "").trim();
+        if (!raw) return null;
+        const direct = new Date(raw);
+        if (!Number.isNaN(direct.getTime())) return direct;
+        const ukMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw);
+        if (ukMatch) {
+            const day = Number(ukMatch[1]);
+            const month = Number(ukMatch[2]);
+            const year = Number(ukMatch[3]);
+            const asIso = new Date(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00`);
+            if (!Number.isNaN(asIso.getTime())) return asIso;
+        }
+        return null;
+    }
+
+    function hasRiskTargetDate(risk) {
+        const parsed = parseRiskDateValue(risk && risk.action && risk.action.date);
+        return !!parsed;
+    }
+
+    function isRiskOverdue(risk) {
+        const date = parseRiskDateValue(risk && risk.action && risk.action.date);
+        if (!date) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return date.getTime() < today.getTime();
+    }
+
+    function riskMatchesOwnerFilters(risk) {
+        if (!selectedOwnerStates.size) return true;
+        const state = hasRiskOwner(risk) ? "withOwner" : "withoutOwner";
+        return selectedOwnerStates.has(state);
+    }
+
+    function riskMatchesTargetDateFilters(risk) {
+        if (!selectedTargetDateStates.size) return true;
+        const state = hasRiskTargetDate(risk) ? "withTargetDate" : "withoutTargetDate";
+        return selectedTargetDateStates.has(state);
+    }
+
+    function riskMatchesOverdueFilters(risk) {
+        if (!selectedOverdueStates.size) return true;
+        const state = isRiskOverdue(risk) ? "overdue" : "notOverdue";
+        return selectedOverdueStates.has(state);
+    }
+
+    function applyRiskFilters(list) {
+        return (list || []).filter((risk) => {
+            if (!riskMatchesMatrixFilters(risk)) return false;
+            if (!riskMatchesBandFilters(risk)) return false;
+            if (!riskMatchesOwnerFilters(risk)) return false;
+            if (!riskMatchesTargetDateFilters(risk)) return false;
+            if (!riskMatchesOverdueFilters(risk)) return false;
+            return true;
+        });
+    }
+
+    function renderRiskTableRows(risks) {
+        const unintendedConsequencesBody = document.getElementById("unintendedConsequencesBody");
+        if (!unintendedConsequencesBody) {
+            return;
+        }
+        unintendedConsequencesBody.innerHTML = "";
+        if (!risks || risks.length === 0) {
+            unintendedConsequencesBody.innerHTML = "<tr><td colspan='9'>No risks match the current filter.</td></tr>";
+            return;
+        }
+        risks.forEach((risk) => {
+            const riskBand = getBandFromScore(risk && risk.riskScore != null ? Number(risk.riskScore) : NaN);
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${escapeHtml(risk.consequence || "")}</td>
+                <td>${renderBandBadge(riskBand)}</td>
+                <td>${escapeHtml(risk.likelihood || "")}</td>
+                <td>${escapeHtml(risk.impact || "")}</td>
+                <td>${escapeHtml(risk.role || "")}</td>
+                <td>${escapeHtml((risk.action && risk.action.description) || "")}</td>
+                <td>${escapeHtml((risk.action && risk.action.date) || "")}</td>
+                <td>${escapeHtml((risk.action && risk.action.stakeholder) || "")}</td>
+                <td>${escapeHtml((risk.action && risk.action.KPI) || "")}</td>
+            `;
+            unintendedConsequencesBody.appendChild(row);
+        });
+    }
+
+    function updateFilterSummary(filteredRisks) {
+        const summaryEl = document.getElementById("activeFilterSummary");
+        if (!summaryEl) {
+            return;
+        }
+        const matrixText = selectedMatrixCells.size
+            ? Array.from(selectedMatrixCells).join(" | ")
+            : "All matrix cells";
+        const bandText = selectedRiskBands.size ? Array.from(selectedRiskBands).join(", ") : "All bands";
+        const ownerText = selectedOwnerStates.size
+            ? Array.from(selectedOwnerStates).map((state) => state === "withOwner" ? "With owner" : "Without owner").join(", ")
+            : "Any owner state";
+        const targetDateText = selectedTargetDateStates.size
+            ? Array.from(selectedTargetDateStates).map((state) => state === "withTargetDate" ? "With target date" : "Without target date").join(", ")
+            : "Any target-date state";
+        const overdueText = selectedOverdueStates.size
+            ? Array.from(selectedOverdueStates).map((state) => state === "overdue" ? "Overdue" : "Not overdue").join(", ")
+            : "Any overdue state";
+        summaryEl.textContent =
+            `Matrix: ${matrixText} | Bands: ${bandText} | Owner: ${ownerText} | Target date: ${targetDateText} | Overdue: ${overdueText} | Risks shown: ${filteredRisks.length}`;
+    }
+
+    function setResetButtonState(id, applied) {
+        const resetBtn = document.getElementById(id);
+        if (resetBtn) resetBtn.hidden = !applied;
+    }
+
+    function updateDashboardFilterHeaderStates() {
+        setResetButtonState("clearMatrixFilters", selectedMatrixCells.size > 0);
+        setResetButtonState("clearRiskBandFilters", selectedRiskBands.size > 0);
+        setResetButtonState("clearOwnerFilters", selectedOwnerStates.size > 0);
+        setResetButtonState("clearTargetDateFilters", selectedTargetDateStates.size > 0);
+        setResetButtonState("clearOverdueFilters", selectedOverdueStates.size > 0);
+    }
+
+    function applyDashboardFiltersAndRefresh() {
+        const filteredRisks = applyRiskFilters(allNegativeRisks);
+        const matrixCounts = buildMatrixCountsFromRisks(filteredRisks);
+        renderRiskMatrix(matrixCounts, { tableId: "riskMatrixTable" });
+        updateSelectedMatrixCells(selectedMatrixCells, { tableId: "riskMatrixTable" });
+        addRiskDonut(riskCountsFromRisks(filteredRisks), {
+            chartId: "riskChart",
+            activeLabels: Array.from(selectedRiskBands),
+            onBarClick: function (label) {
+                const key = String(label || "Unclassified");
+                if (selectedRiskBands.has(key)) selectedRiskBands.delete(key);
+                else selectedRiskBands.add(key);
+                applyDashboardFiltersAndRefresh();
+            }
+        });
+        const withOwner = filteredRisks.filter((risk) => hasRiskOwner(risk)).length;
+        const withoutOwner = filteredRisks.length - withOwner;
+        addBinaryBarChart({
+            chartId: "ownerChart",
+            labels: ["With owner", "Without owner"],
+            values: [withOwner, withoutOwner],
+            activeLabels: Array.from(selectedOwnerStates).map((state) =>
+                state === "withOwner" ? "With owner" : "Without owner"
+            ),
+            onBarClick: function (label) {
+                const key = label === "With owner" ? "withOwner" : "withoutOwner";
+                if (selectedOwnerStates.has(key)) selectedOwnerStates.delete(key);
+                else selectedOwnerStates.add(key);
+                applyDashboardFiltersAndRefresh();
+            }
+        });
+        const withTargetDate = filteredRisks.filter((risk) => hasRiskTargetDate(risk)).length;
+        const withoutTargetDate = filteredRisks.length - withTargetDate;
+        addBinaryBarChart({
+            chartId: "targetDateChart",
+            labels: ["With target date", "Without target date"],
+            values: [withTargetDate, withoutTargetDate],
+            activeLabels: Array.from(selectedTargetDateStates).map((state) =>
+                state === "withTargetDate" ? "With target date" : "Without target date"
+            ),
+            onBarClick: function (label) {
+                const key = label === "With target date" ? "withTargetDate" : "withoutTargetDate";
+                if (selectedTargetDateStates.has(key)) selectedTargetDateStates.delete(key);
+                else selectedTargetDateStates.add(key);
+                applyDashboardFiltersAndRefresh();
+            }
+        });
+        const overdueCount = filteredRisks.filter((risk) => isRiskOverdue(risk)).length;
+        const notOverdueCount = filteredRisks.length - overdueCount;
+        addBinaryBarChart({
+            chartId: "overdueChart",
+            labels: ["Overdue", "Not overdue"],
+            values: [overdueCount, notOverdueCount],
+            activeLabels: Array.from(selectedOverdueStates).map((state) =>
+                state === "overdue" ? "Overdue" : "Not overdue"
+            ),
+            onBarClick: function (label) {
+                const key = label === "Overdue" ? "overdue" : "notOverdue";
+                if (selectedOverdueStates.has(key)) selectedOverdueStates.delete(key);
+                else selectedOverdueStates.add(key);
+                applyDashboardFiltersAndRefresh();
+            }
+        });
+
+        const totalRisksPanel = document.getElementById("totalRisksPanel");
+        if (totalRisksPanel) {
+            totalRisksPanel.textContent = String(filteredRisks.length);
+        }
+        updateFilterSummary(filteredRisks);
+        updateDashboardFilterHeaderStates();
+        renderRiskTableRows(filteredRisks);
+    }
+
+    function addDashboardFilterListeners() {
+        document.addEventListener("click", (event) => {
+            const matrixCellButton = event.target.closest(".matrix-cell-btn");
+            if (!matrixCellButton) {
+                return;
+            }
+            const cellId = String(matrixCellButton.getAttribute("data-cell-id") || "");
+            if (!cellId) {
+                return;
+            }
+            if (selectedMatrixCells.has(cellId)) {
+                selectedMatrixCells.delete(cellId);
+            } else {
+                selectedMatrixCells.add(cellId);
+            }
+            applyDashboardFiltersAndRefresh();
+        });
+
+        const clearMatrixFilters = document.getElementById("clearMatrixFilters");
+        if (clearMatrixFilters) {
+            clearMatrixFilters.addEventListener("click", () => {
+                selectedMatrixCells.clear();
+                applyDashboardFiltersAndRefresh();
+            });
+        }
+        const clearRiskBandFilters = document.getElementById("clearRiskBandFilters");
+        if (clearRiskBandFilters) {
+            clearRiskBandFilters.addEventListener("click", () => {
+                selectedRiskBands.clear();
+                applyDashboardFiltersAndRefresh();
+            });
+        }
+        const clearOwnerFilters = document.getElementById("clearOwnerFilters");
+        if (clearOwnerFilters) {
+            clearOwnerFilters.addEventListener("click", () => {
+                selectedOwnerStates.clear();
+                applyDashboardFiltersAndRefresh();
+            });
+        }
+        const clearTargetDateFilters = document.getElementById("clearTargetDateFilters");
+        if (clearTargetDateFilters) {
+            clearTargetDateFilters.addEventListener("click", () => {
+                selectedTargetDateStates.clear();
+                applyDashboardFiltersAndRefresh();
+            });
+        }
+        const clearOverdueFilters = document.getElementById("clearOverdueFilters");
+        if (clearOverdueFilters) {
+            clearOverdueFilters.addEventListener("click", () => {
+                selectedOverdueStates.clear();
+                applyDashboardFiltersAndRefresh();
+            });
+        }
+        const clearAllDashboardFilters = document.getElementById("clearAllDashboardFilters");
+        if (clearAllDashboardFilters) {
+            clearAllDashboardFilters.addEventListener("click", () => {
+                selectedMatrixCells.clear();
+                selectedRiskBands.clear();
+                selectedOwnerStates.clear();
+                selectedTargetDateStates.clear();
+                selectedOverdueStates.clear();
+                applyDashboardFiltersAndRefresh();
+            });
+        }
+    }
+
     async function loadPage(projectId) {
         projectData = await loadProject(projectId);
         projectData = await addRiskScoreToProject(projectData);
+        selectedMatrixCells.clear();
+        selectedRiskBands.clear();
+        selectedOwnerStates.clear();
+        selectedTargetDateStates.clear();
+        selectedOverdueStates.clear();
 
-        // Populate the page with project title, objectives, data used, intended consequences, and unintended consequences
         document.getElementById("title").textContent = projectData.title;
         const aiBanner = document.getElementById("aiProvenanceBanner");
         if (aiBanner) {
@@ -354,8 +778,8 @@
         document.getElementById("objectives").textContent = projectData.objectives || "No objectives provided.";
         document.getElementById("dataUsed").textContent = projectData.dataUsed || "No data used provided.";
 
-        // Populate stakeholders
         const stakeholdersList = document.getElementById("stakeholdersList");
+        stakeholdersList.innerHTML = "";
         if (projectData.stakeholders && projectData.stakeholders.length > 0) {
             projectData.stakeholders.forEach(stakeholder => {
                 const listItem = document.createElement("li");
@@ -366,8 +790,8 @@
             stakeholdersList.innerHTML = "<li>No stakeholders provided.</li>";
         }
 
-        // Populate intended consequences
         const intendedConsequencesList = document.getElementById("intendedConsequencesList");
+        intendedConsequencesList.innerHTML = "";
         if (projectData.intendedConsequences && projectData.intendedConsequences.length > 0) {
             projectData.intendedConsequences.forEach(consequence => {
                 const listItem = document.createElement("li");
@@ -378,61 +802,32 @@
             intendedConsequencesList.innerHTML = "<li>No intended consequences provided.</li>";
         }
 
-        // Populate unintended consequences in risk management table
-        const unintendedConsequencesBody = document.getElementById("unintendedConsequencesBody");
+        const positiveUnintendedConsequencesList = document.getElementById("positiveUnintendedConsequencesList");
+        if (positiveUnintendedConsequencesList) {
+            positiveUnintendedConsequencesList.innerHTML = "";
+        }
+
+        allNegativeRisks = [];
         if (projectData.unintendedConsequences && projectData.unintendedConsequences.length > 0) {
             const unintended = projectData.unintendedConsequences || [];
             unintended.forEach(consequence => {
                 if (consequence.outcome === "Positive") {
-                    const item = document.createElement("li");
-                    item.textContent = consequence.consequence;
-                    positiveUnintendedConsequencesList.appendChild(item);
-                } else {
-                    //Risk heatmap
-                    const lid = consequence.likelihood.toLowerCase();
-                    const iid = consequence.impact.toLowerCase();
-                    const cell = document.getElementById(`cell-${lid}-${iid}`);
-                    if (cell) {
-                        const div = document.createElement("div");
-                        div.classList.add("risk-entry");
-                        div.textContent = consequence.consequence;
-                        cell.appendChild(div);
+                    if (positiveUnintendedConsequencesList) {
+                        const item = document.createElement("li");
+                        item.textContent = consequence.consequence;
+                        positiveUnintendedConsequencesList.appendChild(item);
                     }
-
-                    // Add only negative/neutral ones to the risk table
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                        <td>${consequence.consequence}</td>
-                        <td>${getScoreText(consequence.riskScore / 3)}</td>
-                        <td>${consequence.likelihood}</td>
-                        <td>${consequence.impact}</td>
-                        <td>${consequence.role}</td>
-                        <td>${consequence.action?.description || ""}</td>
-                        <td>${consequence.action?.date || ""}</td>
-                        <td>${consequence.action?.stakeholder || ""}</td>
-                        <td>${consequence.action?.KPI || ""}</td>
-                    `;
-                    unintendedConsequencesBody.appendChild(row);
+                } else {
+                    allNegativeRisks.push(consequence);
                 }
             });
         } else {
-            unintendedConsequencesBody.innerHTML = "<tr><td colspan='9'>No unintended consequences provided.</td></tr>";
+            allNegativeRisks = [];
         }
-        fetchURL = `/project/${projectId}/riskSummary`;
-        const metrics = await fetch(fetchURL).then(response => response.json());
-        addRiskDonut(metrics.riskCounts);
-        addAverages(metrics.averages);
-        addTopRisks(metrics.topRisks);
-    }
-
-    // Function to determine risk category based on likelihood and impact
-    function getRiskCategory(score) {
-        if (likelihood === "High" && impact === "High") {
-            return "High";
-        } else if ((likelihood === "High" && impact === "Medium") || (likelihood === "Medium" && impact === "High")) {
-            return "Medium";
-        } else {
-            return "Low";
+        if (positiveUnintendedConsequencesList && positiveUnintendedConsequencesList.children.length === 0) {
+            positiveUnintendedConsequencesList.innerHTML = "<li>No positive unintended consequences provided.</li>";
         }
+        renderStaticRiskEntryMatrix(allNegativeRisks);
+        applyDashboardFiltersAndRefresh();
     }
 </script>

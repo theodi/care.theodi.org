@@ -304,6 +304,28 @@ tbody tr:nth-child(2n) td {
 .dashboard-box:not(.top-risks) .dashboard-chart {
   overflow: hidden;
 }
+.report-risk-summary-chart {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.report-risk-chart-canvas-wrap {
+  position: relative;
+  height: 220px;
+  min-height: 220px;
+  max-height: 220px;
+  display: flex;
+  align-items: center;
+}
+.report-risk-chart-canvas-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+.report-total-risks-chart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .progress-bar {
   width: 100%;
   height: 20px;
