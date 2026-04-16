@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const mongoose = require('mongoose');
 const OrganisationMembership = require('../models/organisationMembership');
 const Tenant = require('../models/tenant');
@@ -42,11 +44,19 @@ const {
 } = require('../lib/reportTemplateValidation');
 const {
   saveOrgReportTemplate,
+  saveOrgReportTemplateVersion,
   deleteOrgReportTemplate,
+  deleteOrgReportTemplateVersion,
+  deleteAllOrgReportTemplateVersions,
+  readOrgReportTemplateBuffer,
+  readOrgReportTemplateVersionBuffer,
   orgTemplateFileExists,
   effectiveAccentHexFromTenant,
 } = require('../lib/orgReportTemplateStorage');
 const { generateIntegrationApiKey } = require('../lib/tenantIntegrationKeys');
+
+const MAX_REPORT_TEMPLATE_VERSIONS = 5;
+const LEGACY_TEMPLATE_VERSION_ID = 'current';
 
 async function enrichMemberRows(members) {
   const lookups = members.map(async (m) => {
@@ -70,6 +80,46 @@ async function enrichMemberRows(members) {
   return Promise.all(lookups);
 }
 
+function normalizeReportTemplateVersions(tenant, opts) {
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const includeLegacy = !!options.includeLegacy;
+  const src = tenant && Array.isArray(tenant.reportTemplateVersions) ? tenant.reportTemplateVersions : [];
+  let out = src
+    .map((v) => {
+      const id = v && v.id != null ? String(v.id).trim() : '';
+      if (!id) return null;
+      return {
+        id,
+        originalName: String((v && v.originalName) || 'template.docx').slice(0, 240),
+        uploadedAt: v && v.uploadedAt ? new Date(v.uploadedAt) : null,
+        accentDetectedHex: String((v && v.accentDetectedHex) || ''),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
+      const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
+      return bt - at;
+    });
+  if (
+    includeLegacy &&
+    out.length === 0 &&
+    tenant &&
+    orgTemplateFileExists(tenant._id || tenant) &&
+    (tenant.reportTemplateUploadedAt || tenant.reportTemplateOriginalName)
+  ) {
+    out = [
+      {
+        id: LEGACY_TEMPLATE_VERSION_ID,
+        originalName: String(tenant.reportTemplateOriginalName || 'organisation-template.docx').slice(0, 240),
+        uploadedAt: tenant.reportTemplateUploadedAt ? new Date(tenant.reportTemplateUploadedAt) : null,
+        accentDetectedHex: String(tenant.reportAccentDetectedHex || ''),
+      },
+    ];
+  }
+  return out.slice(0, MAX_REPORT_TEMPLATE_VERSIONS);
+}
+
 async function getOrganisationContext(userId) {
   const user = await User.findById(userId);
   if (!user) return null;
@@ -82,6 +132,12 @@ async function getOrganisationContext(userId) {
   const tenant = membership.tenantId;
   const tenantOid = tenant._id || tenant;
   const active = isSubscriptionActive(sub);
+  const templateVersions = normalizeReportTemplateVersions(tenant, { includeLegacy: true }).map((v) => ({
+    id: v.id,
+    originalName: v.originalName,
+    uploadedAt: v.uploadedAt || null,
+    accentDetectedHex: v.accentDetectedHex || '',
+  }));
   const memberDocs = await OrganisationMembership.find({ tenantId: tenantOid }).sort({
     role: 1,
     emailLower: 1,
@@ -109,11 +165,19 @@ async function getOrganisationContext(userId) {
       endDate: sub.endDate,
       subscriptionActive: active,
       reportTemplate: {
-        hasFile: !!(tenant.reportTemplateUploadedAt && orgTemplateFileExists(tenantOid)),
-        originalName: tenant.reportTemplateOriginalName || '',
-        uploadedAt: tenant.reportTemplateUploadedAt || null,
-        accentDetectedHex: tenant.reportAccentDetectedHex || '',
+        hasFile: !!orgTemplateFileExists(tenantOid),
+        originalName:
+          (templateVersions[0] && templateVersions[0].originalName) ||
+          tenant.reportTemplateOriginalName ||
+          '',
+        uploadedAt:
+          (templateVersions[0] && templateVersions[0].uploadedAt) || tenant.reportTemplateUploadedAt || null,
+        accentDetectedHex:
+          (templateVersions[0] && templateVersions[0].accentDetectedHex) ||
+          tenant.reportAccentDetectedHex ||
+          '',
         accentEffectiveHex: effectiveAccentHexFromTenant(tenant),
+        versions: templateVersions,
       },
       integrationApiKeys,
     },
@@ -657,15 +721,35 @@ async function uploadReportTemplateAdmin(requesterUserId, buffer, originalName) 
       warnings: validation.warnings,
     };
   }
+  const now = new Date();
+  const versionId = new mongoose.Types.ObjectId().toString();
+  const safeName = String(originalName || 'template.docx').slice(0, 240);
   const detected = extractAccentHexFromDocxBuffer(buffer);
-  saveOrgReportTemplate(tenantId, buffer);
+  saveOrgReportTemplateVersion(tenantId, versionId, buffer);
+  const existing = normalizeReportTemplateVersions(tenant);
+  const nextVersions = [
+    {
+      id: versionId,
+      originalName: safeName,
+      uploadedAt: now,
+      accentDetectedHex: detected || '',
+    },
+  ]
+    .concat(existing)
+    .slice(0, MAX_REPORT_TEMPLATE_VERSIONS);
+  const keepIds = new Set(nextVersions.map((v) => v.id));
+  const removed = existing.filter((v) => !keepIds.has(v.id));
+  for (const oldVersion of removed) {
+    deleteOrgReportTemplateVersion(tenantId, oldVersion.id);
+  }
   await Tenant.updateOne(
     { _id: tenantId },
     {
       $set: {
-        reportTemplateOriginalName: String(originalName || 'template.docx').slice(0, 240),
-        reportTemplateUploadedAt: new Date(),
-        reportAccentDetectedHex: detected,
+        reportTemplateOriginalName: safeName,
+        reportTemplateUploadedAt: now,
+        reportAccentDetectedHex: detected || '',
+        reportTemplateVersions: nextVersions,
       },
     }
   );
@@ -673,10 +757,99 @@ async function uploadReportTemplateAdmin(requesterUserId, buffer, originalName) 
   return {
     ok: true,
     warnings: validation.warnings,
-    accentDetectedHex: detected,
+    accentDetectedHex: detected || '',
     accentEffectiveHex: effectiveAccentHexFromTenant(t),
-    originalName: t.reportTemplateOriginalName,
-    uploadedAt: t.reportTemplateUploadedAt,
+    originalName: safeName,
+    uploadedAt: now,
+    versionId,
+    versions: normalizeReportTemplateVersions(t),
+  };
+}
+
+async function getReportTemplateAdmin(requesterUserId, opts) {
+  const requester = await assertOrgAdminForReportTemplate(requesterUserId);
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.status = 404;
+    throw err;
+  }
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const wantedVersionId =
+    options.versionId != null && options.versionId !== '' ? String(options.versionId) : '';
+  const tenantId = tenant._id;
+  const versions = normalizeReportTemplateVersions(tenant, { includeLegacy: true });
+
+  if (wantedVersionId) {
+    const wanted = versions.find((v) => v.id === wantedVersionId);
+    if (!wanted) {
+      const err = new Error('Template version not found');
+      err.status = 404;
+      throw err;
+    }
+    let versionBuffer = null;
+    if (wanted.id === LEGACY_TEMPLATE_VERSION_ID) {
+      versionBuffer = readOrgReportTemplateBuffer(tenantId);
+    } else {
+      versionBuffer = readOrgReportTemplateVersionBuffer(tenantId, wanted.id);
+    }
+    if (!versionBuffer && versions[0] && versions[0].id === wanted.id) {
+      // Backward compatibility where only latest file exists on disk.
+      versionBuffer = readOrgReportTemplateBuffer(tenantId);
+    }
+    if (!versionBuffer) {
+      const err = new Error('Template file is missing on disk');
+      err.status = 404;
+      throw err;
+    }
+    return {
+      source: 'custom',
+      fileName: wanted.originalName || 'organisation-template.docx',
+      uploadedAt: wanted.uploadedAt || null,
+      accentDetectedHex: wanted.accentDetectedHex || '',
+      accentEffectiveHex: effectiveAccentHexFromTenant(tenant),
+      versions: versions.map((v) => ({
+        id: v.id,
+        originalName: v.originalName,
+        uploadedAt: v.uploadedAt || null,
+        accentDetectedHex: v.accentDetectedHex || '',
+      })),
+      buffer: versionBuffer,
+    };
+  }
+
+  const customBuffer = readOrgReportTemplateBuffer(tenantId);
+  if (customBuffer && customBuffer.length > 0) {
+    const latest = versions[0] || null;
+    return {
+      source: 'custom',
+      fileName: String((latest && latest.originalName) || tenant.reportTemplateOriginalName || 'organisation-template.docx'),
+      uploadedAt: (latest && latest.uploadedAt) || tenant.reportTemplateUploadedAt || null,
+      accentDetectedHex: (latest && latest.accentDetectedHex) || tenant.reportAccentDetectedHex || '',
+      accentEffectiveHex: effectiveAccentHexFromTenant(tenant),
+      versions: versions.map((v) => ({
+        id: v.id,
+        originalName: v.originalName,
+        uploadedAt: v.uploadedAt || null,
+        accentDetectedHex: v.accentDetectedHex || '',
+      })),
+      buffer: customBuffer,
+    };
+  }
+  const defaultPath = path.join(process.cwd(), 'public', 'data', 'template.docx');
+  if (!fs.existsSync(defaultPath)) {
+    const err = new Error('Default template file not found');
+    err.status = 404;
+    throw err;
+  }
+  return {
+    source: 'default',
+    fileName: 'care-default-template.docx',
+    uploadedAt: null,
+    accentDetectedHex: '',
+    accentEffectiveHex: effectiveAccentHexFromTenant(tenant),
+    versions: [],
+    buffer: fs.readFileSync(defaultPath),
   };
 }
 
@@ -764,6 +937,7 @@ async function deleteReportTemplateAdmin(requesterUserId) {
     throw err;
   }
   const tenantId = tenant._id;
+  deleteAllOrgReportTemplateVersions(tenantId);
   deleteOrgReportTemplate(tenantId);
   await Tenant.updateOne(
     { _id: tenantId },
@@ -774,9 +948,81 @@ async function deleteReportTemplateAdmin(requesterUserId) {
         reportAccentDetectedHex: 1,
         reportAccentHexOverride: 1,
       },
+      $set: {
+        reportTemplateVersions: [],
+      },
     }
   );
   return { ok: true };
+}
+
+async function deleteReportTemplateVersionAdmin(requesterUserId, versionId) {
+  const requester = await assertOrgAdminForReportTemplate(requesterUserId);
+  const tenant = requester.tenantId._id ? requester.tenantId : await Tenant.findById(requester.tenantId);
+  if (!tenant) {
+    const err = new Error('Tenant not found');
+    err.status = 404;
+    throw err;
+  }
+  const vId = String(versionId || '').trim();
+  if (!vId) {
+    const err = new Error('Invalid template version id');
+    err.status = 400;
+    throw err;
+  }
+  const tenantId = tenant._id;
+  const versions = normalizeReportTemplateVersions(tenant, { includeLegacy: true });
+  const hit = versions.find((v) => v.id === vId);
+  if (!hit) {
+    const err = new Error('Template version not found');
+    err.status = 404;
+    throw err;
+  }
+  const nextVersions = versions.filter((v) => v.id !== vId);
+  if (vId !== LEGACY_TEMPLATE_VERSION_ID) {
+    deleteOrgReportTemplateVersion(tenantId, vId);
+  }
+  if (nextVersions.length > 0) {
+    const nextTop = nextVersions[0];
+    let nextBuffer =
+      nextTop.id === LEGACY_TEMPLATE_VERSION_ID
+        ? readOrgReportTemplateBuffer(tenantId)
+        : readOrgReportTemplateVersionBuffer(tenantId, nextTop.id);
+    if (!nextBuffer) {
+      nextBuffer = readOrgReportTemplateBuffer(tenantId);
+    }
+    if (nextBuffer) {
+      saveOrgReportTemplate(tenantId, nextBuffer);
+    } else {
+      deleteOrgReportTemplate(tenantId);
+    }
+    await Tenant.updateOne(
+      { _id: tenantId },
+      {
+        $set: {
+          reportTemplateOriginalName: nextTop.originalName,
+          reportTemplateUploadedAt: nextTop.uploadedAt || null,
+          reportAccentDetectedHex: nextTop.accentDetectedHex || '',
+          reportTemplateVersions: nextVersions.filter((v) => v.id !== LEGACY_TEMPLATE_VERSION_ID),
+        },
+      }
+    );
+  } else {
+    deleteOrgReportTemplate(tenantId);
+    await Tenant.updateOne(
+      { _id: tenantId },
+      {
+        $unset: {
+          reportTemplateOriginalName: 1,
+          reportTemplateUploadedAt: 1,
+          reportAccentDetectedHex: 1,
+          reportAccentHexOverride: 1,
+        },
+        $set: { reportTemplateVersions: [] },
+      }
+    );
+  }
+  return { ok: true, versions: nextVersions };
 }
 
 module.exports = {
@@ -794,7 +1040,9 @@ module.exports = {
   getScanContextAdmin,
   updateScanContextAdmin,
   uploadReportTemplateAdmin,
+  getReportTemplateAdmin,
   deleteReportTemplateAdmin,
+  deleteReportTemplateVersionAdmin,
   createTenantIntegrationApiKey,
   deleteTenantIntegrationApiKey,
 };

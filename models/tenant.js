@@ -59,6 +59,14 @@ const tenantSchema = new mongoose.Schema(
     reportTemplateOriginalName: { type: String, default: '' },
     reportTemplateUploadedAt: { type: Date },
     reportAccentDetectedHex: { type: String, default: '' },
+    reportTemplateVersions: [
+      {
+        id: { type: String, required: true },
+        originalName: { type: String, default: 'template.docx' },
+        uploadedAt: { type: Date, required: true },
+        accentDetectedHex: { type: String, default: '' },
+      },
+    ],
     /** Machine integration (Zapier, etc.): hashed secrets; plaintext shown once on create. */
     integrationApiKeys: [
       {

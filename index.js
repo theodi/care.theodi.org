@@ -199,6 +199,10 @@ app.get('/docs/tenant-integration', (req, res) => {
   res.redirect(301, '/docs/tenant-integration.html');
 });
 
+app.get('/docs/report-template', (req, res) => {
+  res.redirect(301, '/docs/report-template.html');
+});
+
 app.use(express.static(__dirname + '/public')); // Public directory
 
 // Use authentication routes

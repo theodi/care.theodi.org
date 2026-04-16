@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Report template guide · CARE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #faf9f7;
+      --ink: #1a1f2e;
+      --muted: #5c6478;
+      --accent: #003057;
+      --border: #e2e0dc;
+    }
+    body { margin: 0; font-family: 'Source Sans 3', system-ui, sans-serif; color: var(--ink); background: var(--bg); }
+    .dev-doc-wrap {
+      box-sizing: border-box;
+      width: 100%;
+      max-width: min(96vw, 74rem);
+      margin: 0 auto;
+      padding: 2rem clamp(1.25rem, 4vw, 3rem) 3rem;
+    }
+    h1 { font-family: 'Source Serif 4', Georgia, serif; font-size: 1.75rem; font-weight: 600; margin: 0 0 0.35rem; color: var(--accent); }
+    .dev-doc-meta { font-size: 0.875rem; color: var(--muted); margin: 0 0 1.5rem; }
+    article {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.35rem clamp(1.25rem, 3vw, 2.25rem);
+      line-height: 1.6;
+    }
+    h2 { font-family: 'Source Serif 4', Georgia, serif; font-size: 1.1rem; margin: 1.2rem 0 0.5rem; color: var(--accent); }
+    h2:first-child { margin-top: 0; }
+    ul, ol { margin: 0.45rem 0 0; padding-left: 1.3rem; }
+    li { margin: 0.35rem 0; }
+    code { font-size: 0.9em; background: #f0eeea; padding: 0.12em 0.34em; border-radius: 3px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="dev-doc-wrap">
+    <h1>Report template guide</h1>
+    <p class="dev-doc-meta">Organisation controls · Word export template setup</p>
+    <article>
+      <h2>Start from an example</h2>
+      <ul>
+        <li><a href="/data/example-template.docx" download>Download blank example template (.docx)</a>.</li>
+        <li>Or download your current live template from <a href="/organisation">Organisation</a> using <strong>Download current template</strong>.</li>
+      </ul>
+
+      <h2>How the template works</h2>
+      <p>CARE replaces placeholders in braces, for example <code>{{projectTitle}}</code>. Keep every required placeholder in the document so exports can patch all sections.</p>
+      <ul>
+        <li>Use a Word <code>.docx</code> file only.</li>
+        <li>Keep placeholder names exact, including case.</li>
+        <li>The key <code>unintendedConsequneces</code> must remain spelled exactly like this.</li>
+      </ul>
+
+      <h2>Branding and colours</h2>
+      <p>Generated table headers and AI/glossary labels use your template accent colour:</p>
+      <ol>
+        <li>CARE first tries the Heading 1 colour from your template.</li>
+        <li>If Heading 1 has no colour, CARE uses the template theme accent.</li>
+      </ol>
+
+      <h2>Upload and verify</h2>
+      <ol>
+        <li>Open <a href="/organisation">Organisation</a> and go to <strong>Report template (Word export)</strong>.</li>
+        <li>Upload your edited <code>.docx</code>.</li>
+        <li>If placeholders are missing, CARE shows the missing keys so you can fix and re-upload.</li>
+        <li>Run a Word export from an evaluation to verify the output.</li>
+      </ol>
+
+      <h2>Placeholder reference (all required keys)</h2>
+      <p>Include every placeholder below in your template (exact spelling inside double braces, for example <code>{{title}}</code>).</p>
+      <ul>
+        <li><code>{{doctitle}}</code> — Large report title text on the cover.</li>
+        <li><code>{{title}}</code> — Project title in the report body.</li>
+        <li><code>{{author}}</code> — Project owner name and email.</li>
+        <li><code>{{footertitle}}</code> — Project title in the footer/header area.</li>
+        <li><code>{{date}}</code> — Full publication date.</li>
+        <li><code>{{footerdate}}</code> — Publication year for footer usage.</li>
+        <li><code>{{objectives}}</code> — Project objectives text.</li>
+        <li><code>{{aiAssistedNotice}}</code> — AI-assisted disclosure/notice section.</li>
+        <li><code>{{intendedConsequences}}</code> — Bullet list of intended consequences.</li>
+        <li><code>{{positiveUnintendedConsequences}}</code> — Bullet list of positive unintended consequences.</li>
+        <li><code>{{dataUsed}}</code> — Data used summary text.</li>
+        <li><code>{{stakeholders}}</code> — Bullet list of stakeholders.</li>
+        <li><code>{{donutChart}}</code> — Embedded risk distribution donut chart image.</li>
+        <li><code>{{averageLikelihood}}</code> — Average likelihood metric.</li>
+        <li><code>{{averageImpact}}</code> — Average impact metric.</li>
+        <li><code>{{averageRisk}}</code> — Average overall risk score.</li>
+        <li><code>{{topRisks}}</code> — Table of top risks and risk levels.</li>
+        <li><code>{{aiProvenance}}</code> — AI provenance appendix (when included).</li>
+        <li><code>{{glossaryAppendix}}</code> — Glossary appendix section (when included).</li>
+        <li><code>{{unintendedConsequneces}}</code> — Main unintended consequences table (legacy spelling required).</li>
+      </ul>
+    </article>
+  </div>
+</body>
+</html>

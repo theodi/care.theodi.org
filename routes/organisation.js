@@ -201,10 +201,68 @@ router.post(
   }
 );
 
+router.get('/report-template', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.getReportTemplateAdmin(userId);
+    const accept = req.get('Accept') || '';
+    if (accept.includes('application/json')) {
+      return res.json({
+        source: result.source,
+        hasCustomTemplate: result.source === 'custom',
+        fileName: result.fileName,
+        uploadedAt: result.uploadedAt,
+        accentDetectedHex: result.accentDetectedHex,
+        accentEffectiveHex: result.accentEffectiveHex,
+        versions: result.versions || [],
+        downloadUrl: '/organisation/report-template',
+      });
+    }
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+    res.send(result.buffer);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/report-template/:versionId', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.getReportTemplateAdmin(userId, {
+      versionId: req.params.versionId,
+    });
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+    res.send(result.buffer);
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.delete('/report-template', ensureAuthenticated, async (req, res, next) => {
   try {
     const userId = req.session.passport.user.id;
     const result = await organisationController.deleteReportTemplateAdmin(userId);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete('/report-template/:versionId', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const result = await organisationController.deleteReportTemplateVersionAdmin(
+      userId,
+      req.params.versionId
+    );
     res.json(result);
   } catch (e) {
     next(e);

@@ -146,19 +146,57 @@
     <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %> org-report-template-section">
       <h2>Report template (Word export)</h2>
       <p class="small">Upload a <code>.docx</code> that includes every CARE placeholder <code>{{…}}</code> (copy the default template from the codebase or export). The key <code>unintendedConsequneces</code> must be spelled exactly. Generated table headers and AI/glossary labels use the accent colour taken from your template (Heading&nbsp;1 colour, or theme accent if Heading&nbsp;1 has no colour). Organisation admins and report managers can change this template.</p>
+      <p class="small">
+        Need help creating one?
+        <a href="/docs/report-template" target="_blank">Report template guide</a>
+      </p>
       <div id="orgReportTemplateMessage" class="alert" style="display:none;"></div>
       <p id="orgReportTemplateStatus" class="small"></p>
-      <form id="orgReportTemplateUploadForm">
-        <p>
-          <input type="file" id="orgReportTemplateFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
-        </p>
-        <p>
-          <button type="submit" class="btn btn-primary" id="orgReportTemplateUploadBtn">Upload template</button>
-          <button type="button" class="transparent" id="orgReportTemplateRemoveBtn">Remove custom template</button>
-        </p>
-      </form>
       <div id="orgReportTemplateMissingKeys" class="small" style="display:none;color:#c00;"></div>
+      <div id="orgReportTemplateVersionsWrap" class="org-dt-wrap" style="margin-top:1rem;">
+        <table class="display org-dt-table" style="width:100%" id="orgReportTemplateVersionsTable">
+          <thead>
+            <tr>
+              <th>Template file</th>
+              <th>Uploaded</th>
+              <th>Detected theme colour</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="orgReportTemplateVersionsBody"></tbody>
+        </table>
+      </div>
+      <p style="margin-top:1rem;">
+        <button type="button" class="btn btn-primary" id="orgReportTemplateAddBtn">Add template</button>
+      </p>
     </div>
+    <dialog id="orgReportTemplateUploadDialog" class="org-access-edit-dialog">
+      <div class="content-block white">
+        <h2 style="margin-top:0;">Add report template</h2>
+        <p class="small">Choose a <code>.docx</code> file or drag it into the drop area.</p>
+        <form id="orgReportTemplateUploadForm" novalidate>
+          <input
+            type="file"
+            id="orgReportTemplateFile"
+            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            style="display:none;"
+          />
+          <div
+            id="orgReportTemplateDropZone"
+            style="border:2px dashed #9aa8b6;border-radius:8px;padding:1rem;text-align:center;background:#f8fbff;margin:0.5rem 0 1rem;"
+          >
+            <p style="margin:0 0 0.4rem;">Drop a <code>.docx</code> file here</p>
+            <p class="small" style="margin:0 0 0.75rem;">or</p>
+            <button type="button" class="transparent" id="orgReportTemplateBrowseBtn">Select file</button>
+            <p id="orgReportTemplateChosenFile" class="small" style="margin:0.65rem 0 0;">No file selected</p>
+          </div>
+          <div class="sub-form__actions">
+            <button type="submit" class="btn btn-primary" id="orgReportTemplateUploadBtn">Upload template</button>
+            <button type="button" class="transparent" id="orgReportTemplateUploadCancelBtn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
     <script>
     window.__orgReportTemplateData = JSON.parse(decodeURIComponent('<%- encodeURIComponent(JSON.stringify(organisation.subscription.reportTemplate || {})) %>'));
     </script>
@@ -172,7 +210,7 @@
     <form id="orgAiConfigForm" class="org-ai-config-form">
       <label class="org-ai-config-form__check">
         <input type="checkbox" id="orgAiEnabled" name="enabled" value="1"/>
-        Use organisation AI for licensed users (when off, everyone uses server defaults only)
+        Enable organisation AI for licensed users (when off, everyone uses server defaults only)
       </label>
       <div id="orgAiFields" class="org-ai-config-form__fields" style="display:none;">
         <label class="org-ai-config-form__row org-ai-config-form__row--provider">
@@ -1001,6 +1039,68 @@
 (function () {
   var uploadForm = document.getElementById('orgReportTemplateUploadForm');
   if (!uploadForm) return;
+  var listBody = document.getElementById('orgReportTemplateVersionsBody');
+  var tableWrap = document.getElementById('orgReportTemplateVersionsWrap');
+  var uploadDialog = document.getElementById('orgReportTemplateUploadDialog');
+  var addBtn = document.getElementById('orgReportTemplateAddBtn');
+  var cancelUploadBtn = document.getElementById('orgReportTemplateUploadCancelBtn');
+  var browseBtn = document.getElementById('orgReportTemplateBrowseBtn');
+  var fileInput = document.getElementById('orgReportTemplateFile');
+  var chosenFileEl = document.getElementById('orgReportTemplateChosenFile');
+  var dropZone = document.getElementById('orgReportTemplateDropZone');
+  var dtRt = null;
+  var rtState = { versions: [] };
+  var selectedFile = null;
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function normHex(hex) {
+    var h = String(hex || '').trim().replace(/^#/, '');
+    return /^[0-9a-fA-F]{6}$/.test(h) ? h.toUpperCase() : '';
+  }
+
+  function textColorForHex(hex) {
+    var h = normHex(hex);
+    if (!h) return '#1a1f2e';
+    var r = parseInt(h.slice(0, 2), 16);
+    var g = parseInt(h.slice(2, 4), 16);
+    var b = parseInt(h.slice(4, 6), 16);
+    var yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 140 ? '#1a1f2e' : '#fff';
+  }
+
+  function destroyRtTable() {
+    if (dtRt && typeof dtRt.destroy === 'function') {
+      dtRt.destroy();
+      dtRt = null;
+    }
+  }
+
+  function rebuildRtTable() {
+    if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable) return;
+    var $t = jQuery('#orgReportTemplateVersionsTable');
+    if (!$t.length) return;
+    if (jQuery.fn.DataTable.isDataTable($t)) {
+      $t.DataTable().destroy();
+    }
+    if ($t.find('tbody tr').length === 0) return;
+    var base = typeof window.__orgDtBaseConfig === 'function' ? window.__orgDtBaseConfig : null;
+    if (!base) return;
+    dtRt = $t.DataTable(
+      base({
+        order: [[1, 'desc']],
+        columnDefs: [{ targets: 3, orderable: false, searchable: false }],
+      })
+    );
+  }
+
   function showRtMsg(text, isError) {
     var el = document.getElementById('orgReportTemplateMessage');
     if (!el) return;
@@ -1008,33 +1108,177 @@
     el.textContent = text;
     el.style.color = isError ? '#c00' : '';
   }
+  function setDropZoneActive(on) {
+    if (!dropZone) return;
+    dropZone.style.borderColor = on ? '#003057' : '#9aa8b6';
+    dropZone.style.background = on ? '#e8f2ff' : '#f8fbff';
+  }
+  function setSelectedFile(file) {
+    selectedFile = file || null;
+    if (chosenFileEl) {
+      chosenFileEl.textContent = selectedFile
+        ? 'Selected: ' + selectedFile.name
+        : 'No file selected';
+    }
+  }
+  function openUploadDialog() {
+    setSelectedFile(null);
+    if (fileInput) fileInput.value = '';
+    setDropZoneActive(false);
+    if (uploadDialog && typeof uploadDialog.showModal === 'function') uploadDialog.showModal();
+  }
+  function closeUploadDialog() {
+    if (uploadDialog && typeof uploadDialog.close === 'function') uploadDialog.close();
+  }
   function renderRtStatus() {
     var el = document.getElementById('orgReportTemplateStatus');
     var missEl = document.getElementById('orgReportTemplateMissingKeys');
-    var rt = window.__orgReportTemplateData || {};
+    var versions = rtState.versions || [];
     if (!el) return;
-    if (rt.hasFile) {
-      var uploaded = rt.uploadedAt ? new Date(rt.uploadedAt).toLocaleString() : '';
+    if (versions.length) {
       el.textContent =
-        'Custom template: ' +
-        (rt.originalName || 'template.docx') +
-        (uploaded ? ' · uploaded ' + uploaded : '') +
-        '. Accent for generated tables/labels is read from the template (last detected #' +
-        (rt.accentDetectedHex || rt.accentEffectiveHex || '—') +
-        ').';
+        'Custom templates: showing up to the 5 most recent versions. Exports use the most recent version.';
       if (missEl) missEl.style.display = 'none';
+      if (tableWrap) tableWrap.style.display = '';
     } else {
       el.textContent =
         'Exports use the default CARE Word template. Upload a custom .docx above to use your branding.';
+      if (tableWrap) tableWrap.style.display = 'none';
     }
   }
+
+  function renderRtVersionsTable() {
+    if (!listBody) return;
+    destroyRtTable();
+    listBody.innerHTML = '';
+    var versions = rtState.versions || [];
+    if (!versions.length) {
+      return;
+    }
+    versions.forEach(function (v, idx) {
+      var uploadedLabel = v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : '—';
+      var currentBadge =
+        idx === 0
+          ? ' <span style="display:inline-block;margin-left:0.45rem;padding:0.08rem 0.4rem;border-radius:999px;background:#e8f2ff;border:1px solid #b9d3f7;color:#003057;font-size:0.78em;font-weight:600;vertical-align:middle;">Current export template</span>'
+          : '';
+      var rawHex = normHex(v.accentDetectedHex);
+      var hexLabel = rawHex ? '#' + rawHex : '—';
+      var swatch = rawHex
+        ? '<span style="display:inline-block;min-width:5.4rem;padding:0.14rem 0.5rem;border-radius:4px;border:1px solid rgba(0,0,0,0.2);background:#' +
+          rawHex +
+          ';color:' +
+          textColorForHex(rawHex) +
+          ';font-family:monospace;font-size:0.9em;">#' +
+          rawHex +
+          '</span>'
+        : '<span>—</span>';
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><a href="/organisation/report-template/' +
+        encodeURIComponent(v.id) +
+        '">' +
+        esc(v.originalName || 'template.docx') +
+        '</a>' +
+        currentBadge +
+        '</td>' +
+        '<td data-order="' +
+        (v.uploadedAt ? new Date(v.uploadedAt).getTime() : 0) +
+        '">' +
+        esc(uploadedLabel) +
+        '</td>' +
+        '<td>' +
+        swatch +
+        (rawHex ? '' : ' ' + esc(hexLabel)) +
+        '</td>' +
+        '<td><button type="button" class="transparent orgRtDeleteVersionBtn" data-version-id="' +
+        esc(v.id) +
+        '">Delete</button></td>';
+      listBody.appendChild(tr);
+    });
+    rebuildRtTable();
+  }
+
+  function refreshRtState() {
+    return fetch('/organisation/report-template', { headers: { Accept: 'application/json' } })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.message || res.statusText);
+          return data || {};
+        });
+      })
+      .then(function (data) {
+        rtState.versions = Array.isArray(data.versions) ? data.versions.slice(0, 5) : [];
+        renderRtStatus();
+        renderRtVersionsTable();
+      });
+  }
+  var seeded = window.__orgReportTemplateData || {};
+  rtState.versions = Array.isArray(seeded.versions) ? seeded.versions.slice(0, 5) : [];
   renderRtStatus();
+  renderRtVersionsTable();
+  refreshRtState().catch(function (e) {
+    showRtMsg(e.message || String(e), true);
+  });
+
+  if (addBtn) {
+    addBtn.addEventListener('click', openUploadDialog);
+  }
+  if (cancelUploadBtn) {
+    cancelUploadBtn.addEventListener('click', closeUploadDialog);
+  }
+  if (uploadDialog) {
+    uploadDialog.addEventListener('click', function (ev) {
+      if (ev.target === uploadDialog) closeUploadDialog();
+    });
+    uploadDialog.addEventListener('close', function () {
+      setDropZoneActive(false);
+      setSelectedFile(null);
+      if (fileInput) fileInput.value = '';
+    });
+  }
+  if (browseBtn && fileInput) {
+    browseBtn.addEventListener('click', function () {
+      fileInput.click();
+    });
+  }
+  if (fileInput) {
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      setSelectedFile(file || null);
+    });
+  }
+  if (dropZone) {
+    dropZone.addEventListener('dragenter', function (ev) {
+      ev.preventDefault();
+      setDropZoneActive(true);
+    });
+    dropZone.addEventListener('dragover', function (ev) {
+      ev.preventDefault();
+      setDropZoneActive(true);
+    });
+    dropZone.addEventListener('dragleave', function (ev) {
+      ev.preventDefault();
+      if (ev.target === dropZone) setDropZoneActive(false);
+    });
+    dropZone.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      setDropZoneActive(false);
+      var files = ev.dataTransfer && ev.dataTransfer.files;
+      var file = files && files[0];
+      if (!file) return;
+      setSelectedFile(file);
+    });
+  }
+
   uploadForm.addEventListener('submit', function (ev) {
     ev.preventDefault();
-    var fileInput = document.getElementById('orgReportTemplateFile');
-    var file = fileInput && fileInput.files && fileInput.files[0];
+    var file = selectedFile || (fileInput && fileInput.files && fileInput.files[0]);
     if (!file) {
       showRtMsg('Choose a .docx file first.', true);
+      return;
+    }
+    if (!/\.docx$/i.test(file.name || '')) {
+      showRtMsg('Only .docx files are allowed.', true);
       return;
     }
     var fd = new FormData();
@@ -1057,7 +1301,13 @@
           if (data.warnings && data.warnings.length) {
             console.warn('Template warnings', data.warnings);
           }
-          window.location.reload();
+          if (fileInput) fileInput.value = '';
+          setSelectedFile(null);
+          closeUploadDialog();
+          return refreshRtState();
+        })
+        .then(function () {
+          showRtMsg('Template uploaded.', false);
         });
       })
       .catch(function (e) {
@@ -1067,22 +1317,30 @@
         if (btn) btn.disabled = false;
       });
   });
-  var rm = document.getElementById('orgReportTemplateRemoveBtn');
-  if (rm) {
-    rm.addEventListener('click', function () {
-      if (!confirm('Remove the custom template? Exports will use the default CARE template.')) return;
-      fetch('/organisation/report-template', { method: 'DELETE', headers: { Accept: 'application/json' } })
-        .then(function (res) {
-          return res.json().then(function (data) {
-            if (!res.ok) throw new Error(data.message || res.statusText);
-            window.location.reload();
-          });
-        })
-        .catch(function (e) {
-          showRtMsg(e.message || String(e), true);
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target && ev.target.closest ? ev.target.closest('.orgRtDeleteVersionBtn') : null;
+    if (!btn) return;
+    var versionId = btn.getAttribute('data-version-id') || '';
+    if (!versionId) return;
+    if (!confirm('Delete this template version?')) return;
+    fetch('/organisation/report-template/' + encodeURIComponent(versionId), {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' },
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.message || res.statusText);
+          return refreshRtState();
         });
-    });
-  }
+      })
+      .then(function () {
+        showRtMsg('Template version deleted.', false);
+      })
+      .catch(function (e) {
+        showRtMsg(e.message || String(e), true);
+      });
+  });
 })();
 
 (function () {
