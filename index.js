@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Load environment variables securely
 require("dotenv").config({ path: "./config.env" });
@@ -42,7 +43,8 @@ const { formatApiError } = require('./lib/formatApiError');
 const assistantRoutes = require('./routes/assistant'); // Require the project routes module
 const { loadProject } = require('./middleware/project');
 const { deleteUser, retrieveOrCreateUser } = require('./controllers/user'); // Import necessary functions from controllers
-const { getHubspotProfile, updateToolStatistics } = require('./controllers/hubspot');
+const { getHubspotProfile, updateToolStatistics, updateCareAccountStatus } = require('./controllers/hubspot');
+const { ensureAuthenticated } = require('./middleware/auth');
 const app = express();
 const port = process.env.PORT || 3080;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -143,6 +145,39 @@ app.use(async function(req, res, next) {
   next();
 });
 
+// CSRF tokens for browser-based, session-authenticated requests.
+app.use((req, res, next) => {
+  // Only enforce for users with an authenticated session.
+  if (!req.session || !req.session.passport || !req.isAuthenticated || !req.isAuthenticated()) {
+    return next();
+  }
+
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  res.locals.csrfToken = req.session.csrfToken;
+
+  // Safe / special-case routes that we intentionally exempt from CSRF checks.
+  // Logout is exempt because it is triggered from a simple form POST and is
+  // already protected by same-origin + session.
+  if (req.path === '/logout') {
+    return next();
+  }
+
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const headerToken = req.get('x-csrf-token') || req.get('X-CSRF-Token') || '';
+  if (headerToken && headerToken === req.session.csrfToken) {
+    return next();
+  }
+
+  const err = new Error('Invalid CSRF token');
+  err.status = 403;
+  return next(err);
+});
+
 app.use((req, res, next) => {
   // Read package.json file
   fs.readFile(path.join(__dirname, 'package.json'), 'utf8', (err, data) => {
@@ -175,24 +210,6 @@ app.post('/logout', function(req, res, next){
   });
 });
 
-// Middleware to ensure authentication
-function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated())
-    return next();
-  else
-    unauthorised(res);
-}
-
-function unauthorised(res) {
-  const page = {
-    title: "Error"
-  };
-  res.locals.page = page;
-  const error = new Error("Unauthorized access");
-  error.status = 401;
-  throw error;
-}
-
 // Routes
 
 app.get('/docs/tenant-integration', (req, res) => {
@@ -222,6 +239,9 @@ app.use('/project', projectRoutes);
 app.use('/assistant', assistantRoutes);
 
 app.get('/', function(req, res) {
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return res.redirect('/evaluations');
+  }
   const page = {
     title: "Consequence and Risk Evaluation (CARE)",
     link: "/"
@@ -332,6 +352,7 @@ app.delete('/profile', ensureAuthenticated, async (req, res, next) => {
       const ownedProjects = userProjects.ownedProjects.projects;
 
       if (ownedProjects.length === 0) {
+          await updateCareAccountStatus(userId, 'deleted');
           // If the user has no projects, delete the user
           await deleteUser(userId)
           res.status(200).json({ message: "User deleted successfully." });
@@ -388,6 +409,18 @@ app.get('/evaluations', ensureAuthenticated, async (req, res, next) => {
 app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
   try {
       const schemaPath = req.params.schema;
+
+      // Basic hardening: reject traversal, absolute paths, and non-JSON.
+      if (
+        !schemaPath ||
+        schemaPath.includes('..') ||
+        schemaPath.startsWith('/') ||
+        schemaPath.includes('\\') ||
+        !schemaPath.endsWith('.json')
+      ) {
+          return res.status(400).json({ error: 'Invalid schema path' });
+      }
+
       const fullPath = path.join(__dirname, 'public/data/schemas', schemaPath);
       if (fs.existsSync(fullPath)) {
           var schema = require(fullPath);

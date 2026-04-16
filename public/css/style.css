@@ -1175,6 +1175,15 @@ table.dataTable td.eval-org-integration-id-col .org-eval-integration-add {
     margin-top: 1rem;
 }
 
+.dt-top, .dt-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dt-top input, .dt-top select {
+  display: inline-block !important;
+}
+
 /* Organisation page: DataTables toolbars + zebra rows on light-blue blocks */
 .org-dt-wrap {
     margin-top: 0.35rem;

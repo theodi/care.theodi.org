@@ -63,7 +63,12 @@ function renderSubscriptionsTable(rows) {
   if ($.fn.DataTable && $.fn.DataTable.isDataTable('#subscriptionsTable')) {
     $('#subscriptionsTable').DataTable().destroy();
   }
-  $('#subscriptionsTable').DataTable({ order: [[4, 'desc']] });
+  $('#subscriptionsTable').DataTable({
+    order: [[4, 'desc']],
+    dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+         "<'dt-middle't>" +
+         "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>"
+  });
 }
 
 function escapeHtml(str) {

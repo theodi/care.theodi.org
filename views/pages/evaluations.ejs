@@ -101,7 +101,7 @@
                 </label>
             </div>
         </div>
-        <p id="evaluationsScopeSummary" class="small"></p>
+        <p id="evaluationsScopeSummary" class="small" style="display: none;"></p>
         <table id="evaluationsTable" class="display" style="width:100%"></table>
     </div>
 </div>
@@ -350,7 +350,9 @@ function renderEvaluationsTable(rows) {
             }
         ],
         order: [[0, 'asc']],
-        dom: 'Bfrtip',
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>",
         buttons: []
     });
 }

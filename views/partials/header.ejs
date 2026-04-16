@@ -8,6 +8,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= page.title %></title>
+<meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
 
 <script type="text/javascript" src="/lib/jquery-3.7.1.min.js"></script>
 <script type="text/javascript" src="/lib/underscore.js"></script>
@@ -21,6 +22,50 @@
 <link href="/css/style.css" rel="stylesheet">
 <link rel="shortcut icon" href="/images/odifavicon32.ico">
 
+<script>
+(function () {
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  var token = meta && meta.getAttribute('content');
+  if (!token) {
+    return;
+  }
+
+  // Attach CSRF header to all same-origin non-GET jQuery AJAX requests.
+  if (window.jQuery && typeof window.jQuery.ajaxSetup === 'function') {
+    window.jQuery.ajaxSetup({
+      beforeSend: function (xhr, settings) {
+        var method = (settings.type || 'GET').toUpperCase();
+        if (!/^(GET|HEAD|OPTIONS)$/i.test(method)) {
+          xhr.setRequestHeader('X-CSRF-Token', token);
+        }
+      }
+    });
+  }
+
+  // Wrap fetch to add CSRF header on same-origin non-GET requests.
+  if (window.fetch) {
+    var originalFetch = window.fetch;
+    window.fetch = function (input, init) {
+      init = init || {};
+      var method = (init.method || 'GET').toUpperCase();
+      if (!/^(GET|HEAD|OPTIONS)$/i.test(method)) {
+        if (!init.headers) {
+          init.headers = {};
+        }
+        if (init.headers instanceof Headers) {
+          init.headers.set('X-CSRF-Token', token);
+        } else if (Array.isArray(init.headers)) {
+          init.headers.push(['X-CSRF-Token', token]);
+        } else {
+          init.headers['X-CSRF-Token'] = token;
+        }
+      }
+      return originalFetch(input, init);
+    };
+  }
+})();
+</script>
+
 </head>
 <body>
 	<div id="contentOverlay" class="overlay">
@@ -33,15 +78,17 @@
 		</div>
 	</div>
 	<header class="header">
+		<% if (typeof software !== 'undefined' && software && software.version && software.versionLink) { %>
 		<p class="version"><a href="<%= software.versionLink %>" target="_blank">v<%= software.version %></a></p>
+		<% } %>
 		<div class="container">
 			<div class="header-top">
 			<a href="/" class="logo"></a>
 			<nav class="main-nav" aria-label="Main Menu">
 				<ul>
 				<% if(user) { %>
-                    <li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">Dashboard</a></li>
                     <li><a href="/evaluations" class="toggle-link <% if (page.link === '/evaluations') { %>selected<% } %>">Evaluations</a></li>
+                    <li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">Dashboard</a></li>
 					<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
 					<li><a href="/organisation" class="toggle-link <% if (page.link === '/organisation') { %>selected<% } %>">Organisation</a></li>
 					<% } %>

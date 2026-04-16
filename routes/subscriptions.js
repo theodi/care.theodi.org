@@ -3,17 +3,7 @@ const router = express.Router();
 const { ensureCareStaff } = require('../middleware/careStaff');
 const careAdminController = require('../controllers/careAdmin');
 const Tenant = require('../models/tenant');
-
-function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) return next();
-  const accept = req.get('Accept') || '';
-  if (accept.includes('application/json')) {
-    const error = new Error('Unauthorized access');
-    error.status = 401;
-    return next(error);
-  }
-  res.redirect('/');
-}
+const { ensureAuthenticated } = require('../middleware/auth');
 
 router.get('/new', ensureAuthenticated, ensureCareStaff, async (req, res, next) => {
   try {

@@ -2,30 +2,26 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const organisationController = require('../controllers/organisation');
+const { ensureAuthenticated } = require('../middleware/auth');
 
 const reportTemplateUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const n = (file.originalname || '').toLowerCase();
-    if (n.endsWith('.docx')) {
+    const mt = (file.mimetype || '').toLowerCase();
+    const looksLikeDocxName = n.endsWith('.docx');
+    const looksLikeDocxMime =
+      mt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      mt === 'application/zip' ||
+      mt === 'application/octet-stream';
+    if (looksLikeDocxName && looksLikeDocxMime) {
       cb(null, true);
       return;
     }
     cb(new Error('Only .docx files are allowed'));
   },
 });
-
-function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) return next();
-  const accept = req.get('Accept') || '';
-  if (accept.includes('application/json')) {
-    const error = new Error('Unauthorized access');
-    error.status = 401;
-    return next(error);
-  }
-  res.redirect('/');
-}
 
 router.get('/', ensureAuthenticated, async (req, res, next) => {
   try {

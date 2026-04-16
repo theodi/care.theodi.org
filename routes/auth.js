@@ -4,7 +4,7 @@ const express = require('express');
 const passport = require('../passport'); // Require the passport module
 
 const { retrieveOrCreateUser } = require('../controllers/user');
-const { getHubspotUser } = require('../controllers/hubspot');
+const { getHubspotUser, updateCareAccountStatus } = require('../controllers/hubspot');
 
 const router = express.Router();
 
@@ -42,6 +42,7 @@ async function processLogin(req, res) {
     req.session.passport.user.id = user._id;
 
     await getHubspotUser(user._id, user.email);
+    await updateCareAccountStatus(user._id, 'active');
 
   } catch (error) {
     console.log(error);

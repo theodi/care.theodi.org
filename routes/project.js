@@ -9,14 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const OrganisationSubscription = require('../models/organisationSubscription');
 const { exportProjectToDocxTempFile } = require('../lib/projectDocxExport');
-
-// Middleware to ensure user is authenticated
-async function ensureAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-      return next();
-    }
-    res.redirect('/login'); // Redirect to login page if not authenticated
-}
+const { ensureAuthenticated } = require('../middleware/auth');
 
 const OrganisationMembership = require('../models/organisationMembership');
 const User = require('../models/user');
@@ -139,8 +132,11 @@ router.post('/:id/sharedUsers', ensureAuthenticated, checkProjectOwner, async (r
         if (!project.sharedWith) {
             project.sharedWith = [];
         }
-        // Add the new shared user to the project
-        project.sharedWith.push({ user: email });
+
+        const normalizedEmail = normalizeMemberEmail(email);
+
+        // Add the new shared user to the project (stored in normalised form)
+        project.sharedWith.push({ user: normalizedEmail });
 
         // Save the project with the updated shared users
         await project.save();
@@ -166,8 +162,12 @@ router.delete('/:id/sharedUsers/:userId', ensureAuthenticated, checkProjectOwner
             return res.status(404).json({ message: "Project not found" });
         }
 
+        const targetEmail = normalizeMemberEmail(userId);
+
         // Find the index of the shared user in the sharedWith array
-        const index = (project.sharedWith || []).findIndex(user => user.user === userId);
+        const index = (project.sharedWith || []).findIndex(
+            (user) => normalizeMemberEmail(user.user) === targetEmail
+        );
 
         // If the shared user is found, remove it from the array
         if (index !== -1) {

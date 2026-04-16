@@ -879,7 +879,9 @@ function renderAssessmentsTableRows(rows) {
             }
         ],
         order: [[0, 'asc']],
-        dom: 'Bfrtip',
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>",
         buttons: []
     });
 }
@@ -936,7 +938,9 @@ function renderAllRisksTableRows(rows) {
             }
         ],
         order: [[6, 'desc'], [0, 'asc']],
-        dom: 'Bfrtip',
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>",
         buttons: []
     });
 }
@@ -1368,7 +1372,9 @@ function renderMyProjects(data) {
             }
         ],
         order: [[0, 'asc']], // Title
-        dom: 'Bfrtip', // Show buttons for export
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>", // Layout controls
         buttons: [
             //'copy', 'csv', 'excel', 'pdf', 'print'
         ]
@@ -1598,7 +1604,9 @@ function renderOrganisationProjects(payload, organisationMeta) {
         data: data,
         columns: cols,
         order: [[0, 'asc']],
-        dom: 'Bfrtip',
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>",
         buttons: []
     });
     orgTable.off('click', 'tbody .transferOwnerOpenBtn');
@@ -1736,7 +1744,9 @@ function renderSharedProjects(data) {
             }
         ],
         order: [[0, 'asc']], // Sort by title ascending by default
-        dom: 'Bfrtip', // Show buttons for export
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>", // Layout controls
         buttons: [
             //'copy', 'csv', 'excel', 'pdf', 'print'
         ]
