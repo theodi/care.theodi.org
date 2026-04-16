@@ -40,7 +40,8 @@
 			<nav class="main-nav" aria-label="Main Menu">
 				<ul>
 				<% if(user) { %>
-                    <li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">Evaluations dashboard</a></li>
+                    <li><a href="/projects" class="toggle-link <% if (page.link === '/projects') { %>selected<% } %>">Dashboard</a></li>
+                    <li><a href="/evaluations" class="toggle-link <% if (page.link === '/evaluations') { %>selected<% } %>">Evaluations</a></li>
 					<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
 					<li><a href="/organisation" class="toggle-link <% if (page.link === '/organisation') { %>selected<% } %>">Organisation</a></li>
 					<% } %>

@@ -361,7 +361,7 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
         } else {
             updateToolStatistics(req.session.passport.user.id);
             const page = {
-              title: "Evaluations",
+              title: "Dashboard",
               link: "/projects"
             };
             res.locals.page = page;
@@ -369,6 +369,19 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
         }
     } catch (error) {
       next(error);
+    }
+});
+
+app.get('/evaluations', ensureAuthenticated, async (req, res, next) => {
+    try {
+        const page = {
+            title: 'Evaluations',
+            link: '/evaluations',
+        };
+        res.locals.page = page;
+        res.render('pages/evaluations');
+    } catch (error) {
+        next(error);
     }
 });
 

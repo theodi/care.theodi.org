@@ -166,7 +166,9 @@ li {
 .light-blue h1, .light-blue h2, .light-blue h3, .light-blue h4 {
   color: var(--color-dark-blue);
 }
-
+strong {
+  color: var(--color-dark-blue) !important;
+}
 /*
  * water.css sets strong { color: var(--text-bright) } (white) for dark theme.
  * On white / light-grey content blocks that makes emphasis invisible — force readable blue.
@@ -208,34 +210,31 @@ tbody tr:nth-child(2n) td {
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1rem;
+  align-items: stretch;
 }
 .dashboard-box {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  flex: 1 1 220px;
-  min-width: 200px;
-  max-width: 100%;
-  width: auto;
-  height: 250px;
+  flex: 1 1 360px;
+  width: min(100%, 500px);
+  max-width: 500px;
+  min-height: 250px;
   border: 1px solid var(--color-dark-blue);
 }
-.top-risks {
-  flex: 1 1 280px;
-  min-width: 200px;
-  max-width: 100%;
+.dashboard-box--heatmap {
+  flex-basis: 1000px;
+  width: min(100%, 1000px);
+  max-width: 1000px;
+  min-height: 320px;
 }
-/* Below this width, top risks sits on its own row so three columns are not cramped */
-@media (max-width: 1599px) {
-  .dashboard .top-risks {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
+.dashboard-box--total {
+  min-height: 180px;
 }
 .top-risks .dashboard-chart {
   overflow-y: auto;
   overflow-x: hidden;
-  height: 175px;
+  height: auto;
 }
 .top-risks tr:nth-child(2n) {
   color: white;
@@ -254,6 +253,40 @@ tbody tr:nth-child(2n) td {
   margin: 0px;
   color: white;
   padding: 0.5rem;
+}
+.dashboard-global-actions {
+  margin: 0.25rem 0 0.75rem;
+}
+.dashboard-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.filter-reset-btn {
+  margin-left: auto;
+  padding: 0.1rem 0.35rem;
+  color: white;
+}
+.dashboard-card-title .dashboard-stats-help-open {
+  margin-left: 0;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+}
+.dashboard-card-title .dashboard-stats-help-open--sup {
+  padding: 0;
+  min-width: 1rem;
+  line-height: 1;
+}
+.dashboard-card-title .dashboard-stats-help-open:hover {
+  text-decoration: underline;
+}
+.dashboard-card-title .dashboard-stats-help-open--sup sup {
+  font-size: 0.9rem;
+  top: -0.35em;
+  position: relative;
+  font-weight: 700;
 }
 .dashboard-box .dashboard-chart h3 {
   margin: 0px;
@@ -377,11 +410,109 @@ tbody tr:nth-child(2n) td {
 #sharedProjectsTable tbody td,
 #organisationProjectsTable thead th,
 #organisationProjectsTable tbody td,
+#assessmentsTable thead th,
+#assessmentsTable tbody td,
+#allRisksTable thead th,
+#allRisksTable tbody td,
 #topRisksTable thead th,
 #topRisksTable tbody td,
 #orgTopRisksTable thead th,
 #orgTopRisksTable tbody td {
     vertical-align: middle;
+}
+
+.dashboard-filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.dashboard-filters-row label {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+.dashboard-filters-row--scope {
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+.scope-filter-option {
+    min-width: 11rem;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid rgba(0, 68, 107, 0.2);
+    border-radius: 6px;
+    color: var(--color-dark-blue);
+    background: rgba(0, 68, 107, 0.06);
+}
+.scope-filter-option svg {
+    flex: 0 0 auto;
+}
+.dashboard-filters-row--actions {
+    gap: 0.5rem;
+}
+
+.riskHeatmap--compact th,
+.riskHeatmap--compact td {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.matrix-cell-btn {
+    width: 100%;
+    min-height: 3rem;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    color: #111;
+    font-weight: 700;
+    cursor: pointer;
+    background: #eee;
+}
+
+.matrix-cell-btn--active {
+    box-shadow: inset 0 0 0 2px var(--color-dark-blue);
+}
+
+.scope-pill {
+    display: inline-block;
+    margin-right: 0.25rem;
+    margin-bottom: 0.2rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-dark-blue);
+    background: rgba(0, 68, 107, 0.1);
+}
+
+.risk-band-badge {
+    display: inline-block;
+    min-width: 5rem;
+    text-align: center;
+    color: #222;
+    border-radius: 999px;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.risk-band-badge--high { background: rgba(221, 29, 29, 0.2); }
+.risk-band-badge--medium { background: rgba(255, 206, 86, 0.55); }
+.risk-band-badge--low { background: rgba(46, 139, 87, 0.25); }
+.risk-band-badge--unclassified { background: rgba(226, 230, 233, 0.9); }
+
+.dashboard-kpi {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--color-dark-blue);
+    text-align: center;
+    padding: 1rem 0.5rem;
+}
+
+#clearAllDashboardFilters {
+    display: inline-flex;
+    margin-right: 0.75rem;
 }
 
 /* My evaluations: status column (text only) */
@@ -414,6 +545,21 @@ a.eval-title-link:focus {
     align-items: flex-start;
     gap: 0.25rem;
     line-height: 1.25;
+}
+table.dataTable td.eval-title-col {
+    max-width: 16rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+table.dataTable td.risk-assessment-col {
+    max-width: 12rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+table.dataTable td.risk-consequence-col {
+    max-width: 18rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 .eval-project-id-row {
     font-size: 0.8125rem;

@@ -95,6 +95,44 @@
     </div>
 </dialog>
 <% } %>
+<dialog id="dashboardStatsHelpDialog" class="org-access-edit-dialog dashboard-stats-help-dialog" aria-labelledby="dashboardStatsHelpDialogTitle">
+    <div class="content-block white">
+        <h2 id="dashboardStatsHelpDialogTitle" style="margin-top:0;">How the risk matrix and colours work</h2>
+        <p class="small">
+            The dashboard only includes <strong>negative</strong> unintended consequences. Positive outcomes are excluded from these calculations.
+        </p>
+        <h3 style="margin-bottom:0.25rem;">How each risk score is calculated</h3>
+        <p class="small" style="margin-top:0;">
+            Likelihood and impact are converted to numbers:
+            <strong>Low = 1</strong>,
+            <strong>Medium = 2</strong>,
+            <strong>High = 3</strong>.
+            The risk score for a consequence is <strong>likelihood × impact</strong> (range <strong>1 to 9</strong>).
+        </p>
+        <h3 style="margin-bottom:0.25rem;">How the 3x3 matrix works</h3>
+        <p class="small" style="margin-top:0;">
+            Each negative risk is placed into one matrix cell using its likelihood and impact (Low, Medium, High).
+            Click one or more cells to cross-filter both the assessments table and the all-risks table.
+        </p>
+        <h3 style="margin-bottom:0.25rem;">How colours are categorised</h3>
+        <p class="small" style="margin-top:0;">
+            Colours use three bands:
+            <strong>Green = Low</strong>,
+            <strong>Yellow = Medium</strong>,
+            <strong>Red = High</strong>.
+            For numeric scores (used internally for sorting), this maps to:
+            <strong>Low 1-2</strong>,
+            <strong>Medium 3-6</strong>,
+            <strong>High 7-9</strong>.
+        </p>
+        <p class="small" style="margin-top:0;">
+            In the risk distribution chart, <strong>Unclassified</strong> means likelihood or impact is missing, so no risk score can be calculated yet.
+        </p>
+        <div class="sub-form__actions org-integration-id-dialog__actions">
+            <button type="button" class="btn btn-primary" id="dashboardStatsHelpClose">Close</button>
+        </div>
+    </div>
+</dialog>
 <div class="main-content">
     <section class="page-title container white">
         <h1 style="text-align: center;"><%= page.title %></h1>
@@ -102,135 +140,150 @@
     </section>
 
 <div class="content-block white">
-    <div style="text-align: center; width: 100%;">
-        <button class="transparent" onclick="window.location.href='/new'">Start a new evaluation</button>
-        <button class="transparent" onclick="window.location.href='/examples'">Select from example case studies</button>
+    <div class="dashboard-global-actions">
+        <button type="button" class="transparent" id="clearAllDashboardFilters">Clear all filters</button>
     </div>
+    <div id="res" class="alert"></div>
+    <p id="activeFilterSummary" class="small" style="display: none;"></p>
+    <section class="dashboard">
+        <subsection class="dashboard-box dashboard-box--heatmap">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Risk heat map <span class="small">(Likelihood × Impact)</span></span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearMatrixFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <table id="riskMatrixTable" class="riskHeatmap riskHeatmap--compact">
+                    <thead>
+                        <tr>
+                            <th>Impact \ Likelihood</th>
+                            <th>High</th>
+                            <th>Medium</th>
+                            <th>Low</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--distribution">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>
+                        Risk distribution
+                        <a href="#" class="dashboard-stats-help-open dashboard-stats-help-open--sup" aria-haspopup="dialog" aria-controls="dashboardStatsHelpDialog" aria-label="How risk distribution is calculated" title="How calculated">
+                            <sup>?</sup>
+                        </a>
+                    </span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearRiskBandFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="riskChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--total">
+            <div class="dashboard-header">
+                <h2>Total risks</h2>
+            </div>
+            <div class="dashboard-chart">
+                <div id="totalRisksPanel" class="dashboard-kpi"></div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--scope">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Scope filters</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearScopeFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <div class="dashboard-filters-row dashboard-filters-row--scope">
+                    <label class="scope-filter-option">
+                        <input type="checkbox" class="scope-filter" value="Mine" checked/>
+                        <svg class="eval-share-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>Mine</span>
+                    </label>
+                    <label class="scope-filter-option">
+                        <input type="checkbox" class="scope-filter" value="Organisation" checked/>
+                        <svg class="eval-share-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12h12"/><path d="M6 16h12"/><path d="M10 6h4"/><path d="M10 22v-4h4v4"/></svg>
+                        <span>Organisation</span>
+                    </label>
+                    <label class="scope-filter-option">
+                        <input type="checkbox" class="scope-filter" value="Shared with me" checked/>
+                        <svg class="eval-share-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>Shared with me</span>
+                    </label>
+                </div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box top-risks dashboard-box--trend">
+            <div class="dashboard-header">
+                <h2>Trend</h2>
+            </div>
+            <div class="dashboard-chart">
+                <div id="trendPanel" class="small"></div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--owner">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Owner assignment</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearOwnerFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="ownerChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--target-date">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Target date</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearTargetDateFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="targetDateChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--overdue">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Overdue status</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearOverdueFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="overdueChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+    </section>
+</div>
+<div class="content-block light-blue">
+    <h2>All risks</h2>
+    <table id="allRisksTable" class="display" style="width:100%"></table>
 </div>
 <div class="content-block white">
-    <h2>My evaluations</h2>
-    <div id="res" class="alert"></div>
-    <section class="dashboard">
-        <subsection class="dashboard-box">
-            <div class="dashboard-header">
-                <h2>Risks</h2>
-            </div>
-            <div class="dashboard-chart">
-                <canvas id="riskChart" width="200" height="100"></canvas> <!-- Add canvas for the donut chart -->
-            </div>
-        </subsection>
-        <subsection class="dashboard-box">
-            <div class="dashboard-header">
-                <h2>Stats <span class="small">(average)</span></h2>
-            </div>
-            <div class="dashboard-chart">
-                <h3>Likelihood</h3>
-                <div class="progress-bar">
-                    <div id="likelihood-bar" class="bar"></div>
-                </div>
-                <h3>Impact</h3>
-                <div class="progress-bar">
-                    <div id="impact-bar" class="bar"></div>
-                </div>
-                <h3>Risk</h3>
-                <div class="progress-bar">
-                    <div id="risk-bar" class="bar"></div>
-                </div>
-            </div>
-        </subsection>
-        <subsection class="dashboard-box top-risks">
-            <div class="dashboard-header">
-                <h2>Priority <span class="small">(top 5)</span></h2>
-            </div>
-            <div class="dashboard-chart">
-                <table id="topRisksTable">
-                    <thead>
-                        <tr>
-                            <th>Risk</th>
-                            <th style="width: 60px;">Level</th>
-                            <th style="width: 50px;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="topRisksTableBody">
-                        <!-- Table rows will be dynamically added here -->
-                    </tbody>
-                </table>
-            </div>
-        </subsection>
-    </section>
-    <table id="myProjectsTable" class="display" style="width:100%"></table>
-</div>
-<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
-<div class="content-block light-blue">
-    <h2>Organisation evaluations</h2>
-    <p class="small">The dashboard below includes every evaluation shared with your organisation, including ones you own. The table can list the same evaluations as <strong>My evaluations</strong>; use the checkbox to show or hide yours in this table.</p>
-    <section class="dashboard">
-        <subsection class="dashboard-box">
-            <div class="dashboard-header">
-                <h2>Risks</h2>
-            </div>
-            <div class="dashboard-chart">
-                <canvas id="orgRiskChart" width="200" height="100"></canvas>
-            </div>
-        </subsection>
-        <subsection class="dashboard-box">
-            <div class="dashboard-header">
-                <h2>Stats <span class="small">(average)</span></h2>
-            </div>
-            <div class="dashboard-chart">
-                <h3>Likelihood</h3>
-                <div class="progress-bar">
-                    <div id="org-likelihood-bar" class="bar"></div>
-                </div>
-                <h3>Impact</h3>
-                <div class="progress-bar">
-                    <div id="org-impact-bar" class="bar"></div>
-                </div>
-                <h3>Risk</h3>
-                <div class="progress-bar">
-                    <div id="org-risk-bar" class="bar"></div>
-                </div>
-            </div>
-        </subsection>
-        <subsection class="dashboard-box top-risks">
-            <div class="dashboard-header">
-                <h2>Priority <span class="small">(top 5)</span></h2>
-            </div>
-            <div class="dashboard-chart">
-                <table id="orgTopRisksTable">
-                    <thead>
-                        <tr>
-                            <th>Risk</th>
-                            <th style="width: 60px;">Level</th>
-                            <th style="width: 50px;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="org-topRisksTableBody">
-                    </tbody>
-                </table>
-            </div>
-        </subsection>
-    </section>
-    <div class="org-eval-table-controls" style="margin: 1rem 0;">
-        <label class="org-eval-include-mine-label">
-            <input type="checkbox" id="includeMyOrgSharedEvaluations" value="1"/>
-            Show evaluations I own (also listed under My evaluations)
-        </label>
-    </div>
-    <table id="organisationProjectsTable" class="display" style="width:100%"></table>
-</div>
-<% } %>
-<div class="content-block <%= (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) ? 'white' : 'light-blue' %>">
-    <h2>Evaluations shared with me</h2>
-    <table id="sharedProjectsTable" class="display" style="width:100%"></table>
+    <h2>Assessments table</h2>
+    <table id="assessmentsTable" class="display" style="width:100%"></table>
 </div>
 </div>
 
 <script>
 
 var organisationMetaGlobal = {};
-/** Full organisation payload from last GET /projects (for table filter toggle). */
+var unifiedDashboardPayload = null;
 var organisationProjectsCachedPayload = null;
+var selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
+var selectedMatrixCells = new Set();
+var selectedRiskBands = new Set();
+var selectedOwnerStates = new Set();
+var selectedTargetDateStates = new Set();
+var selectedOverdueStates = new Set();
+var assessmentsTableApi = null;
+var allRisksTableApi = null;
 
 function escapeHtml(s) {
     return String(s == null ? '' : s)
@@ -245,6 +298,26 @@ function truncateIntegrationIdDisplay(str, maxLen) {
     var n = maxLen != null ? maxLen : 48;
     if (t.length <= n) return t;
     return t.slice(0, n) + '…';
+}
+
+function openDashboardStatsHelpDialog() {
+    var dlg = document.getElementById('dashboardStatsHelpDialog');
+    if (!dlg) return;
+    if (typeof dlg.showModal === 'function') {
+        dlg.showModal();
+    } else {
+        dlg.setAttribute('open', 'open');
+    }
+}
+
+function closeDashboardStatsHelpDialog() {
+    var dlg = document.getElementById('dashboardStatsHelpDialog');
+    if (!dlg) return;
+    if (typeof dlg.close === 'function') {
+        dlg.close();
+    } else {
+        dlg.removeAttribute('open');
+    }
 }
 
 function organisationProjectsRows(payload) {
@@ -394,7 +467,463 @@ function renderSharedUsers(sharedUsers) {
     });
 }
 
+function toArrayScopeTags(tags) {
+    return Array.isArray(tags) ? tags : [];
+}
+
+function normalizeScopeTag(tag) {
+    var t = String(tag || '').trim();
+    if (t === 'My') return 'Mine';
+    return t;
+}
+
+function projectMatchesScopeFilters(project) {
+    var tags = toArrayScopeTags(project && project.scopeTags).map(normalizeScopeTag);
+    if (!selectedScopeFilters.size) return false;
+    return tags.some(function (t) {
+        return selectedScopeFilters.has(String(t));
+    });
+}
+
+function riskMatchesScopeFilters(risk) {
+    var tags = toArrayScopeTags(risk && risk.scopeTags).map(normalizeScopeTag);
+    if (!selectedScopeFilters.size) return false;
+    return tags.some(function (t) {
+        return selectedScopeFilters.has(String(t));
+    });
+}
+
+function riskMatchesMatrixFilters(risk) {
+    if (!selectedMatrixCells.size) return true;
+    var impact = risk && risk.impact ? String(risk.impact) : '';
+    var likelihood = risk && risk.likelihood ? String(risk.likelihood) : '';
+    if (!impact || !likelihood) return false;
+    return selectedMatrixCells.has(impact + '|' + likelihood);
+}
+
+function riskMatchesBandFilters(risk) {
+    if (!selectedRiskBands.size) return true;
+    var band = String((risk && risk.residualBand) || 'Unclassified');
+    return selectedRiskBands.has(band);
+}
+
+function riskMatchesOwnerFilters(risk) {
+    if (!selectedOwnerStates.size) return true;
+    var state = risk && risk.actionRole ? 'withOwner' : 'withoutOwner';
+    return selectedOwnerStates.has(state);
+}
+
+function riskMatchesTargetDateFilters(risk) {
+    if (!selectedTargetDateStates.size) return true;
+    var state = risk && risk.actionDueDate ? 'withTargetDate' : 'withoutTargetDate';
+    return selectedTargetDateStates.has(state);
+}
+
+function riskMatchesOverdueFilter(risk) {
+    if (!selectedOverdueStates.size) return true;
+    var state = risk && risk.actionOverdue ? 'overdue' : 'notOverdue';
+    return selectedOverdueStates.has(state);
+}
+
+function renderScopeTagPills(tags) {
+    var list = toArrayScopeTags(tags).map(normalizeScopeTag);
+    if (!list.length) return '<span class="small share-access-muted">—</span>';
+    return list
+        .map(function (t) {
+            return '<span class="scope-pill">' + escapeHtml(String(t)) + '</span>';
+        })
+        .join(' ');
+}
+
+function renderRiskCountsCell(counts) {
+    var c = counts || {};
+    return (
+        'High: ' + Number(c.high || 0) + '<br/>' +
+        'Medium: ' + Number(c.medium || 0) + '<br/>' +
+        'Low: ' + Number(c.low || 0) + '<br/>' +
+        'Unclassified: ' + Number(c.unclassified || 0)
+    );
+}
+
+function renderBandBadge(band) {
+    var b = String(band || 'Unclassified');
+    var cls =
+        b === 'High' ? 'risk-band-badge risk-band-badge--high'
+            : b === 'Medium' ? 'risk-band-badge risk-band-badge--medium'
+                : b === 'Low' ? 'risk-band-badge risk-band-badge--low'
+                    : 'risk-band-badge risk-band-badge--unclassified';
+    return '<span class="' + cls + '">' + escapeHtml(b) + '</span>';
+}
+
+function applyRiskFilters(list, options) {
+    var opts = options || {};
+    return (list || []).filter(function (r) {
+        if (!riskMatchesScopeFilters(r)) return false;
+        if (!opts.skipMatrix && !riskMatchesMatrixFilters(r)) return false;
+        if (!opts.skipBands && !riskMatchesBandFilters(r)) return false;
+        if (!opts.skipOwner && !riskMatchesOwnerFilters(r)) return false;
+        if (!opts.skipTargetDate && !riskMatchesTargetDateFilters(r)) return false;
+        if (!opts.skipOverdue && !riskMatchesOverdueFilter(r)) return false;
+        return true;
+    });
+}
+
+function filteredRisksForScopeSelection() {
+    var list = (unifiedDashboardPayload && unifiedDashboardPayload.allRisks) || [];
+    return applyRiskFilters(list, {
+        skipMatrix: true,
+        skipBands: true,
+        skipOwner: true,
+        skipTargetDate: true,
+        skipOverdue: true,
+    });
+}
+
+function filteredRisksForCurrentSelection() {
+    var list = (unifiedDashboardPayload && unifiedDashboardPayload.allRisks) || [];
+    return applyRiskFilters(list, {});
+}
+
+function filteredAssessmentsForCurrentSelection() {
+    var assessments = (unifiedDashboardPayload && unifiedDashboardPayload.assessments) || [];
+    var risks = filteredRisksForCurrentSelection();
+    var matchingProjectIds = new Set(risks.map(function (r) { return String(r.projectId || ''); }));
+    return assessments.filter(function (a) {
+        if (!projectMatchesScopeFilters(a)) return false;
+        if (!selectedMatrixCells.size) return true;
+        return matchingProjectIds.has(String(a.id || ''));
+    });
+}
+
+function riskCountsFromRisks(risks) {
+    var out = { unclassified: 0, high: 0, medium: 0, low: 0 };
+    (risks || []).forEach(function (r) {
+        var band = String(r && r.residualBand ? r.residualBand : '');
+        if (band === 'High') out.high++;
+        else if (band === 'Medium') out.medium++;
+        else if (band === 'Low') out.low++;
+        else out.unclassified++;
+    });
+    return out;
+}
+
+function buildMatrixCountsFromRisks(risks) {
+    var counts = {
+        High: { High: 0, Medium: 0, Low: 0 },
+        Medium: { High: 0, Medium: 0, Low: 0 },
+        Low: { High: 0, Medium: 0, Low: 0 },
+    };
+    (risks || []).forEach(function (r) {
+        var i = r && r.impact ? String(r.impact) : '';
+        var l = r && r.likelihood ? String(r.likelihood) : '';
+        if (!counts[i] || typeof counts[i][l] === 'undefined') return;
+        counts[i][l] += 1;
+    });
+    return counts;
+}
+
+function computeTreatmentProgressFromRisks(risks) {
+    var total = (risks || []).length;
+    var withOwner = 0;
+    var withTargetDate = 0;
+    var overdueActions = 0;
+    (risks || []).forEach(function (r) {
+        if (r && r.actionRole) withOwner++;
+        if (r && r.actionDueDate) withTargetDate++;
+        if (r && r.actionOverdue) overdueActions++;
+    });
+    return {
+        totalRisks: total,
+        withOwner: withOwner,
+        withOwnerPct: total ? ((withOwner / total) * 100).toFixed(1) : '0.0',
+        withTargetDate: withTargetDate,
+        withTargetDatePct: total ? ((withTargetDate / total) * 100).toFixed(1) : '0.0',
+        overdueActions: overdueActions,
+        overdueActionsPct: total ? ((overdueActions / total) * 100).toFixed(1) : '0.0',
+    };
+}
+
+function renderDashboardPanelsFromFilteredData(scopeOnlyRisks, fullyFilteredRisks) {
+    var matrix = buildMatrixCountsFromRisks(fullyFilteredRisks);
+    renderRiskMatrix(matrix, { tableId: 'riskMatrixTable' });
+    updateSelectedMatrixCells(selectedMatrixCells, { tableId: 'riskMatrixTable' });
+    addRiskDonut(riskCountsFromRisks(fullyFilteredRisks), {
+        chartId: 'riskChart',
+        onBarClick: function (label) {
+            var key = String(label || 'Unclassified');
+            if (selectedRiskBands.has(key)) selectedRiskBands.delete(key);
+            else selectedRiskBands.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+        activeLabels: Array.from(selectedRiskBands),
+    });
+
+    var ownerWith = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionRole); }).length;
+    var ownerWithout = fullyFilteredRisks.length - ownerWith;
+    addBinaryBarChart({
+        chartId: 'ownerChart',
+        labels: ['With owner', 'Without owner'],
+        values: [ownerWith, ownerWithout],
+        activeLabels: Array.from(selectedOwnerStates).map(function (s) {
+            return s === 'withOwner' ? 'With owner' : 'Without owner';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'With owner' ? 'withOwner' : 'withoutOwner';
+            if (selectedOwnerStates.has(key)) selectedOwnerStates.delete(key);
+            else selectedOwnerStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
+    var dateWith = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionDueDate); }).length;
+    var dateWithout = fullyFilteredRisks.length - dateWith;
+    addBinaryBarChart({
+        chartId: 'targetDateChart',
+        labels: ['With target date', 'Without target date'],
+        values: [dateWith, dateWithout],
+        activeLabels: Array.from(selectedTargetDateStates).map(function (s) {
+            return s === 'withTargetDate' ? 'With target date' : 'Without target date';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'With target date' ? 'withTargetDate' : 'withoutTargetDate';
+            if (selectedTargetDateStates.has(key)) selectedTargetDateStates.delete(key);
+            else selectedTargetDateStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
+    var totalEl = document.getElementById('totalRisksPanel');
+    if (totalEl) {
+        totalEl.textContent = String((fullyFilteredRisks || []).length);
+    }
+    var overdueCount = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionOverdue); }).length;
+    var notOverdueCount = fullyFilteredRisks.length - overdueCount;
+    addBinaryBarChart({
+        chartId: 'overdueChart',
+        labels: ['Overdue', 'Not overdue'],
+        values: [overdueCount, notOverdueCount],
+        activeLabels: Array.from(selectedOverdueStates).map(function (s) {
+            return s === 'overdue' ? 'Overdue' : 'Not overdue';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'Overdue' ? 'overdue' : 'notOverdue';
+            if (selectedOverdueStates.has(key)) selectedOverdueStates.delete(key);
+            else selectedOverdueStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
+    var trendEl = document.getElementById('trendPanel');
+    if (trendEl) {
+        var t = unifiedDashboardPayload && unifiedDashboardPayload.dashboard && unifiedDashboardPayload.dashboard.trend
+            ? unifiedDashboardPayload.dashboard.trend
+            : { days30: {}, days90: {} };
+        trendEl.innerHTML =
+            '<p><strong>30-day high-risk delta:</strong> ' + (t.days30 && t.days30.highResidualDelta != null ? t.days30.highResidualDelta : '0') + '</p>' +
+            '<p><strong>30-day avg risk delta:</strong> ' + (t.days30 && t.days30.averageResidualDelta != null ? t.days30.averageResidualDelta : '0.00') + '</p>' +
+            '<p><strong>90-day high-risk delta:</strong> ' + (t.days90 && t.days90.highResidualDelta != null ? t.days90.highResidualDelta : '0') + '</p>' +
+            '<p><strong>90-day avg risk delta:</strong> ' + (t.days90 && t.days90.averageResidualDelta != null ? t.days90.averageResidualDelta : '0.00') + '</p>';
+    }
+}
+
+function renderActiveFilterSummary(filteredAssessments, filteredRisks) {
+    var scopeText = selectedScopeFilters.size
+        ? Array.from(selectedScopeFilters).join(', ')
+        : 'None';
+    var matrixText = selectedMatrixCells.size
+        ? Array.from(selectedMatrixCells).join(' | ')
+        : 'All matrix cells';
+    var bandText = selectedRiskBands.size ? Array.from(selectedRiskBands).join(', ') : 'All bands';
+    var ownerText = selectedOwnerStates.size ? Array.from(selectedOwnerStates).join(', ') : 'Any owner state';
+    var targetDateText = selectedTargetDateStates.size ? Array.from(selectedTargetDateStates).join(', ') : 'Any target-date state';
+    var overdueText = selectedOverdueStates.size ? Array.from(selectedOverdueStates).join(', ') : 'Any overdue state';
+    var el = document.getElementById('activeFilterSummary');
+    if (!el) return;
+    el.textContent =
+        'Scopes: ' + scopeText +
+        ' | Matrix: ' + matrixText +
+        ' | Bands: ' + bandText +
+        ' | Owner: ' + ownerText +
+        ' | Target date: ' + targetDateText +
+        ' | Overdue: ' + overdueText +
+        ' | Assessments: ' + filteredAssessments.length +
+        ' | Risks: ' + filteredRisks.length;
+}
+
+function syncScopeFilterCheckboxes() {
+    document.querySelectorAll('.scope-filter').forEach(function (cb) {
+        var scope = String(cb.value || '');
+        cb.checked = selectedScopeFilters.has(scope);
+    });
+}
+
+function setResetButtonState(resetBtnId, isApplied) {
+    var resetBtn = document.getElementById(resetBtnId);
+    if (resetBtn) resetBtn.hidden = !isApplied;
+}
+
+function updateDashboardFilterHeaderStates() {
+    var defaultScopes = ['Mine', 'Organisation', 'Shared with me'];
+    var scopeIsDefault =
+        selectedScopeFilters.size === defaultScopes.length &&
+        defaultScopes.every(function (s) { return selectedScopeFilters.has(s); });
+    setResetButtonState('clearScopeFilters', !scopeIsDefault);
+    setResetButtonState('clearMatrixFilters', selectedMatrixCells.size > 0);
+    setResetButtonState('clearRiskBandFilters', selectedRiskBands.size > 0);
+    setResetButtonState('clearOwnerFilters', selectedOwnerStates.size > 0);
+    setResetButtonState('clearTargetDateFilters', selectedTargetDateStates.size > 0);
+    setResetButtonState('clearOverdueFilters', selectedOverdueStates.size > 0);
+}
+
+function renderAssessmentsTableRows(rows) {
+    var data = rows || [];
+    if ($.fn.DataTable.isDataTable('#assessmentsTable')) {
+        $('#assessmentsTable').DataTable().clear().rows.add(data).draw();
+        return;
+    }
+    assessmentsTableApi = $('#assessmentsTable').DataTable({
+        data: data,
+        columns: [
+            {
+                data: 'title',
+                title: 'Title',
+                width: '16rem',
+                className: 'eval-title-col',
+                render: function (data, type, row) {
+                    return renderEvalTitleCell(data, type, row);
+                }
+            },
+            {
+                data: 'scopeTags',
+                title: 'Scopes',
+                width: '11rem',
+                render: function (data, type, row) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return (data || []).join(', ');
+                    return renderScopeTagPills(data);
+                }
+            },
+            {
+                data: 'status',
+                title: 'Status',
+                width: '7rem',
+                className: 'eval-status-col',
+                render: function (data) {
+                    if (data === 'done') return '<span class="eval-status-label">Complete</span>';
+                    if (data === 'inProgress') return '<span class="eval-status-label">In progress</span>';
+                    if (data === 'todo') return '<span class="eval-status-label">To do</span>';
+                    return '<span class="eval-status-label">Unknown</span>';
+                }
+            },
+            { data: 'owner', title: 'Owner', defaultContent: '', width: '10rem' },
+            {
+                data: 'riskCounts',
+                title: 'Risk counts',
+                width: '11rem',
+                render: function (data) {
+                    return renderRiskCountsCell(data);
+                }
+            },
+            {
+                data: 'lastModified',
+                title: 'Last modified',
+                width: '10rem',
+                render: function (data) {
+                    return data ? new Date(data).toLocaleString() : '';
+                }
+            }
+        ],
+        order: [[0, 'asc']],
+        dom: 'Bfrtip',
+        buttons: []
+    });
+}
+
+function renderAllRisksTableRows(rows) {
+    var data = rows || [];
+    if ($.fn.DataTable.isDataTable('#allRisksTable')) {
+        $('#allRisksTable').DataTable().clear().rows.add(data).draw();
+        return;
+    }
+    allRisksTableApi = $('#allRisksTable').DataTable({
+        data: data,
+        columns: [
+            {
+                data: 'evaluationTitle',
+                title: 'Assessment',
+                width: '12rem',
+                className: 'risk-assessment-col',
+                render: function (data, type, row) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return data || '';
+                    var label = data == null || String(data).trim() === '' ? 'Untitled evaluation' : String(data);
+                    var href = '/project/' + encodeURIComponent(String(row.projectId || '')) + '/actionPlanning';
+                    return '<a class="eval-title-link" href="' + href + '">' + escapeHtml(label) + '</a>';
+                }
+            },
+            { data: 'consequence', title: 'Risk', width: '18rem', className: 'risk-consequence-col', defaultContent: '' },
+            {
+                data: 'scopeTags',
+                title: 'Scopes',
+                width: '11rem',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return (data || []).join(', ');
+                    return renderScopeTagPills(data);
+                }
+            },
+            { data: 'likelihood', title: 'Likelihood', width: '6rem', defaultContent: '—' },
+            { data: 'impact', title: 'Impact', width: '6rem', defaultContent: '—' },
+            {
+                data: 'residualBand',
+                title: 'Level',
+                width: '6rem',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return data || '';
+                    return renderBandBadge(data);
+                }
+            },
+            {
+                data: 'residualScore',
+                title: 'Score',
+                width: '5rem',
+                render: function (data) {
+                    return data == null ? '—' : String(data);
+                }
+            }
+        ],
+        order: [[6, 'desc'], [0, 'asc']],
+        dom: 'Bfrtip',
+        buttons: []
+    });
+}
+
+function applyUnifiedFiltersAndRefresh() {
+    if (!unifiedDashboardPayload) return;
+    var scopeOnlyRisks = filteredRisksForScopeSelection();
+    var filteredRisks = filteredRisksForCurrentSelection();
+    var filteredAssessments = filteredAssessmentsForCurrentSelection();
+    renderAssessmentsTableRows(filteredAssessments);
+    renderAllRisksTableRows(filteredRisks);
+    renderDashboardPanelsFromFilteredData(scopeOnlyRisks, filteredRisks);
+    renderActiveFilterSummary(filteredAssessments, filteredRisks);
+    updateDashboardFilterHeaderStates();
+}
+
 $(document).ready(function () {
+    $(document).on('click', '.dashboard-stats-help-open', function (e) {
+        e.preventDefault();
+        openDashboardStatsHelpDialog();
+    });
+
+    var dashboardHelpDlg = document.getElementById('dashboardStatsHelpDialog');
+    if (dashboardHelpDlg) {
+        dashboardHelpDlg.addEventListener('click', function (ev) {
+            if (ev.target === dashboardHelpDlg) closeDashboardStatsHelpDialog();
+        });
+    }
+    var dashboardHelpCloseBtn = document.getElementById('dashboardStatsHelpClose');
+    if (dashboardHelpCloseBtn) {
+        dashboardHelpCloseBtn.addEventListener('click', closeDashboardStatsHelpDialog);
+    }
+
     $(document).on('click', '.eval-copy-project-id', function (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -579,6 +1108,64 @@ $(document).ready(function () {
         }
     })();
 
+    $(document).on('click', '.matrix-cell-btn', function () {
+        var cellId = String($(this).attr('data-cell-id') || '');
+        if (!cellId) return;
+        if (selectedMatrixCells.has(cellId)) selectedMatrixCells.delete(cellId);
+        else selectedMatrixCells.add(cellId);
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $(document).on('change', '.scope-filter', function () {
+        var scope = String($(this).val() || '');
+        if (!scope) return;
+        if (this.checked) selectedScopeFilters.add(scope);
+        else selectedScopeFilters.delete(scope);
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearMatrixFilters').on('click', function () {
+        selectedMatrixCells.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearScopeFilters').on('click', function () {
+        selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
+        syncScopeFilterCheckboxes();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearRiskBandFilters').on('click', function () {
+        selectedRiskBands.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearOwnerFilters').on('click', function () {
+        selectedOwnerStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearTargetDateFilters').on('click', function () {
+        selectedTargetDateStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearOverdueFilters').on('click', function () {
+        selectedOverdueStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearAllDashboardFilters').on('click', function () {
+        selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
+        selectedMatrixCells.clear();
+        selectedRiskBands.clear();
+        selectedOwnerStates.clear();
+        selectedTargetDateStates.clear();
+        selectedOverdueStates.clear();
+        syncScopeFilterCheckboxes();
+        applyUnifiedFiltersAndRefresh();
+    });
+
     // Fetch projects data from server
     fetch('/projects', {
         headers: {
@@ -594,16 +1181,8 @@ $(document).ready(function () {
                 organisationMetaGlobal.organisationName ||
                 'Your organisation';
         }
-        renderMyProjects(data.ownedProjects.projects);
-        renderSharedProjects(data.sharedProjects);
-        organisationProjectsCachedPayload = data.organisationProjects || {};
-        if (typeof renderOrganisationProjects === 'function') {
-            renderOrganisationProjects(organisationProjectsCachedPayload, organisationMetaGlobal);
-        }
-        refreshOrganisationDashboard(data.organisationProjects);
-        addRiskDonut(data.ownedProjects.riskCounts);
-        addAverages(data.ownedProjects.averages);
-        addTopRisks(data.ownedProjects.topRisks);
+        unifiedDashboardPayload = data || {};
+        applyUnifiedFiltersAndRefresh();
     });
 });
 

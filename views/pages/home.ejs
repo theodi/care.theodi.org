@@ -108,7 +108,13 @@
             <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
           </tr>
           <tr>
-            <th scope="row">Organisation workspace (shared evaluations, roles, licensing)</th>
+            <th scope="row">Enterprise workspoce and license administraton</th>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Custom project IDs</th>
             <td>—</td>
             <td>—</td>
             <td><span class="home-plans-yes" aria-label="Yes">✓</span></td>
@@ -151,7 +157,7 @@
     <p>Please note: Suggestions from the AI assistant are provided for consideration and should be evaluated carefully before the outputs are finalised.</p>
       <% if (user && user.id) { %>
         <!-- Show the "Begin" button if user is logged in -->
-        <button class="transparent" onclick="window.location.href='/projects'">Begin</button>
+        <button class="transparent" onclick="window.location.href='/evaluations'">Begin</button>
     <% } else { %>
         <!-- Show the login button if user is not logged in -->
         <button class="transparent" onclick="window.location.href='/auth/django'">Login</button>

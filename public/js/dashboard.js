@@ -1,91 +1,3 @@
-function addRiskDonut(riskCounts, options) {
-    options = options || {};
-    const chartId = options.chartId || 'riskChart';
-    const canvas = document.getElementById(chartId);
-    if (!canvas || !riskCounts) return;
-    const existing = typeof Chart !== 'undefined' && Chart.getChart ? Chart.getChart(canvas) : null;
-    if (existing) existing.destroy();
-    const ctx = canvas.getContext('2d');
-    // Capitalize the first letter of each label
-    const labels = Object.keys(riskCounts).map(key => {
-        return key.charAt(0).toUpperCase() + key.slice(1);
-    });
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Risk count',
-                data: Object.values(riskCounts),
-                backgroundColor: [
-                    'rgba(226, 230, 233, 1)',
-                    'rgba(221, 29, 29, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(54, 162, 235, 1)'
-
-                ],
-                borderColor: [
-                    'rgba(226, 230, 233, 1)',
-                    'rgba(221, 29, 29, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(54, 162, 235, 1)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 12,
-                        padding: 8,
-                        font: { size: 11 },
-                    },
-                },
-                title: {
-                    display: false,
-                    text: 'Risk Counts'
-                }
-            }
-        }
-    });
-}
-function addAverages(averageScores, options) {
-    if (!averageScores) return;
-    options = options || {};
-    const likelihoodBarId = options.likelihoodBarId || 'likelihood-bar';
-    const impactBarId = options.impactBarId || 'impact-bar';
-    const riskBarId = options.riskBarId || 'risk-bar';
-
-    const likelihood = parseFloat(averageScores.likelihood) || 0;
-    const impact = parseFloat(averageScores.impact) || 0;
-    const riskScore = parseFloat(averageScores.riskScore) || 0;
-
-    const likelihoodBar = document.getElementById(likelihoodBarId);
-    if (likelihoodBar) {
-        likelihoodBar.style.width = (likelihood / 3 * 100) + '%';
-        likelihoodBar.innerText = averageScores.likelihood;
-        likelihoodBar.style.backgroundColor = getColorForScore(likelihood);
-    }
-
-    const impactBar = document.getElementById(impactBarId);
-    if (impactBar) {
-        impactBar.style.width = (impact / 3 * 100) + '%';
-        impactBar.innerText = averageScores.impact;
-        impactBar.style.backgroundColor = getColorForScore(impact);
-    }
-
-    const riskBar = document.getElementById(riskBarId);
-    if (riskBar) {
-        riskBar.style.width = (riskScore / 9 * 100) + '%';
-        riskBar.innerText = averageScores.riskScore;
-        riskBar.style.backgroundColor = getColorForScore(riskScore / 3);
-    }
-}
-
 function escapeHtmlTopRisk(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;')
@@ -94,54 +6,184 @@ function escapeHtmlTopRisk(s) {
         .replace(/"/g, '&quot;');
 }
 
-function addTopRisks(topRisks, options) {
+function getBandFromScore(score) {
+    if (score == null || Number.isNaN(score)) return 'Unclassified';
+    if (score >= 7) return 'High';
+    if (score >= 3) return 'Medium';
+    return 'Low';
+}
+
+function getColorForBand(band) {
+    if (band === 'High') return 'rgba(221, 29, 29, 1)';
+    if (band === 'Medium') return 'rgba(255, 206, 86, 1)';
+    if (band === 'Low') return 'rgb(57, 184, 112)';
+    return 'rgba(226, 230, 233, 1)';
+}
+
+function normalizeLevel(value) {
+    const t = String(value || '').trim().toLowerCase();
+    if (t === 'high') return 'High';
+    if (t === 'medium') return 'Medium';
+    if (t === 'low') return 'Low';
+    return '';
+}
+
+function buildMatrixCellId(impact, likelihood) {
+    const i = normalizeLevel(impact);
+    const l = normalizeLevel(likelihood);
+    if (!i || !l) return '';
+    return i + '|' + l;
+}
+
+function addRiskDonut(riskCounts, options) {
     options = options || {};
-    const tableBodyId = options.tableBodyId || 'topRisksTableBody';
-    const tableBody = document.getElementById(tableBodyId);
-    if (!tableBody) return;
-    tableBody.innerHTML = ''; // Clear existing rows
+    const chartId = options.chartId || 'riskChart';
+    const onBarClick = typeof options.onBarClick === 'function' ? options.onBarClick : null;
+    const activeLabels = new Set(Array.isArray(options.activeLabels) ? options.activeLabels : []);
+    const canvas = document.getElementById(chartId);
+    if (!canvas || !riskCounts) return;
+    const existing = typeof Chart !== 'undefined' && Chart.getChart ? Chart.getChart(canvas) : null;
+    if (existing) existing.destroy();
+    const ctx = canvas.getContext('2d');
+    const labels = ['Unclassified', 'High', 'Medium', 'Low'];
+    const values = [
+        Number(riskCounts.unclassified || 0),
+        Number(riskCounts.high || 0),
+        Number(riskCounts.medium || 0),
+        Number(riskCounts.low || 0),
+    ];
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Risk count',
+                data: values,
+                backgroundColor: labels.map((l) => getColorForBand(l)),
+                borderColor: labels.map((l) => getColorForBand(l)),
+                borderWidth: labels.map((l) => (activeLabels.has(l) ? 3 : 1)),
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+            plugins: {
+                legend: { display: false },
+            },
+            onClick: function (_evt, elements) {
+                if (!onBarClick || !elements || !elements.length) return;
+                const idx = elements[0].index;
+                onBarClick(labels[idx]);
+            },
+        },
+    });
+    if (onBarClick) canvas.style.cursor = 'pointer';
+}
 
-    if (!topRisks || !topRisks.length) return;
+function addBinaryBarChart(options) {
+    options = options || {};
+    const chartId = options.chartId;
+    const labels = Array.isArray(options.labels) ? options.labels : [];
+    const values = Array.isArray(options.values) ? options.values : [];
+    const onBarClick = typeof options.onBarClick === 'function' ? options.onBarClick : null;
+    const activeLabels = new Set(Array.isArray(options.activeLabels) ? options.activeLabels : []);
+    const canvas = document.getElementById(chartId);
+    if (!canvas || !labels.length || !values.length) return;
+    const existing = typeof Chart !== 'undefined' && Chart.getChart ? Chart.getChart(canvas) : null;
+    if (existing) existing.destroy();
+    const ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Count',
+                data: values,
+                backgroundColor: labels.map(() => '#072589'),
+                borderColor: labels.map(() => '#072589'),
+                borderWidth: labels.map((l) => (activeLabels.has(l) ? 3 : 1)),
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+            plugins: { legend: { display: false } },
+            onClick: function (_evt, elements) {
+                if (!onBarClick || !elements || !elements.length) return;
+                const idx = elements[0].index;
+                onBarClick(labels[idx]);
+            },
+        },
+    });
+    if (onBarClick) canvas.style.cursor = 'pointer';
+}
 
-    topRisks.forEach(risk => {
-        const row = tableBody.insertRow();
-        const scoreText = getScoreText(risk.score/3);
-        const scoreColor = getColorForScore(risk.score/2);
-        const pid = risk.projectId != null ? String(risk.projectId) : '';
-        const rawTitle = risk.evaluationTitle != null && String(risk.evaluationTitle).trim() !== ''
-            ? String(risk.evaluationTitle)
-            : 'Untitled evaluation';
-        const riskCell =
-            '<strong>' + escapeHtmlTopRisk(rawTitle) + '</strong><br>' +
-            escapeHtmlTopRisk(risk.consequence);
+function addAverages() {}
 
-        const viewHref = pid ? '/project/' + encodeURIComponent(pid) + '/actionPlanning' : '#';
-        row.innerHTML = `
-            <td>${riskCell}</td>
-            <td style="background-color: ${scoreColor}; text-align: center; color: white;">${scoreText}</td>
-            <td style="text-align: center;"><a href="${viewHref}">View</a></td>
-        `;
+function addTopRisks() {}
+
+function renderRiskMatrix(matrixCounts, options) {
+    options = options || {};
+    const tableId = options.tableId || 'riskMatrixTable';
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const body = table.querySelector('tbody');
+    if (!body) return;
+    const levels = ['High', 'Medium', 'Low'];
+    body.innerHTML = '';
+    levels.forEach((impact) => {
+        const tr = document.createElement('tr');
+        const head = document.createElement('th');
+        head.scope = 'row';
+        head.textContent = impact;
+        tr.appendChild(head);
+        levels.forEach((likelihood) => {
+            const value =
+                matrixCounts &&
+                matrixCounts[impact] &&
+                typeof matrixCounts[impact][likelihood] !== 'undefined'
+                    ? Number(matrixCounts[impact][likelihood] || 0)
+                    : 0;
+            const td = document.createElement('td');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'matrix-cell-btn';
+            btn.setAttribute('data-impact', impact);
+            btn.setAttribute('data-likelihood', likelihood);
+            btn.setAttribute('data-cell-id', buildMatrixCellId(impact, likelihood));
+            btn.setAttribute(
+                'aria-label',
+                `${value} risks with ${likelihood} likelihood and ${impact} impact`
+            );
+            btn.style.backgroundColor = getColorForBand(getBandFromScore(levelToValue(impact) * levelToValue(likelihood)));
+            btn.textContent = String(value);
+            td.appendChild(btn);
+            tr.appendChild(td);
+        });
+        body.appendChild(tr);
     });
 }
 
-function getScoreText(score) {
-    if (score < 1) {
-        return 'Low';
-    } else if (score < 2) {
-        return 'Medium';
-    } else {
-        return 'High';
-    }
+function levelToValue(level) {
+    if (level === 'High') return 3;
+    if (level === 'Medium') return 2;
+    if (level === 'Low') return 1;
+    return 0;
 }
 
-function getColorForScore(score) {
-    if (score > 2) {
-        return 'rgba(221, 29, 29, 1)';
-    } else if (score >= 1 && score <= 2) {
-        return 'rgba(255, 206, 86, 1)';
-    } else {
-        return 'rgba(54, 162, 235, 1)';
-    }
+function updateSelectedMatrixCells(selectedSet, options) {
+    options = options || {};
+    const tableId = options.tableId || 'riskMatrixTable';
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    table.querySelectorAll('.matrix-cell-btn').forEach((el) => {
+        const id = String(el.getAttribute('data-cell-id') || '');
+        const on = selectedSet && selectedSet.has(id);
+        el.classList.toggle('matrix-cell-btn--active', !!on);
+        el.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
 }
 
 async function addRiskScoreToProject(project) {
