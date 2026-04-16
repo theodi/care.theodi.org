@@ -61,6 +61,18 @@
         {
           "key": "unintendedConsequences[].action.KPI",
           "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.completed",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.completedAt",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.completionComment",
+          "type": "hidden"
         }
       ]
     }

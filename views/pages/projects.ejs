@@ -259,6 +259,17 @@
                 <canvas id="overdueChart" width="200" height="100"></canvas>
             </div>
         </subsection>
+        <subsection class="dashboard-box dashboard-box--completion">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Completion status</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearCompletionFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="completionChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
     </section>
 </div>
 <div class="content-block light-blue">
@@ -282,6 +293,7 @@ var selectedRiskBands = new Set();
 var selectedOwnerStates = new Set();
 var selectedTargetDateStates = new Set();
 var selectedOverdueStates = new Set();
+var selectedCompletionStates = new Set();
 var assessmentsTableApi = null;
 var allRisksTableApi = null;
 
@@ -525,6 +537,14 @@ function riskMatchesOverdueFilter(risk) {
     return selectedOverdueStates.has(state);
 }
 
+function riskMatchesCompletionFilters(risk) {
+    if (!selectedCompletionStates.size) return true;
+    var state;
+    if (risk && risk.actionCompleted) state = 'completed';
+    else state = 'notCompleted';
+    return selectedCompletionStates.has(state);
+}
+
 function renderScopeTagPills(tags) {
     var list = toArrayScopeTags(tags).map(normalizeScopeTag);
     if (!list.length) return '<span class="small share-access-muted">—</span>';
@@ -564,6 +584,7 @@ function applyRiskFilters(list, options) {
         if (!opts.skipOwner && !riskMatchesOwnerFilters(r)) return false;
         if (!opts.skipTargetDate && !riskMatchesTargetDateFilters(r)) return false;
         if (!opts.skipOverdue && !riskMatchesOverdueFilter(r)) return false;
+        if (!opts.skipCompletion && !riskMatchesCompletionFilters(r)) return false;
         return true;
     });
 }
@@ -576,6 +597,7 @@ function filteredRisksForScopeSelection() {
         skipOwner: true,
         skipTargetDate: true,
         skipOverdue: true,
+        skipCompletion: true,
     });
 }
 
@@ -713,6 +735,23 @@ function renderDashboardPanelsFromFilteredData(scopeOnlyRisks, fullyFilteredRisk
         },
     });
 
+    var completedCount = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionCompleted); }).length;
+    var notCompletedCount = fullyFilteredRisks.length - completedCount;
+    addBinaryBarChart({
+        chartId: 'completionChart',
+        labels: ['Completed', 'Not completed'],
+        values: [completedCount, notCompletedCount],
+        activeLabels: Array.from(selectedCompletionStates).map(function (s) {
+            return s === 'completed' ? 'Completed' : 'Not completed';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'Completed' ? 'completed' : 'notCompleted';
+            if (selectedCompletionStates.has(key)) selectedCompletionStates.delete(key);
+            else selectedCompletionStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
     var trendEl = document.getElementById('trendPanel');
     if (trendEl) {
         var t = unifiedDashboardPayload && unifiedDashboardPayload.dashboard && unifiedDashboardPayload.dashboard.trend
@@ -737,6 +776,11 @@ function renderActiveFilterSummary(filteredAssessments, filteredRisks) {
     var ownerText = selectedOwnerStates.size ? Array.from(selectedOwnerStates).join(', ') : 'Any owner state';
     var targetDateText = selectedTargetDateStates.size ? Array.from(selectedTargetDateStates).join(', ') : 'Any target-date state';
     var overdueText = selectedOverdueStates.size ? Array.from(selectedOverdueStates).join(', ') : 'Any overdue state';
+    var completionText = selectedCompletionStates.size
+        ? Array.from(selectedCompletionStates).map(function (s) {
+            return s === 'completed' ? 'Completed' : 'Not completed';
+        }).join(', ')
+        : 'Any completion state';
     var el = document.getElementById('activeFilterSummary');
     if (!el) return;
     el.textContent =
@@ -746,6 +790,7 @@ function renderActiveFilterSummary(filteredAssessments, filteredRisks) {
         ' | Owner: ' + ownerText +
         ' | Target date: ' + targetDateText +
         ' | Overdue: ' + overdueText +
+        ' | Completion: ' + completionText +
         ' | Assessments: ' + filteredAssessments.length +
         ' | Risks: ' + filteredRisks.length;
 }
@@ -773,6 +818,7 @@ function updateDashboardFilterHeaderStates() {
     setResetButtonState('clearOwnerFilters', selectedOwnerStates.size > 0);
     setResetButtonState('clearTargetDateFilters', selectedTargetDateStates.size > 0);
     setResetButtonState('clearOverdueFilters', selectedOverdueStates.size > 0);
+    setResetButtonState('clearCompletionFilters', selectedCompletionStates.size > 0);
 }
 
 function renderAssessmentsTableRows(rows) {
@@ -1155,6 +1201,11 @@ $(document).ready(function () {
         applyUnifiedFiltersAndRefresh();
     });
 
+    $('#clearCompletionFilters').on('click', function () {
+        selectedCompletionStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
     $('#clearAllDashboardFilters').on('click', function () {
         selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
         selectedMatrixCells.clear();
@@ -1162,6 +1213,7 @@ $(document).ready(function () {
         selectedOwnerStates.clear();
         selectedTargetDateStates.clear();
         selectedOverdueStates.clear();
+        selectedCompletionStates.clear();
         syncScopeFilterCheckboxes();
         applyUnifiedFiltersAndRefresh();
     });

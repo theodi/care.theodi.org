@@ -1,0 +1,104 @@
+[
+  {
+    "key": "unintendedConsequences",
+    "prepend": "<h2>Record action completion</h2><p>Review each planned mitigation action and record whether it has been completed. Where an action is completed, add a short comment describing what was done, any outcome, or anything worth noting for future review.</p><h1>Action completion</h1><br/><div class='infobox'>",
+    "append": "</div>",
+    "notitle": true,
+    "htmlClass": "content-block white",
+    "type": "array",
+    "items": {
+      "type": "section",
+      "items": [
+        {
+          "key": "unintendedConsequences[].consequence",
+          "type": "textarea",
+          "height": "100px",
+          "fieldHtmlClass": "input inputText disabled",
+          "prepend": "<h2 class='draggable'>Unintended consequence</h2>",
+          "notitle": true
+        },
+        {
+          "key": "unintendedConsequences[].outcome",
+          "fieldHtmlClass": "input disabled",
+          "prepend": "<h3>Outcome</h3>",
+          "notitle": true
+        },
+        {
+          "type": "fieldset",
+          "title": "Action plan",
+          "items": [
+            {
+              "key": "unintendedConsequences[].role",
+              "fieldHtmlClass": "input disabled",
+              "prepend": "<h3>Our role</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.description",
+              "type": "textarea",
+              "height": "90px",
+              "fieldHtmlClass": "input inputText disabled",
+              "prepend": "<h3>Action</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.stakeholder",
+              "fieldHtmlClass": "input disabled",
+              "prepend": "<h3>Action owner</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.date",
+              "type": "date",
+              "fieldHtmlClass": "input disabled",
+              "prepend": "<h3>Action due date</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.KPI",
+              "fieldHtmlClass": "input inputText disabled",
+              "prepend": "<h3>Action key performance indicator</h3>",
+              "notitle": true
+            }
+          ]
+        },
+        {
+          "key": "unintendedConsequences[].action.completed",
+          "fieldHtmlClass": "input",
+          "prepend": "<h3>Completion status</h3>",
+          "notitle": true
+        },
+        {
+          "key": "unintendedConsequences[].action.completedAt",
+          "type": "date",
+          "fieldHtmlClass": "input",
+          "prepend": "<h3>Date marked complete</h3>",
+          "notitle": true
+        },
+        {
+          "key": "unintendedConsequences[].action.completionComment",
+          "type": "textarea",
+          "height": "120px",
+          "fieldHtmlClass": "input inputText",
+          "prepend": "<h3>Completion comment</h3>",
+          "notitle": true
+        },
+        {
+          "key": "unintendedConsequences[].impact",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].likelihood",
+          "type": "hidden"
+        }
+      ]
+    }
+  },
+  {
+    "type": "submit",
+    "title": "View risk register",
+    "htmlClass": "submitButton",
+    "next": "",
+    "quickNav": "false"
+  }
+]

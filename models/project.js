@@ -108,6 +108,17 @@ const projectSchema = new mongoose.Schema({
             },
             KPI: {
                 type: String
+            },
+            completed: {
+                type: String,
+                enum: ['', 'Completed', 'Not completed'],
+                default: ''
+            },
+            completedAt: {
+                type: String
+            },
+            completionComment: {
+                type: String
             }
         }
     }],

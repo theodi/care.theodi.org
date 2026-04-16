@@ -78,15 +78,27 @@
           "fieldHtmlClass": "input inputText",
           "prepend": "<h3>Action key performance indicator</h3>",
           "notitle": true
+        },
+        {
+          "key": "unintendedConsequences[].action.completed",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.completedAt",
+          "type": "hidden"
+        },
+        {
+          "key": "unintendedConsequences[].action.completionComment",
+          "type": "hidden"
         }
       ]
     }
   },
   {
         "type": "submit",
-        "title": "View risk register",
+        "title": "Proceed to action completion",
         "htmlClass": "submitButton",
-        "next": "",
-        "quickNav": "false"
+        "next": "actionCompletion",
+        "quickNav": "true"
   }
 ]

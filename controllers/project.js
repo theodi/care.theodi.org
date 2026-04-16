@@ -385,6 +385,14 @@ async function buildUnifiedDashboardData({
             const targetDateIso = targetDate ? targetDate.toISOString() : null;
             const overdue = !!(targetDate && targetDate < now);
             const hasOwner = !!(uc.role && String(uc.role).trim() !== '');
+            const actionCompleted = !!(
+                uc.action &&
+                String(uc.action.completed || '').trim() === 'Completed'
+            );
+            const actionNotCompleted = !!(
+                uc.action &&
+                String(uc.action.completed || '').trim() === 'Not completed'
+            );
 
             if (inherentScore == null) {
                 projectRiskCounts.unclassified++;
@@ -427,7 +435,13 @@ async function buildUnifiedDashboardData({
                 actionDescription: uc.action && uc.action.description ? String(uc.action.description) : '',
                 actionDueDate: targetDateIso,
                 actionOverdue: overdue,
-                viewHref: `/project/${encodeURIComponent(pid)}/actionPlanning`,
+                actionCompleted,
+                actionNotCompleted,
+                actionCompletedAt:
+                    uc.action && uc.action.completedAt ? String(uc.action.completedAt) : '',
+                actionCompletionComment:
+                    uc.action && uc.action.completionComment ? String(uc.action.completionComment) : '',
+                viewHref: `/project/${encodeURIComponent(pid)}/actionCompletion`,
             });
         });
 
@@ -597,6 +611,27 @@ function unintendedConsequenceItemCompleteForStage(stage, item) {
             hasValue(a.KPI)
         );
     }
+    if (stage === 'actionCompletion') {
+        const a = item.action || {};
+        const hasPlannedAction =
+            hasValue(item.impact) &&
+            hasValue(item.likelihood) &&
+            hasValue(item.role) &&
+            hasValue(a.description) &&
+            hasValue(a.stakeholder) &&
+            hasValue(a.date) &&
+            hasValue(a.KPI);
+        if (!hasPlannedAction) {
+            return true;
+        }
+        if (!hasValue(a.completed)) {
+            return false;
+        }
+        if (String(a.completed) === 'Completed') {
+            return hasValue(a.completionComment);
+        }
+        return true;
+    }
     return false;
 }
 
@@ -644,7 +679,7 @@ async function getCompletionState(projectId, schema, pageLink) {
 
         if (
             pageLink &&
-            ['unintendedConsequences', 'riskEvaluation', 'actionPlanning'].includes(pageLink) &&
+            ['unintendedConsequences', 'riskEvaluation', 'actionPlanning', 'actionCompletion'].includes(pageLink) &&
             properties &&
             properties.unintendedConsequences
         ) {

@@ -65,3 +65,72 @@ test('completionStateFromUnintendedConsequences returns done when all items matc
   ];
   assert.equal(completionStateFromUnintendedConsequences(items, 'riskEvaluation'), 'done');
 });
+
+test('action completion: planned action requires completion state', () => {
+  assert.equal(
+    unintendedConsequenceItemCompleteForStage('actionCompletion', {
+      ...baseItem,
+      impact: 'High',
+      likelihood: 'Low',
+      role: 'Act',
+      action: {
+        description: 'Do the thing',
+        stakeholder: 'Owner',
+        date: '2026-04-16',
+        KPI: 'Metric',
+        completed: '',
+      },
+    }),
+    false
+  );
+});
+
+test('action completion: completed action requires a completion comment', () => {
+  assert.equal(
+    unintendedConsequenceItemCompleteForStage('actionCompletion', {
+      ...baseItem,
+      impact: 'High',
+      likelihood: 'Low',
+      role: 'Act',
+      action: {
+        description: 'Do the thing',
+        stakeholder: 'Owner',
+        date: '2026-04-16',
+        KPI: 'Metric',
+        completed: 'Completed',
+        completionComment: '',
+      },
+    }),
+    false
+  );
+  assert.equal(
+    unintendedConsequenceItemCompleteForStage('actionCompletion', {
+      ...baseItem,
+      impact: 'High',
+      likelihood: 'Low',
+      role: 'Act',
+      action: {
+        description: 'Do the thing',
+        stakeholder: 'Owner',
+        date: '2026-04-16',
+        KPI: 'Metric',
+        completed: 'Completed',
+        completionComment: 'Resolved and verified',
+      },
+    }),
+    true
+  );
+});
+
+test('action completion: risks without planned actions are treated as complete for that stage', () => {
+  assert.equal(
+    unintendedConsequenceItemCompleteForStage('actionCompletion', {
+      ...baseItem,
+      impact: 'High',
+      likelihood: 'Low',
+      role: '',
+      action: {},
+    }),
+    true
+  );
+});

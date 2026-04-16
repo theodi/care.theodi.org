@@ -395,7 +395,11 @@ app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
           /*
            * Hack to update the schema with defined data
            */
-          if (schemaPath === "partials/actionPlanning.json" && res.locals.project && res.locals.project.stakeholders) {
+          if (
+            (schemaPath === "partials/actionPlanning.json" || schemaPath === "partials/actionCompletion.json") &&
+            res.locals.project &&
+            res.locals.project.stakeholders
+          ) {
             const stakeholders = res.locals.project.stakeholders.map(stakeholder => stakeholder.stakeholder);
             // Update the enum for action.stakeholder in the schema
             const properties = schema.properties;

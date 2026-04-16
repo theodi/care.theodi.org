@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "unintendedConsequences": {
+      "type": "array",
+      "title": "Unintended consequences",
+      "items": {
+        "type": "object",
+        "title": "Unintended consequence",
+        "properties": {
+          "consequence": {
+            "type": "string",
+            "title": "Description"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string",
+            "enum": ["", "Positive", "Negative"]
+          },
+          "impact": {
+            "type": "string",
+            "enum": ["", "High", "Medium", "Low"]
+          },
+          "likelihood": {
+            "title": "Likelihood",
+            "type": "string",
+            "enum": ["", "High", "Medium", "Low"]
+          },
+          "role": {
+            "title": "Role",
+            "type": "string",
+            "enum": ["", "Act", "Influence", "Monitor"]
+          },
+          "action": {
+            "type": "object",
+            "title": "Action",
+            "properties": {
+              "description": {
+                "type": "string",
+                "title": "Description"
+              },
+              "date": {
+                "type": "string",
+                "title": "Date",
+                "pattern": "^(|\\d{4}-\\d{2}-\\d{2})$"
+              },
+              "stakeholder": {
+                "type": "string",
+                "title": "Stakeholder"
+              },
+              "KPI": {
+                "type": "string",
+                "title": "KPI"
+              },
+              "completed": {
+                "type": "string",
+                "title": "Completion status",
+                "enum": ["", "Completed", "Not completed"]
+              },
+              "completedAt": {
+                "type": "string",
+                "title": "Completion date",
+                "pattern": "^(|\\d{4}-\\d{2}-\\d{2})$"
+              },
+              "completionComment": {
+                "type": "string",
+                "title": "Completion comment"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
