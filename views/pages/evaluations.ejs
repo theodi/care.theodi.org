@@ -241,19 +241,30 @@ function renderActionsCell(type, row) {
         return '';
     }
     if (!row) return '<span class="small share-access-muted">—</span>';
-    var pid = escapeHtml(String(row.id || ''));
-    var isOrgScoped = Array.isArray(row.scopeTags) && row.scopeTags.indexOf('Organisation') !== -1;
-    var isAdmin = !!(organisationMetaGlobal && organisationMetaGlobal.isAdmin);
     var isOwner = !!row.ownedByCurrentUser;
     var parts = [];
-    if (isAdmin && isOrgScoped) {
-        parts.push('<button type="button" class="transferOwnerOpenBtn" data-id="' + pid + '">Transfer ownership</button>');
-    }
     if (isOwner) {
+        var pid = escapeHtml(String(row.id || ''));
         parts.push('<button type="button" class="deleteEvalBtn" data-id="' + pid + '">Delete</button>');
     }
     if (!parts.length) return '<span class="small share-access-muted">—</span>';
     return parts.join(' ');
+}
+
+function renderOwnerCell(data, type, row) {
+    var ownerLabel = data == null || String(data).trim() === '' ? '' : String(data);
+    if (type === 'sort' || type === 'filter' || type === 'type') {
+        return ownerLabel;
+    }
+    if (!ownerLabel) return '<span class="small share-access-muted">—</span>';
+    if (!row) return '<span class="eval-owner-label">' + escapeHtml(ownerLabel) + '</span>';
+    var pid = String(row.id || '');
+    var isOrgScoped = Array.isArray(row.scopeTags) && row.scopeTags.indexOf('Organisation') !== -1;
+    var isAdmin = !!(organisationMetaGlobal && organisationMetaGlobal.isAdmin);
+    if (pid && isAdmin && isOrgScoped) {
+        return '<button type="button" class="transferOwnerOpenBtn transferOwnerInlineBtn" data-id="' + escapeHtml(pid) + '" title="Transfer ownership">' + escapeHtml(ownerLabel) + '</button>';
+    }
+    return '<span class="eval-owner-label">' + escapeHtml(ownerLabel) + '</span>';
 }
 
 function renderEvalTitleCell(data, type, row) {
@@ -319,7 +330,16 @@ function renderEvaluationsTable(rows) {
                     return '<span class="eval-status-label">Unknown</span>';
                 }
             },
-            { data: 'owner', title: 'Owner', defaultContent: '', width: '10rem' },
+            {
+                data: 'owner',
+                title: 'Owner',
+                defaultContent: '',
+                width: '10rem',
+                className: 'eval-owner-col',
+                render: function (data, type, row) {
+                    return renderOwnerCell(data, type, row);
+                }
+            },
             {
                 data: null,
                 title: 'Sharing',
@@ -335,6 +355,7 @@ function renderEvaluationsTable(rows) {
                 data: 'lastModified',
                 title: 'Last modified',
                 width: '10rem',
+                className: 'eval-last-modified-col',
                 render: function (data) { return data ? new Date(data).toLocaleString() : ''; }
             },
             {

@@ -217,16 +217,16 @@ tbody tr:nth-child(2n) td {
   display: flex;
   flex-direction: column;
   flex: 1 1 360px;
-  width: min(100%, 500px);
-  max-width: 500px;
-  min-height: 250px;
+  width: min(100%, 400px);
+  max-width: 400px;
+  min-height: 240px;
   border: 1px solid var(--color-dark-blue);
 }
 .dashboard-box--heatmap {
-  flex-basis: 1000px;
-  width: min(100%, 1000px);
-  max-width: 1000px;
-  min-height: 320px;
+  flex-basis: 800px;
+  width: min(100%, 800px);
+  max-width: 800px;
+  min-height: 240px;
 }
 .dashboard-box--total {
   min-height: 180px;
@@ -244,7 +244,7 @@ tbody tr:nth-child(2n) td {
 }
 .dashboard-box .dashboard-header {
   background-color: var(--color-dark-blue);
-  height: 55px;
+  height: 36px;
 }
 .dashboard-box .dashboard-header .small {
   font-size: 0.8rem;
@@ -253,6 +253,7 @@ tbody tr:nth-child(2n) td {
   margin: 0px;
   color: white;
   padding: 0.5rem;
+  font-size: 1rem;
 }
 .dashboard-global-actions {
   margin: 0.25rem 0 0.75rem;
@@ -344,8 +345,8 @@ tbody tr:nth-child(2n) td {
 .riskHeatmap {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 1em;
-    margin-bottom: 2em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
 }
 
 .riskHeatmap th,
@@ -353,10 +354,22 @@ tbody tr:nth-child(2n) td {
     border: 1px solid #ccc;
     padding: 6px;
     vertical-align: top;
-    min-height: 60px;
-    min-width: 120px;
-    font-size: 0.9em;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 80px;
+    font-size: 1em;
     background-color: white;
+    color: var(--color-dark-blue);
+}
+/* Project page table typography: slightly smaller to prevent crowding */
+#riskEntryMatrixTable th,
+#riskEntryMatrixTable td,
+#unintendedConsequences th,
+#unintendedConsequences td {
+    font-size: 0.9rem;
+}
+#riskEntryMatrixTable tbody tr:nth-child(2n) td {
+    color: var(--color-dark-blue);
 }
 
 .risk-entry {
@@ -523,13 +536,24 @@ tbody tr:nth-child(2n) td {
 .risk-band-badge--medium { background: rgba(255, 206, 86, 0.55); }
 .risk-band-badge--low { background: rgba(46, 139, 87, 0.25); }
 .risk-band-badge--unclassified { background: rgba(226, 230, 233, 0.9); }
+/* Project risk table: keep badge compact so it does not spill into adjacent cells */
+#unintendedConsequences td .risk-band-badge {
+    min-width: 0;
+    font-size: 0.68rem;
+    padding: 0.1rem 0.35rem;
+    white-space: nowrap;
+}
 
 .dashboard-kpi {
-    font-size: 2.2rem;
+    font-size: 8rem;
     font-weight: 700;
     color: var(--color-dark-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    line-height: 1;
     text-align: center;
-    padding: 1rem 0.5rem;
 }
 
 #clearAllDashboardFilters {
@@ -538,6 +562,10 @@ tbody tr:nth-child(2n) td {
 }
 
 /* My evaluations: status column (text only) */
+table#evaluationsTable.dataTable tbody td,
+table#evaluationsTable.dataTable thead th {
+    vertical-align: middle;
+}
 table.dataTable td.eval-status-col {
     vertical-align: middle;
 }
@@ -557,6 +585,37 @@ a.eval-title-link:hover {
     text-decoration: underline;
 }
 a.eval-title-link:focus {
+    outline: 2px solid var(--color-dark-blue);
+    outline-offset: 2px;
+}
+.eval-owner-label {
+    color: var(--color-dark-blue);
+    font-weight: inherit;
+}
+table.dataTable td.eval-owner-col,
+table.dataTable td.eval-last-modified-col {
+    color: var(--color-dark-blue);
+}
+.eval-last-modified-col {
+  color: var(--color-dark-blue) !important;
+}
+.transferOwnerInlineBtn {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    color: var(--color-dark-blue);
+    font: inherit;
+    line-height: inherit;
+    text-decoration: underline dotted;
+    text-underline-offset: 0.12em;
+    cursor: pointer;
+    text-align: left;
+}
+.transferOwnerInlineBtn:hover {
+    text-decoration-style: solid;
+}
+.transferOwnerInlineBtn:focus {
     outline: 2px solid var(--color-dark-blue);
     outline-offset: 2px;
 }
