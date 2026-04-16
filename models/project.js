@@ -37,14 +37,28 @@ const projectSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: true
     },
+    /** Email of the user who created this evaluation. */
+    createdBy: {
+        type: String,
+    },
+    /** When this evaluation was first created. */
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
     sharedWith: [{
         user: {
             type: String
         }
     }],
+    /** When this evaluation was last modified (any field). */
     lastModified: {
         type: Date,
         default: Date.now // Default value is the current date/time
+    },
+    /** Email of the user who last modified this evaluation. */
+    lastModifiedBy: {
+        type: String,
     },
     title: {
         type: String,
@@ -96,6 +110,19 @@ const projectSchema = new mongoose.Schema({
             type: String,
             enum: ['Act', 'Influence', 'Monitor']
         },
+        /** Provenance for this risk row (stored as plain strings/dates). */
+        createdBy: {
+            type: String,
+        },
+        createdAt: {
+            type: String,
+        },
+        lastModifiedBy: {
+            type: String,
+        },
+        lastModifiedAt: {
+            type: String,
+        },
         action: {
             description: {
                 type: String
@@ -119,7 +146,23 @@ const projectSchema = new mongoose.Schema({
             },
             completionComment: {
                 type: String
-            }
+            },
+            /** Provenance for this action and its completion. */
+            createdBy: {
+                type: String,
+            },
+            createdAt: {
+                type: String,
+            },
+            lastModifiedBy: {
+                type: String,
+            },
+            lastModifiedAt: {
+                type: String,
+            },
+            completedBy: {
+                type: String,
+            },
         }
     }],
     riskCounts: {

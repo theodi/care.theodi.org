@@ -495,26 +495,95 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
     try {
         // Set owner field to the ID of the authenticated user
         const user = req.session.passport.user;
-        req.body.owner = user.id; // Assuming user ID is available in req.user after authentication
+        const now = new Date();
+        req.body.owner = user.id;
 
         const createPayload = { ...req.body };
         delete createPayload.aiInteractionHistory;
         delete createPayload.aiInteractionHistoryCount;
         delete createPayload.aiInteractionHistoryStepCounts;
         delete createPayload.integrationExternalId;
+
+        // Project-level provenance
+        createPayload.createdBy = user.email;
+        createPayload.createdAt = now;
+        createPayload.lastModifiedBy = user.email;
+
         const project = new Project(createPayload);
         const savedProject = await project.save();
-        updateToolStatistics(req.session.passport.user.id);
+        updateToolStatistics(user.id);
         res.status(201).json(savedProject);
     } catch (error) {
         next(error);
     }
 });
 
+function applyActionCompletionProvenance(existingProject, incomingPayload, actorEmail) {
+    if (!existingProject || !incomingPayload) return;
+    const prevItems = Array.isArray(existingProject.unintendedConsequences)
+        ? existingProject.unintendedConsequences
+        : [];
+    const nextItems = Array.isArray(incomingPayload.unintendedConsequences)
+        ? incomingPayload.unintendedConsequences
+        : [];
+    const nowIso = new Date().toISOString();
+
+    nextItems.forEach((uc, index) => {
+        if (!uc) return;
+        const prev = prevItems[index] || {};
+        const prevAction = prev.action || {};
+        if (!uc.action) uc.action = {};
+        const nextAction = uc.action;
+
+        const prevCompleted = String(prevAction.completed || '').trim();
+        const nextCompleted = String(nextAction.completed || '').trim();
+
+        // If this risk/action has never had provenance, set createdBy/createdAt.
+        if (!uc.createdBy && actorEmail) {
+            uc.createdBy = actorEmail;
+            uc.createdAt = nowIso;
+        }
+        if (!uc.lastModifiedBy && actorEmail) {
+            uc.lastModifiedBy = actorEmail;
+            uc.lastModifiedAt = nowIso;
+        }
+
+        if (!nextAction.createdBy && actorEmail) {
+            nextAction.createdBy = actorEmail;
+            nextAction.createdAt = nowIso;
+        }
+
+        // Always bump lastModified on any edit to this action payload.
+        if (actorEmail) {
+            nextAction.lastModifiedBy = actorEmail;
+            nextAction.lastModifiedAt = nowIso;
+            uc.lastModifiedBy = actorEmail;
+            uc.lastModifiedAt = nowIso;
+        }
+
+        // Ensure completion provenance whenever an action is in the Completed state
+        // and we have an actor, even if it was completed in a previous version
+        // but never had completedBy recorded.
+        if (nextCompleted === 'Completed' && actorEmail) {
+            if (!nextAction.completedAt || !String(nextAction.completedAt).trim()) {
+                nextAction.completedAt = nowIso.slice(0, 10);
+            }
+            if (!nextAction.completedBy || !String(nextAction.completedBy).trim()) {
+                nextAction.completedBy = actorEmail;
+            }
+        }
+    });
+}
+
 // PUT route to update an existing project
 router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, next) => {
     const id = req.params.id;
     try {
+        const existing = await Project.findById(id).lean();
+        if (!existing) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
         const payload = { ...req.body };
         delete payload.owner;
         delete payload.organisationSubscriptionId;
@@ -524,7 +593,25 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, nex
         delete payload.aiInteractionHistory;
         delete payload.aiInteractionHistoryCount;
         delete payload.aiInteractionHistoryStepCounts;
-        const updatedProject = await Project.findByIdAndUpdate(id, payload, { new: false });
+
+        const actorEmail = req.session.passport.user && req.session.passport.user.email;
+
+        // Apply provenance for risks/actions in the incoming payload based on previous state.
+        applyActionCompletionProvenance(existing, payload, actorEmail);
+
+        const now = new Date();
+        const update = {
+            ...payload,
+            lastModified: now,
+        };
+        if (actorEmail) {
+            update.lastModifiedBy = actorEmail;
+        }
+
+        const updatedProject = await Project.findByIdAndUpdate(id, update, {
+            new: true,
+            runValidators: true,
+        });
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });
         }

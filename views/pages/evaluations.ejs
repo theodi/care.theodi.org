@@ -241,11 +241,19 @@ function renderActionsCell(type, row) {
         return '';
     }
     if (!row) return '<span class="small share-access-muted">—</span>';
-    if (organisationMetaGlobal && organisationMetaGlobal.isAdmin && row.scopeTags && row.scopeTags.indexOf('Organisation') !== -1) {
-        return '<button type="button" class="transferOwnerOpenBtn" data-id="' + escapeHtml(String(row.id || '')) + '">Transfer ownership</button>';
+    var pid = escapeHtml(String(row.id || ''));
+    var isOrgScoped = Array.isArray(row.scopeTags) && row.scopeTags.indexOf('Organisation') !== -1;
+    var isAdmin = !!(organisationMetaGlobal && organisationMetaGlobal.isAdmin);
+    var isOwner = !!row.ownedByCurrentUser;
+    var parts = [];
+    if (isAdmin && isOrgScoped) {
+        parts.push('<button type="button" class="transferOwnerOpenBtn" data-id="' + pid + '">Transfer ownership</button>');
     }
-    if (row.ownedByCurrentUser) return '<span class="small share-access-muted">Owner</span>';
-    return '<span class="small share-access-muted">—</span>';
+    if (isOwner) {
+        parts.push('<button type="button" class="deleteEvalBtn" data-id="' + pid + '">Delete</button>');
+    }
+    if (!parts.length) return '<span class="small share-access-muted">—</span>';
+    return parts.join(' ');
 }
 
 function renderEvalTitleCell(data, type, row) {
@@ -552,6 +560,41 @@ $(document).on('click', '.transferOwnerOpenBtn', function () {
                 sel.appendChild(opt);
             });
             overlayEl.style.display = 'block';
+        })
+        .catch(function (e) {
+            alert(e.message || String(e));
+        });
+});
+
+$(document).on('click', '.deleteEvalBtn', function () {
+    var id = $(this).data('id');
+    if (!id) return;
+    if (!confirm('Are you sure you want to delete this evaluation?')) return;
+    fetch('/project/' + encodeURIComponent(String(id)), {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' }
+    })
+        .then(function (res) {
+            if (!res.ok) {
+                return res.json().then(function (d) {
+                    throw new Error(d.message || 'Delete failed');
+                });
+            }
+            return res.json();
+        })
+        .then(function () {
+            // Reload unified assessments from /projects so filters and counts stay in sync
+            return fetch('/projects', { headers: { Accept: 'application/json' } });
+        })
+        .then(function (r) {
+            if (!r || !r.ok) return;
+            return r.json();
+        })
+        .then(function (data) {
+            if (!data) return;
+            organisationMetaGlobal = data.organisationMeta || organisationMetaGlobal || {};
+            assessmentsPayload = (data && data.assessments) || [];
+            refreshEvaluationsScreen();
         })
         .catch(function (e) {
             alert(e.message || String(e));

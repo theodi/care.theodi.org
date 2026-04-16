@@ -149,10 +149,29 @@
     </div>
 </section>
 <div id="submitButtonContainer" class="content-block white proceed">
-    <button id="downloadButton" class="btn btn-primary submitButton">Download project data</button>
+    <button id="downloadButton" class="btn btn-primary submitButton" type="button">Download project data</button>
     <button id="downloadCSVButton" class="btn btn-primary submitButton">Download risk assessment (CSV)</button>
     <button id="downloadDOCXButton" class="btn btn-primary submitButton" type="button">Download project report (DOCX)</button>
 </div>
+<dialog id="jsonDownloadDialog" class="org-access-edit-dialog" aria-labelledby="jsonDownloadDialogTitle">
+    <div class="content-block white">
+        <h2 id="jsonDownloadDialogTitle" style="margin-top:0;">Download project data (JSON)</h2>
+        <p class="small">
+            This export can optionally include provenance fields (who created and last updated this evaluation).
+            Those fields may contain <strong>personal data</strong> such as email addresses.
+        </p>
+        <div class="sub-form" style="margin-top:1rem;">
+            <label class="org-add-delegated-perms__chk" style="margin-bottom:1rem;">
+                <input type="checkbox" id="jsonIncludeProvenance"/>
+                Include provenance (creator and last editor details – contains personal data)
+            </label>
+            <div class="sub-form__actions">
+                <button type="button" class="btn btn-primary" id="jsonDownloadConfirm">Download</button>
+                <button type="button" class="transparent" id="jsonDownloadCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+</dialog>
 <dialog id="reportDownloadDialog" class="org-access-edit-dialog" aria-labelledby="reportDownloadDialogTitle">
     <div class="content-block white">
         <h2 id="reportDownloadDialogTitle" style="margin-top:0;">Download project report</h2>
@@ -263,6 +282,10 @@
         const reportIncludeAiProvenance = document.getElementById("reportIncludeAiProvenance");
         const reportDownloadConfirm = document.getElementById("reportDownloadConfirm");
         const reportDownloadCancel = document.getElementById("reportDownloadCancel");
+        const jsonDownloadDialog = document.getElementById("jsonDownloadDialog");
+        const jsonIncludeProvenance = document.getElementById("jsonIncludeProvenance");
+        const jsonDownloadConfirm = document.getElementById("jsonDownloadConfirm");
+        const jsonDownloadCancel = document.getElementById("jsonDownloadCancel");
 
         if (reportDownloadDialog && reportDownloadConfirm && reportDownloadCancel) {
             document.getElementById("downloadDOCXButton").addEventListener("click", () => {
@@ -297,41 +320,28 @@
             document.getElementById("downloadDOCXButton").addEventListener("click", () => downloadProjectDocx(false, false));
         }
 
-        document.getElementById("downloadButton").addEventListener("click", async () => {
-            if (projectDownloadInProgress) {
-                return;
-            }
-            projectDownloadInProgress = true;
-            setDownloadButtonsDisabled(true);
-            try {
-                const response = await fetch(
-                    `/project/${projectId}?includeAiInteractionHistory=true`,
-                    {
-                        headers: {
-                            "Accept": "application/json"
-                        }
-                    }
-                );
-                if (!response.ok) {
-                    throw new Error(`Download failed (${response.status})`);
+        if (jsonDownloadDialog && jsonDownloadConfirm && jsonDownloadCancel) {
+            document.getElementById("downloadButton").addEventListener("click", () => {
+                if (typeof jsonDownloadDialog.showModal === "function") {
+                    jsonDownloadDialog.showModal();
+                } else {
+                    downloadProjectJson(false);
                 }
-                const jsonData = await response.json();
-                const jsonBlob = new Blob([JSON.stringify(jsonData,null,2)], { type: "application/json" });
-                const url = URL.createObjectURL(jsonBlob);
-
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = projectData.title.replace(/\s+/g, "_").trim() + ".json";
-                link.click();
-
-                URL.revokeObjectURL(url);
-            } catch (error) {
-                console.error("Error downloading project data:", error);
-            } finally {
-                projectDownloadInProgress = false;
-                setDownloadButtonsDisabled(false);
-            }
-        });
+            });
+            jsonDownloadCancel.addEventListener("click", () => jsonDownloadDialog.close());
+            jsonDownloadConfirm.addEventListener("click", () => {
+                const includeProv = jsonIncludeProvenance && jsonIncludeProvenance.checked;
+                jsonDownloadDialog.close();
+                downloadProjectJson(includeProv);
+            });
+            jsonDownloadDialog.addEventListener("click", function (ev) {
+                if (ev.target === jsonDownloadDialog) {
+                    jsonDownloadDialog.close();
+                }
+            });
+        } else {
+            document.getElementById("downloadButton").addEventListener("click", () => downloadProjectJson(false));
+        }
         document.getElementById("downloadCSVButton").addEventListener("click", async () => {
             if (projectDownloadInProgress) {
                 return;
@@ -365,6 +375,48 @@
                 setDownloadButtonsDisabled(false);
             }
         });
+    }
+
+    async function downloadProjectJson(includeProvenance) {
+        if (projectDownloadInProgress) {
+            return;
+        }
+        projectDownloadInProgress = true;
+        setDownloadButtonsDisabled(true);
+        try {
+            const params = new URLSearchParams();
+            params.set("includeAiInteractionHistory", "true");
+            if (includeProvenance) {
+                params.set("includeProvenance", "true");
+            }
+            const qs = params.toString();
+            const response = await fetch(
+                `/project/${projectId}?${qs}`,
+                {
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                }
+            );
+            if (!response.ok) {
+                throw new Error(`Download failed (${response.status})`);
+            }
+            const jsonData = await response.json();
+            const jsonBlob = new Blob([JSON.stringify(jsonData,null,2)], { type: "application/json" });
+            const url = URL.createObjectURL(jsonBlob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = projectData.title.replace(/\s+/g, "_").trim() + ".json";
+            link.click();
+
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error downloading project data:", error);
+        } finally {
+            projectDownloadInProgress = false;
+            setDownloadButtonsDisabled(false);
+        }
     }
 
     function escapeHtml(value) {
