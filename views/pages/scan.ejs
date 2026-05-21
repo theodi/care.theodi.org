@@ -15,6 +15,8 @@ let autosaveInFlight = false;
 let autosaveQueued = false;
 let autosaveBindingsAttached = false;
 const AUTOSAVE_DEBOUNCE_MS = 1200;
+/** Bumped on each scan step navigation so stale async renders cannot move the wrong button. */
+let scanRenderGeneration = 0;
 
 $('#dataForm').html("");
 $('#result').html("");
@@ -34,22 +36,36 @@ document.addEventListener("DOMContentLoaded", function () {
     loadPage(formName,projectId);
 });
 
-async function loadPage(formName,projectId) {
+async function loadPage(formName, projectId) {
+    const generation = ++scanRenderGeneration;
     projectData = await loadProject(projectId);
     await populateBlankArrays();
     await loadFormComponents(formName);
-    await renderForm(projectData);
+    await renderForm(projectData, generation);
+    if (generation !== scanRenderGeneration) return;
     extractDisabledFieldValues("dataForm");
-    loadAI();
-    moveSubmitButton();
+    try {
+        await loadAI();
+    } catch (aiErr) {
+        console.error('loadAI failed during initial page load', aiErr);
+    }
+    if (generation !== scanRenderGeneration) return;
+    moveSubmitButton(0, generation);
     attachAutosaveBindings();
 }
 
 async function reloadPage() {
-    await renderForm(projectData);
+    const generation = ++scanRenderGeneration;
+    await renderForm(projectData, generation);
+    if (generation !== scanRenderGeneration) return;
     extractDisabledFieldValues("dataForm");
-    await loadAI();
-    moveSubmitButton();
+    try {
+        await loadAI();
+    } catch (aiErr) {
+        console.error('loadAI failed during step navigation', aiErr);
+    }
+    if (generation !== scanRenderGeneration) return;
+    moveSubmitButton(0, generation);
 }
 
 window.mergeFormValuesIntoProjectData = function (values) {
@@ -151,8 +167,7 @@ async function quickNav(page) {
 
     await updatePageTitle(page);
 
-    // Reload the page if necessary
-    reloadPage(); // Assuming this function is needed for other purposes
+    await reloadPage();
 }
 
 /**
@@ -188,7 +203,7 @@ function normalizeActionDueDatesForHtmlDateInput(data) {
     }
 }
 
-async function renderForm(data) {
+async function renderForm(data, generation) {
     document.getElementById('dataForm').innerHTML = "";
     try {
         normalizeActionDueDatesForHtmlDateInput(data);
@@ -214,7 +229,12 @@ async function renderForm(data) {
          // Only hide positive consequences on certain pages
         const formName = window.location.pathname.split('/')[3];
         if (formName === "riskEvaluation" || formName === "actionPlanning" || formName === "actionCompletion") {
-            setTimeout(hideIrrelevantConsequencesForCurrentStep, 200); // Wait for form to render
+            const gen = generation;
+            setTimeout(function () {
+                if (gen !== scanRenderGeneration) return;
+                hideIrrelevantConsequencesForCurrentStep();
+                moveSubmitButton(0, gen);
+            }, 200);
         }
     } catch (error) {
         console.error("Error rendering form:", error);
@@ -246,13 +266,19 @@ function populateMissingElements(schema,data) {
     return data;
 }
 
-function moveSubmitButton(retryCount = 0) {
+function moveSubmitButton(retryCount, generation) {
+    if (generation != null && generation !== scanRenderGeneration) {
+        return;
+    }
+    var attempt = retryCount != null ? retryCount : 0;
     const formElement = document.getElementById('dataForm');
     const submitButton = formElement ? formElement.querySelector('.submitButton') : null;
 
     if (!formElement || !submitButton) {
-        if (retryCount < 6) {
-            setTimeout(() => moveSubmitButton(retryCount + 1), 80);
+        if (attempt < 12) {
+            setTimeout(function () {
+                moveSubmitButton(attempt + 1, generation);
+            }, 80);
             return;
         }
         console.error("submitButtonContainer or submitButton not found.");
@@ -448,14 +474,28 @@ async function sendDataToServer(inputObject, navigationOverride) {
         return;
       }
       if (navigationOverride && navigationOverride.navigateQuickNavTo) {
-        await quickNav(navigationOverride.navigateQuickNavTo);
+        try {
+          await quickNav(navigationOverride.navigateQuickNavTo);
+        } catch (navErr) {
+          console.error('Navigation after save failed', navErr);
+          showErrorOverlay(
+            '<p>Your changes were saved, but the next step could not be loaded. Refresh the page or use the menu to continue.</p>'
+          );
+        }
         return;
       }
       const nextAttributeValue = $('.submitButton').attr('next');
       const quickNavAttributeValue = $('.submitButton').attr('quickNav');
 
       if (quickNavAttributeValue === "true" && nextAttributeValue) {
-        await quickNav(nextAttributeValue);
+        try {
+          await quickNav(nextAttributeValue);
+        } catch (navErr) {
+          console.error('Navigation after save failed', navErr);
+          showErrorOverlay(
+            '<p>Your changes were saved, but the next step could not be loaded. Refresh the page or use the menu to continue.</p>'
+          );
+        }
       } else if (id && nextAttributeValue) {
         window.location.href = `/project/${id}/${nextAttributeValue}`;
       } else {
@@ -463,8 +503,15 @@ async function sendDataToServer(inputObject, navigationOverride) {
       }
     } else {
         // Request failed, handle errors
-        const errorData = await response.json();
-        const errorMessage = errorData.message;
+        let errorMessage = 'Could not save your changes. Please try again.';
+        try {
+            const errorData = await response.json();
+            if (errorData && errorData.message) {
+                errorMessage = errorData.message;
+            }
+        } catch (parseErr) {
+            console.warn('Save failed with non-JSON response', response.status, parseErr);
+        }
         if (autoSave) {
           console.warn("Autosave failed:", errorMessage);
         } else {
@@ -472,11 +519,15 @@ async function sendDataToServer(inputObject, navigationOverride) {
         }
     }
   } catch (error) {
-    // Handle network errors
-    const errorMessage = "An error occurred. Please try again later.";
+    console.error('sendDataToServer failed', error);
+    const errorMessage = autoSave
+      ? null
+      : (error && error.message
+          ? String(error.message)
+          : 'An error occurred. Please try again later.');
     if (autoSave) {
-      console.warn("Autosave network error");
-    } else {
+      console.warn("Autosave network error", error);
+    } else if (errorMessage) {
       showErrorOverlay(errorMessage);
     }
   }

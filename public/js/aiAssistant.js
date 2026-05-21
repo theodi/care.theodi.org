@@ -687,6 +687,9 @@ async function loadAI() {
 async function addAIElements() {
     // Select the AI container
     const aiContainer = document.querySelector('.aiContainer');
+    if (!aiContainer) {
+        return;
+    }
 
     // Create the aiRunning element
     const aiRunning = document.createElement('div');
