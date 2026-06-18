@@ -1409,9 +1409,8 @@ function hideReasoningFeed() {
     Object.keys(reasoningAnimState).forEach(stopReasoningAnimation);
 }
 function renderMessageHTML(messageText) {
-    // Replace line breaks with <br> tags
-    const htmlText = messageText.replace(/\n/g, "<br>");
-    return htmlText;
+    const escaped = escapeHtml(messageText == null ? '' : String(messageText));
+    return escaped.replace(/\n/g, '<br>');
 }
 
 async function renderMessage(projectData,message) {
@@ -1614,7 +1613,7 @@ function parseJsonToHtml(json) {
                 if (typeof item === 'object') {
                     return '<li>' + parseJsonToHtml(item) + '</li>';
                 }
-                return '<li>' + String(item) + '</li>';
+                return '<li>' + escapeHtml(String(item)) + '</li>';
             })
             .join('');
         return '<ul class="ai-response-list">' + items + '</ul>';
@@ -1622,25 +1621,25 @@ function parseJsonToHtml(json) {
 
     // Plain scalar value: just text.
     if (typeof json !== 'object') {
-        return String(json);
+        return escapeHtml(String(json));
     }
 
     // Objects: prefer common fields if present; otherwise, join values with line breaks.
     var parts = [];
     if (Object.prototype.hasOwnProperty.call(json, 'description')) {
-        parts.push(String(json.description));
+        parts.push(escapeHtml(String(json.description)));
     }
     if (Object.prototype.hasOwnProperty.call(json, 'impact')) {
-        parts.push('Impact: ' + String(json.impact));
+        parts.push('Impact: ' + escapeHtml(String(json.impact)));
     }
     if (Object.prototype.hasOwnProperty.call(json, 'likelihood')) {
-        parts.push('Likelihood: ' + String(json.likelihood));
+        parts.push('Likelihood: ' + escapeHtml(String(json.likelihood)));
     }
     if (Object.prototype.hasOwnProperty.call(json, 'role')) {
-        parts.push('Role: ' + String(json.role));
+        parts.push('Role: ' + escapeHtml(String(json.role)));
     }
     if (Object.prototype.hasOwnProperty.call(json, 'stakeholder')) {
-        parts.push('Stakeholder: ' + String(json.stakeholder));
+        parts.push('Stakeholder: ' + escapeHtml(String(json.stakeholder)));
     }
     if (Object.prototype.hasOwnProperty.call(json, 'action')) {
         parts.push(parseJsonToHtml(json.action));
@@ -1654,7 +1653,7 @@ function parseJsonToHtml(json) {
             if (typeof v === 'object') {
                 parts.push(parseJsonToHtml(v));
             } else {
-                parts.push(String(v));
+                parts.push(escapeHtml(String(v)));
             }
         });
     }

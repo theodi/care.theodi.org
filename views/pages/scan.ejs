@@ -234,7 +234,7 @@ async function renderForm(data, generation) {
                 values = populateMissingElements(schema, values);
                 if (errors) {
                     console.log(errors);
-                    showErrorOverlay('<p>Please correct the errors in your form</p>');
+                    showErrorOverlay('Please correct the errors in your form');
                 } else {
                     for (const key in values) {
                         data[key] = values[key];
@@ -498,7 +498,7 @@ async function sendDataToServer(inputObject, navigationOverride) {
         } catch (navErr) {
           console.error('Navigation after save failed', navErr);
           showErrorOverlay(
-            '<p>Your changes were saved, but the next step could not be loaded. Refresh the page or use the menu to continue.</p>'
+            'Your changes were saved, but the next step could not be loaded. Refresh the page or use the menu to continue.'
           );
         }
         return;
@@ -512,7 +512,7 @@ async function sendDataToServer(inputObject, navigationOverride) {
         } catch (navErr) {
           console.error('Navigation after save failed', navErr);
           showErrorOverlay(
-            '<p>Your changes were saved, but the next step could not be loaded. Refresh the page or use the menu to continue.</p>'
+            'Your changes were saved, but the next step could not be loaded. Refresh the page or use the menu to continue.'
           );
         }
       } else if (id && nextAttributeValue) {
@@ -569,9 +569,18 @@ async function sendDataToServer(inputObject, navigationOverride) {
   return obj;
 }
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function showErrorOverlay(errorMessage) {
-    // Populate the error message in the overlay
-    document.getElementById("error-content-inner").innerHTML = "<p>" + errorMessage + "</p>";
+    document.getElementById("error-content-inner").innerHTML =
+      '<p>' + escapeHtml(errorMessage) + '</p>';
 
     // Show the error overlay
     document.getElementById("error-overlay").style.display = 'block';

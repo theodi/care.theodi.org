@@ -45,6 +45,7 @@ const { loadProject } = require('./middleware/project');
 const { deleteUser, retrieveOrCreateUser } = require('./controllers/user'); // Import necessary functions from controllers
 const { getHubspotProfile, updateToolStatistics, updateCareAccountStatus } = require('./controllers/hubspot');
 const { ensureAuthenticated } = require('./middleware/auth');
+const { authLimiter, assistantLimiter } = require('./middleware/rateLimit');
 const app = express();
 const port = process.env.PORT || 3080;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -223,7 +224,7 @@ app.get('/docs/report-template', (req, res) => {
 app.use(express.static(__dirname + '/public')); // Public directory
 
 // Use authentication routes
-app.use('/auth', authRoutes);
+app.use('/auth', authLimiter, authRoutes);
 
 app.get('/admin', function(req,res) {
   res.redirect('/auth/google');
@@ -236,7 +237,7 @@ app.use(loadProject);
 
 app.use('/project', projectRoutes);
 
-app.use('/assistant', assistantRoutes);
+app.use('/assistant', assistantLimiter, assistantRoutes);
 
 app.get('/', function(req, res) {
   if (req.isAuthenticated && req.isAuthenticated()) {

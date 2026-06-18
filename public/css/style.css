@@ -1439,8 +1439,8 @@ table.dataTable td.eval-org-integration-id-col .org-eval-integration-add {
     margin-top: 0.25rem;
 }
 
-/* Scan steps: page title actions (guidance + AI) */
-.page-title {
+/* Scan steps: page title row (heading + guidance / AI actions) */
+.page-title:has(.page-title__actions) {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1448,7 +1448,7 @@ table.dataTable td.eval-org-integration-id-col .org-eval-integration-add {
     gap: 1rem 1.25rem;
     margin-top: 1rem;
 }
-.page-title h1 {
+.page-title:has(.page-title__actions) h1 {
     flex: 1 1 auto;
     margin: 0;
     min-width: 0;

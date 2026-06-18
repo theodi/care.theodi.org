@@ -412,7 +412,7 @@ router.get('/:id/:page', ensureAuthenticated, checkProjectAccess, loadProject, a
     }
 });
 
-const { parse } = require('json2csv');
+const { jsonToCsv } = require('../lib/jsonToCsv');
 
 // GET route to retrieve a project by ID
 router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (req, res, next) => {
@@ -431,8 +431,7 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
         } else if (acceptHeader === 'text/csv') {
             // Respond with CSV
             const fields = ['consequence', 'outcome', 'impact', 'likelihood', 'role', 'action.description', 'action.date', 'action.stakeholder', 'action.KPI'];
-            const opts = { fields };
-            const csv = parse(project.unintendedConsequences, opts);
+            const csv = jsonToCsv(project.unintendedConsequences, fields);
 
             // Sanitize filename for CSV export
             const sanitizedTitle = project.title

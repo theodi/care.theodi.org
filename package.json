@@ -4,7 +4,8 @@
   "description": "The ODI Care tool (AI enabled)",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "node scripts/run-unit-tests.cjs",
     "fix-org-membership-indexes": "node scripts/fix-organisation-membership-indexes.cjs",
     "migrate-tenant-subscription": "node scripts/migrate-tenant-subscription.cjs",
@@ -32,17 +33,19 @@
     "ejs": "^3.1.8",
     "express": "^4.18.2",
     "express-ejs-layouts": "^2.5.1",
+    "express-rate-limit": "^8.5.2",
     "express-session": "^1.17.3",
-    "json2csv": "^6.0.0-alpha.2",
     "mongoose": "^8.2.1",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "node-fetch": "^3.3.2",
-    "nodemon": "^3.1.0",
     "openai": "^4.29.0",
     "passport": "^0.6.0",
     "passport-google-oauth": "^2.0.0",
     "sanitize-html": "^2.17.5",
     "tmp-promise": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }

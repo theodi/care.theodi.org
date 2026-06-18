@@ -15,6 +15,10 @@ const {
   getScanContextTextForSubscription,
   replaceOrgContextPlaceholder,
 } = require('../lib/organisationScanContext');
+const {
+  assertAllowedAssistantMessageId,
+  isAllowedAssistantMessageId,
+} = require('../lib/assistantStepKeys');
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
 const { requireAiEntitlement } = require('../middleware/hubspot');
@@ -185,6 +189,7 @@ router.get('/:id/:messageId', checkProjectAccess, loadProject, async (req, res, 
             return res.json(summary);
         }
 
+        assertAllowedAssistantMessageId(messageId);
         const schema = require('../public/data/schemas/partials/'+messageId+'.json');
         projectData.schema = JSON.stringify(schema);
         const includeExisting = includeExistingStepDataRequested(req);
@@ -198,7 +203,9 @@ router.get('/:id/:messageId', checkProjectAccess, loadProject, async (req, res, 
         return res.json(parsedResponse);
     } catch (error) {
         console.error(error);
-        // Handle errors
+        if (error.status === 400) {
+            return res.status(400).json({ message: error.message || 'Bad request' });
+        }
         res.status(500).json({ message: "Internal server error" });
     }
 });
@@ -371,7 +378,7 @@ router.post('/:id/:messageId/start', checkProjectAccess, loadProject, async (req
     try {
         const projectData = res.locals.project;
         const messageId = req.params.messageId;
-        if (!messageId || messageId === 'completeAssessment') {
+        if (!isAllowedAssistantMessageId(messageId) || messageId === 'completeAssessment') {
             return res.status(400).json({ message: 'Invalid messageId for single-step run' });
         }
 
@@ -723,6 +730,7 @@ async function runCompleteAssessmentPipeline(req, initialProjectData, merge = tr
 }
 
 async function runAssistantSingleStep(req, projectData, messageId, onThinkingDelta, provenanceMeta = {}) {
+    assertAllowedAssistantMessageId(messageId);
     const schema = require('../public/data/schemas/partials/' + messageId + '.json');
     projectData.schema = JSON.stringify(schema);
     const includeExisting = includeExistingStepDataRequested(req);
@@ -836,7 +844,12 @@ async function completeAssessment(parsedResponse, projectData, merge = true) {
 }
 
 async function populateMessage(messageId, data) {
-    const filePath = path.join(__dirname, '../public/data/messageTemplates/', messageId + '.txt');
+    assertAllowedAssistantMessageId(messageId);
+    const templatesDir = path.resolve(__dirname, '../public/data/messageTemplates');
+    const filePath = path.resolve(templatesDir, messageId + '.txt');
+    if (!filePath.startsWith(templatesDir + path.sep)) {
+        throw Object.assign(new Error('Invalid messageId'), { status: 400 });
+    }
     const message = await fs.readFile(filePath, 'utf8');
     if (!message) {
       console.error(`Message with ID '${messageId}' not found.`);

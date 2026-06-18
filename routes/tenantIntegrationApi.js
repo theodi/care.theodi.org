@@ -1,5 +1,6 @@
 const express = require('express');
 const tenantIntegrationApi = require('../controllers/tenantIntegrationApi');
+const { integrationApiLimiter } = require('../middleware/rateLimit');
 const {
   requireTenantIntegrationJson,
   requireTenantIntegrationDocx,
@@ -8,6 +9,8 @@ const {
 } = require('../middleware/tenantIntegrationApi');
 
 const router = express.Router();
+
+router.use(integrationApiLimiter);
 
 const chain = [
   requireTenantIntegrationJson,
