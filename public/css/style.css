@@ -1142,6 +1142,30 @@ table.dataTable td.eval-shares-col .eval-share-open.btn {
     min-height: 6rem;
 }
 
+.org-scan-guidance-audiences {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.org-scan-guidance-audiences__chk {
+    font-weight: normal;
+}
+
+.org-scan-guidance-wysiwyg {
+    min-height: 10rem;
+    background: #fff;
+}
+
+.org-scan-guidance-wysiwyg .ql-editor {
+    min-height: 8rem;
+}
+
+.org-scan-guidance-wysiwyg__hint {
+    margin-top: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+
 /* Organisation page: title + centered subscription summary */
 /* Beats .page-title h1 { text-align: left } (higher specificity) */
 .organisation-page .page-title h1 {
@@ -1380,7 +1404,8 @@ table.dataTable td.eval-org-integration-id-col .org-eval-integration-add {
     margin-bottom: 1rem;
     background: rgba(255, 255, 255, 0.6);
 }
-.aiContainer .preAI > .care-ai-source-picker:first-child {
+.aiContainer .preAI > .care-ai-source-picker:first-child,
+#careAiModal .preAI > .care-ai-source-picker:first-child {
     margin-top: 0;
 }
 .care-ai-source-legend {
@@ -1412,6 +1437,169 @@ table.dataTable td.eval-org-integration-id-col .org-eval-integration-add {
     display: flex;
     margin-right: 0;
     margin-top: 0.25rem;
+}
+
+/* Scan steps: page title actions (guidance + AI) */
+.page-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem 1.25rem;
+    margin-top: 1rem;
+}
+.page-title h1 {
+    flex: 1 1 auto;
+    margin: 0;
+    min-width: 0;
+}
+.page-title__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex: 0 0 auto;
+}
+.care-step-help-trigger {
+    font-size: 0.95rem;
+    padding: 0.55rem 1rem;
+    white-space: nowrap;
+}
+.care-step-help-modal.overlay {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+}
+.care-step-help-modal.overlay.care-step-help-modal--open {
+    display: flex;
+}
+.overlay.care-step-help-modal .overlay-content.care-step-help-modal-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 80vw;
+    max-height: 80vh;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem 1.75rem;
+    box-sizing: border-box;
+}
+.care-step-help-modal-title {
+    flex: 0 0 auto;
+    margin: 0 2rem 1rem 0;
+    padding-right: 1rem;
+    color: var(--color-dark-blue);
+}
+#careStepHelpModalBody {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.care-step-help-body.infobox {
+    margin: 0;
+}
+.care-step-help-body h2,
+.care-step-help-body h3 {
+    margin-top: 0;
+}
+.care-step-help-default {
+    margin-bottom: 1rem;
+}
+.care-step-help-org-block {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.care-step-help-org-block:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+.care-step-help-default + .care-step-help-org-block {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+body.care-step-help-modal-open {
+    overflow: hidden;
+}
+.page-title .care-ai-compact {
+    flex: 0 0 auto;
+    margin: 0;
+}
+.care-step-help-trigger {
+  min-width: 230px;
+  min-height: 60px;
+}
+.care-ai-open-modal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    font-size: 1rem;
+    padding: 0.55rem 1rem;
+    line-height: 1.25;
+    text-align: center;
+    min-width: 230px;
+    min-height: 60px;
+}
+.care-ai-open-modal__title {
+    display: block;
+    font-weight: 600;
+}
+.care-ai-compact-status {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.2;
+    opacity: 0.92;
+}
+.care-ai-compact-status--has-history {
+    opacity: 1;
+}
+.care-ai-modal.overlay {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+}
+.care-ai-modal.overlay.care-ai-modal--open {
+    display: flex;
+}
+.overlay.care-ai-modal .overlay-content.care-ai-modal-panel {
+    width: 80vw;
+    height: 80vh;
+    max-width: 90vw;
+    max-height: 90vh;
+    margin: 0;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem 1.75rem;
+    box-sizing: border-box;
+}
+.care-ai-modal-panel .preAI,
+.care-ai-modal-panel .postAI,
+.care-ai-modal-panel .aiRunning,
+.care-ai-modal-panel .care-ai-history-wrap {
+    flex-shrink: 0;
+}
+.care-ai-modal-panel .expandButton {
+    font-size: 1.75rem;
+    margin-top: -6px;
+    line-height: 1;
+}
+.care-ai-modal .close-btn {
+    top: 0.5rem;
+    right: 1rem;
+    z-index: 2;
+}
+body.care-ai-modal-open {
+    overflow: hidden;
 }
 
 .care-ai-history-wrap {
@@ -1577,8 +1765,24 @@ li .draggable {
 .ui-sortable h3 {
   cursor: pointer;
 }
-ul._jsonform-array-ul li {
-  padding-bottom: 2rem;
+ul._jsonform-array-ul {
+  padding-inline: 0;
+  list-style: none;
+  margin: 0;
+}
+ul._jsonform-array-ul > li {
+  padding: 2rem;
+  margin-bottom: 1.25rem;
+  color: black;
+  background-color: var(--color-light-grey);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: none;
+}
+ul._jsonform-array-ul > li:last-of-type {
+  margin-bottom: 0;
+}
+ul._jsonform-array-ul > li .input {
+  background-color: white;
 }
 ul._jsonform-array-ul ._jsonform-array-buttons {
   float: right;
@@ -1587,12 +1791,6 @@ ul._jsonform-array-ul ._jsonform-array-buttons {
 ._jsonform-array-buttons .btn {
   padding: 0.5rem;
   border: 2px solid;
-}
-._jsonform-array-ul {
-  padding-inline: 0px;
-}
-._jsonform-array-ul li {
-  border-bottom: 2px solid var(--color-dark-blue);
 }
 ._jsonform-array-deletelast {
   display: none;
@@ -1905,6 +2103,11 @@ a:hover {
   border: 2px solid var(--background);
   padding: 10px;
   margin-bottom: 20px;
+}
+.ai-message-header h3 {
+  color: var(--color-dark-blue);
+  margin-top: 0;
+  margin-bottom: 0;
 }
 .expandButton {
   background: none;

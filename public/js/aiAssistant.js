@@ -41,8 +41,22 @@ function isAiMessagePreviewHidden(aiMessageEl) {
     return window.getComputedStyle(aiMessageEl).display === 'none';
 }
 
+function careAiScopeEl() {
+    const pageIdEl = document.getElementById('pageId');
+    const messageId = pageIdEl ? pageIdEl.value : '';
+    if (messageId === 'completeAssessment') {
+        return document.querySelector('.main-content .content-block.aiContainer') || document.getElementById('careAiModal');
+    }
+    return document.getElementById('careAiModal');
+}
+
+function careAiPreEl() {
+    const scope = careAiScopeEl();
+    return scope ? scope.querySelector('.preAI') : null;
+}
+
 function bindAiMessageExpandControlsOnce() {
-    const scope = document.querySelector('.aiContainer');
+    const scope = careAiScopeEl();
     if (!scope) return;
     const expandToggle = scope.querySelector('.expandToggle');
     const expandButton = scope.querySelector('.expandButton');
@@ -246,6 +260,188 @@ function getStepHistoryCount(messageId) {
     return 0;
 }
 
+const CARE_AI_SCAN_STEPS = ['intendedConsequences', 'unintendedConsequences', 'stakeholders'];
+
+const CARE_AI_STEP_UI = {
+    intendedConsequences: {
+        title: 'AI suggestions for intended consequences',
+        description:
+            'The AI will review your project details and suggest possible intended consequences. Treat suggestions as a guide for planning.',
+        runLabel: 'Use AI to suggest intended consequences',
+    },
+    unintendedConsequences: {
+        title: 'AI suggestions for unintended consequences',
+        description:
+            'The AI will review your project and suggest unintended consequences, impacts, and actions. Treat suggestions as a guide for planning.',
+        runLabel: 'Use AI to suggest unintended consequences',
+    },
+    stakeholders: {
+        title: 'AI suggestions for stakeholders',
+        description:
+            'The AI will review your consequences and suggest stakeholders who may be involved or impacted.',
+        runLabel: 'Use AI to suggest stakeholders',
+    },
+};
+
+let careAiModalUiInitialized = false;
+
+function careAiStepHasCompactUi(messageId) {
+    return CARE_AI_SCAN_STEPS.indexOf(messageId) !== -1;
+}
+
+function setCareAiTitleSlotVisible(visible) {
+    const slot = document.getElementById('careAiTitleSlot');
+    if (!slot) return;
+    slot.hidden = !visible;
+}
+
+function applyCareAiStepUi(messageId) {
+    const ui = CARE_AI_STEP_UI[messageId];
+    if (!ui) return;
+    const titleEl = document.getElementById('careAiModalTitle');
+    const descEl = document.getElementById('careAiModalDescription');
+    const runAI = document.getElementById('runAI');
+    if (titleEl) titleEl.textContent = ui.title;
+    if (descEl) descEl.textContent = ui.description;
+    if (runAI) runAI.textContent = ui.runLabel;
+}
+
+function resetCareAiModalPanelExtras() {
+    const panel = careAiModalMountEl();
+    if (!panel) return;
+    panel.querySelectorAll('.aiRunning, .postAI, #careAiHistory').forEach(function (el) {
+        el.remove();
+    });
+    panel.querySelectorAll('.care-ai-source-picker').forEach(function (el) {
+        el.remove();
+    });
+    const expandButton = document.querySelector('#careAiModal .expandButton');
+    if (expandButton) {
+        delete expandButton.dataset.careExpandBound;
+    }
+    document.querySelectorAll('#careAiModal .preAI, #careAiModal .postAI, #careAiModal .aiRunning').forEach(function (el) {
+        el.style.display = '';
+    });
+    const assessmentStatus = document.getElementById('assessmentStatus');
+    const assessmentError = document.getElementById('assessmentError');
+    if (assessmentStatus) assessmentStatus.textContent = '';
+    if (assessmentError) assessmentError.textContent = '';
+}
+
+function careAiModalMountEl() {
+    const modal = document.getElementById('careAiModal');
+    return modal ? modal.querySelector('.care-ai-modal-panel') : null;
+}
+
+function careAiDynamicMountEl() {
+    const pageIdEl = document.getElementById('pageId');
+    const messageId = pageIdEl ? pageIdEl.value : '';
+    if (messageId === 'completeAssessment') {
+        return document.querySelector('.main-content .content-block.aiContainer');
+    }
+    return careAiModalMountEl();
+}
+
+function cleanupCareAiCompactUi() {
+    if (typeof window.careCloseAiModal === 'function') {
+        window.careCloseAiModal();
+        return;
+    }
+    const modal = document.getElementById('careAiModal');
+    if (modal) {
+        modal.classList.remove('care-ai-modal--open');
+    }
+    document.body.classList.remove('care-ai-modal-open');
+}
+
+function prepareCareAiModalDom() {
+    cleanupCareAiCompactUi();
+    const modal = document.getElementById('careAiModal');
+    if (modal) {
+        modal.style.display = '';
+    }
+}
+
+function updateCareAiCompactStatus(messageId) {
+    const el = document.getElementById('careAiCompactStatus');
+    if (!el) return;
+    const runs = runHistoryMetaForStep(messageId);
+    const count = runs.length > 0 ? runs.length : getStepHistoryCount(messageId);
+    if (count > 0) {
+        el.textContent = count === 1 ? '1 previous AI run' : count + ' previous AI runs';
+        el.classList.add('care-ai-compact-status--has-history');
+    } else {
+        el.textContent = 'No AI runs yet';
+        el.classList.remove('care-ai-compact-status--has-history');
+    }
+}
+
+function initCareAiModal() {
+    if (careAiModalUiInitialized) return;
+    const openBtn = document.getElementById('careAiOpenModal');
+    const modal = document.getElementById('careAiModal');
+    if (!modal || !openBtn) return;
+    careAiModalUiInitialized = true;
+
+    const closeBtn = modal.querySelector('.care-ai-modal-close');
+
+    function closeModal() {
+        modal.classList.remove('care-ai-modal--open');
+        document.body.classList.remove('care-ai-modal-open');
+    }
+
+    function openModal() {
+        document.querySelectorAll('.preAI').forEach(function (el) {
+            if (el.closest('#careAiModal')) {
+                el.style.display = '';
+            }
+        });
+        modal.classList.add('care-ai-modal--open');
+        document.body.classList.add('care-ai-modal-open');
+    }
+
+    window.careOpenAiModal = openModal;
+    window.careCloseAiModal = closeModal;
+
+    openBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+        openModal();
+    });
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function (event) {
+            event.preventDefault();
+            closeModal();
+        });
+    }
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+    if (!document.documentElement.dataset.careAiModalEscapeBound) {
+        document.documentElement.dataset.careAiModalEscapeBound = '1';
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && document.getElementById('careAiModal')?.classList.contains('care-ai-modal--open')) {
+                if (typeof window.careCloseAiModal === 'function') {
+                    window.careCloseAiModal();
+                }
+            }
+        });
+    }
+
+    const runAI = document.getElementById('runAI');
+    if (runAI) {
+        runAI.addEventListener('click', function (event) {
+            event.preventDefault();
+            const form = document.getElementById('dataForm');
+            const projectId = form && form.dataset ? form.dataset.projectId : '';
+            if (projectId) {
+                getInlineAIReponse(projectId);
+            }
+        });
+    }
+}
+
 function hasLoadedAiHistoryArray() {
     return Array.isArray(projectData.aiInteractionHistory);
 }
@@ -382,6 +578,7 @@ function renderAiRunHistoryPanel(messageId) {
         } else {
             wrap.innerHTML = '<p class="small care-ai-history-empty">No saved AI runs for this step yet.</p>';
         }
+        updateCareAiCompactStatus(messageId);
         return;
     }
     var html = '<h3 class="care-ai-history-title">AI run history</h3><ul class="care-ai-history-list">';
@@ -452,6 +649,7 @@ function renderAiRunHistoryPanel(messageId) {
             })();
         });
     });
+    updateCareAiCompactStatus(messageId);
 }
 
 async function postSelectionsAndMerge(projectId, runId, messageId, indices, selectedResponses, detailEl) {
@@ -481,6 +679,12 @@ async function postSelectionsAndMerge(projectId, runId, messageId, indices, sele
     var toMerge = {};
     toMerge[mergeKey] = selectedResponses;
     projectData = mergeObjects(projectData, toMerge);
+    if (typeof window.careCloseAiModal === 'function') {
+        window.careCloseAiModal();
+    } else {
+        prepareCareAiModalDom();
+    }
+    await persistProjectDataAfterAiMerge();
     await reloadPage();
     await refreshProjectAiHistory(projectId);
     renderAiRunHistoryPanel(messageId);
@@ -507,7 +711,7 @@ function assistantQueryString(extra) {
  * One bordered block: optional org model choice + optional org guidance (same .care-ai-source-intro styling).
  */
 function injectCareAiStepOptions(orgAiAvailable, scanContextByStage, messageId) {
-    const pre = document.querySelector('.aiContainer .preAI');
+    const pre = careAiPreEl();
     if (!pre || pre.querySelector('.care-ai-source-picker')) return;
     const hasContext = !!(scanContextByStage && messageId && scanContextByStage[messageId]);
     if (!orgAiAvailable && !hasContext) return;
@@ -628,6 +832,16 @@ async function loadAI() {
     const form = document.getElementById("dataForm");
     const projectId = form.dataset.projectId;
     const messageId = document.getElementById("pageId").value;
+    initCareAiModal();
+
+    const hasCompactAiUi = careAiStepHasCompactUi(messageId);
+    setCareAiTitleSlotVisible(hasCompactAiUi);
+
+    if (!hasCompactAiUi && messageId !== 'completeAssessment') {
+        prepareCareAiModalDom();
+        return;
+    }
+
     let message;
     try {
         if (messageId === 'completeAssessment') {
@@ -664,6 +878,24 @@ async function loadAI() {
         orgAiAvailable = false;
     }
 
+    if (messageId === 'completeAssessment') {
+        prepareCareAiModalDom();
+        await addAIElements();
+        injectCareAiStepOptions(orgAiAvailable, scanContextByStage, messageId);
+        renderMessage(projectData, message);
+        bindAiMessageExpandControlsOnce();
+        return;
+    }
+
+    if (!hasCompactAiUi) {
+        prepareCareAiModalDom();
+        return;
+    }
+
+    prepareCareAiModalDom();
+    resetCareAiModalPanelExtras();
+    applyCareAiStepUi(messageId);
+
     await addAIElements();
     injectCareAiStepOptions(orgAiAvailable, scanContextByStage, messageId);
 
@@ -671,23 +903,25 @@ async function loadAI() {
 
     bindAiMessageExpandControlsOnce();
 
-    const runAI = document.getElementById('runAI');
-    if (runAI) {
-        runAI.addEventListener('click', function(event) {
-            event.preventDefault();
-            getInlineAIReponse(projectId);
-        });
-    }
-
     if (messageId !== 'completeAssessment') {
         renderAiRunHistoryPanel(messageId);
+        updateCareAiCompactStatus(messageId);
+    }
+}
+
+async function persistProjectDataAfterAiMerge() {
+    if (typeof window.sendDataToServer === 'function') {
+        await window.sendDataToServer(projectData, { autoSave: true });
     }
 }
 
 async function addAIElements() {
-    // Select the AI container
-    const aiContainer = document.querySelector('.aiContainer');
-    if (!aiContainer) {
+    const mount = careAiDynamicMountEl();
+    if (!mount) {
+        return;
+    }
+
+    if (mount.querySelector('.aiRunning')) {
         return;
     }
 
@@ -713,20 +947,20 @@ async function addAIElements() {
             <div id="aiReasoningFeed" class="ai-reasoning-feed"></div>
             <div id="aiReasoningStatus" class="ai-reasoning-status" style="display:none;"></div>
         </div>
-        <button id="addSelectedButton" onclick="addSelectedResponses(event)">Add selected</button>
+        <button type="button" id="addSelectedButton" onclick="addSelectedResponses(event)">Add selected</button>
     `;
 
-    // Append aiRunning and postAI elements to the AI container
-    aiContainer.appendChild(aiRunning);
-    aiContainer.appendChild(postAI);
+    // Append aiRunning and postAI elements inside the modal (or legacy inline container)
+    mount.appendChild(aiRunning);
+    mount.appendChild(postAI);
 
     const pageIdEl = document.getElementById('pageId');
     const mid = pageIdEl ? pageIdEl.value : '';
-    if (mid !== 'completeAssessment' && aiContainer && !document.getElementById('careAiHistory')) {
+    if (mid !== 'completeAssessment' && !document.getElementById('careAiHistory')) {
         const historyWrap = document.createElement('div');
         historyWrap.id = 'careAiHistory';
         historyWrap.className = 'care-ai-history-wrap';
-        aiContainer.appendChild(historyWrap);
+        mount.appendChild(historyWrap);
     }
 }
 
@@ -1264,6 +1498,12 @@ async function addSelectedResponses(event) {
     let toMerge = {};
     toMerge[mergeKey] = selectedResponses;
     projectData = mergeObjects(projectData, toMerge);
+    if (typeof window.careCloseAiModal === 'function') {
+        window.careCloseAiModal();
+    } else {
+        prepareCareAiModalDom();
+    }
+    await persistProjectDataAfterAiMerge();
     await reloadPage();
     await refreshProjectAiHistory(pid);
     renderAiRunHistoryPanel(messageId);
@@ -1431,6 +1671,9 @@ async function getInlineAIReponse(projectId) {
         }
         singleStepReasoningNoticeDwell = { messageId: messageId, text: '', hideAfter: 0 };
         stopReasoningAnimation('single:' + messageId);
+        if (typeof window.careOpenAiModal === 'function') {
+            window.careOpenAiModal();
+        }
         // Hide preAI and mergeOverwrite elements, show aiRunning elements
         document.querySelectorAll('.preAI').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.aiRunning').forEach(el => el.style.display = 'block');
@@ -1649,3 +1892,7 @@ async function retryCompleteAssessmentStep(stepId) {
         document.querySelectorAll('.postAI').forEach(el => el.style.display = 'block');
     }
 }
+
+window.careResetAiModalUi = prepareCareAiModalDom;
+window.cleanupCareAiCompactUi = cleanupCareAiCompactUi;
+window.setCareAiTitleSlotVisible = setCareAiTitleSlotVisible;

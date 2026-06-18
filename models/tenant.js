@@ -41,16 +41,21 @@ const tenantSchema = new mongoose.Schema(
       {
         title: { type: String, default: '' },
         content: { type: String, default: '' },
+        humanContent: { type: String, default: '' },
+        useForAi: { type: Boolean, default: true },
+        useForHuman: { type: Boolean, default: false },
         stages: [
           {
             type: String,
             enum: [
+              'projectDetails',
               'completeAssessment',
               'intendedConsequences',
               'unintendedConsequences',
               'stakeholders',
               'riskEvaluation',
               'actionPlanning',
+              'actionCompletion',
             ],
           },
         ],

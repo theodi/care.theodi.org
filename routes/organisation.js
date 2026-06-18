@@ -139,6 +139,17 @@ router.post('/ai-config/test', ensureAuthenticated, async (req, res, next) => {
   }
 });
 
+router.get('/step-human-guidance', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const userId = req.session.passport.user.id;
+    const step = req.query.step;
+    const data = await organisationController.getStepHumanGuidanceForUser(userId, step);
+    res.json(data);
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get('/scan-context', ensureAuthenticated, async (req, res, next) => {
   try {
     const userId = req.session.passport.user.id;

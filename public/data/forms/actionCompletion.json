@@ -1,11 +1,11 @@
 [
   {
     "key": "unintendedConsequences",
-    "prepend": "<h2>Record action completion</h2><p>Review each planned mitigation action and record whether it has been completed. Where an action is completed, add a short comment describing what was done, any outcome, or anything worth noting for future review.</p><h1>Action completion</h1><br/><div class='infobox'>",
-    "append": "</div>",
+    "prepend": "<div class='care-step-help-source' hidden aria-hidden='true'><h2>Record action completion</h2><p>Review each planned mitigation action and record whether it has been completed. Where an action is completed, add a short comment describing what was done, any outcome, or anything worth noting for future review.</p></div>",
     "notitle": true,
     "htmlClass": "content-block white",
     "type": "array",
+    "draggable": false,
     "items": {
       "type": "section",
       "items": [
@@ -22,6 +22,24 @@
           "fieldHtmlClass": "input disabled",
           "prepend": "<h3>Outcome</h3>",
           "notitle": true
+        },
+        {
+          "type": "fieldset",
+          "title": "Risk evaluation",
+          "items": [
+            {
+              "key": "unintendedConsequences[].impact",
+              "fieldHtmlClass": "input disabled",
+              "prepend": "<h3>Impact</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].likelihood",
+              "fieldHtmlClass": "input disabled",
+              "prepend": "<h3>Likelihood</h3>",
+              "notitle": true
+            }
+          ]
         },
         {
           "type": "fieldset",
@@ -63,33 +81,32 @@
           ]
         },
         {
-          "key": "unintendedConsequences[].action.completed",
-          "fieldHtmlClass": "input",
-          "prepend": "<h3>Completion status</h3>",
-          "notitle": true
-        },
-        {
-          "key": "unintendedConsequences[].action.completedAt",
-          "type": "date",
-          "fieldHtmlClass": "input",
-          "prepend": "<h3>Date marked complete</h3>",
-          "notitle": true
-        },
-        {
-          "key": "unintendedConsequences[].action.completionComment",
-          "type": "textarea",
-          "height": "120px",
-          "fieldHtmlClass": "input inputText",
-          "prepend": "<h3>Completion comment</h3>",
-          "notitle": true
-        },
-        {
-          "key": "unintendedConsequences[].impact",
-          "type": "hidden"
-        },
-        {
-          "key": "unintendedConsequences[].likelihood",
-          "type": "hidden"
+          "type": "fieldset",
+          "title": "Record completion",
+          "htmlClass": "action-completion-record",
+          "items": [
+            {
+              "key": "unintendedConsequences[].action.completed",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Completion status</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.completedAt",
+              "type": "date",
+              "fieldHtmlClass": "input",
+              "prepend": "<h3>Date marked complete</h3>",
+              "notitle": true
+            },
+            {
+              "key": "unintendedConsequences[].action.completionComment",
+              "type": "textarea",
+              "height": "120px",
+              "fieldHtmlClass": "input inputText",
+              "prepend": "<h3>Completion comment</h3>",
+              "notitle": true
+            }
+          ]
         }
       ]
     }

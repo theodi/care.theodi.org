@@ -4,6 +4,7 @@
     }
 </style>
 <script src="/js/scan.js"></script>
+<script src="/js/scanStepHelp.js"></script>
 <script src="/js/aiAssistant.js"></script>
 <div id="error-overlay" class="overlay">
     <div id="overlay-content" class="overlay-content" style="padding-top: 40px;">
@@ -31,7 +32,44 @@
         <% } %>
     </div>
     <div class="main-content">
+        <% const careAiScanSteps = ['intendedConsequences', 'unintendedConsequences', 'stakeholders']; %>
+        <% const showCareAiCompact = careAiScanSteps.includes(page.link); %>
         <section class="page-title container white">
             <h1><%= page.title %></h1>
             <input type="hidden" value="<%= page.link %>" id="pageId"/>
+            <div class="page-title__actions">
+                <button type="button" class="btn care-step-help-trigger" id="careStepHelpOpen" hidden aria-haspopup="dialog" aria-controls="careStepHelpModal" aria-expanded="false">
+                    Step guidance
+                </button>
+                <div class="aiContainer care-ai-compact" id="careAiTitleSlot"<% if (!showCareAiCompact) { %> hidden<% } %>>
+                    <button type="button" class="btn btn-primary care-ai-open-modal" id="careAiOpenModal">
+                        <span class="care-ai-open-modal__title">Get AI suggestions</span>
+                        <span class="care-ai-compact-status" id="careAiCompactStatus" aria-live="polite">No AI runs yet</span>
+                    </button>
+                </div>
+            </div>
         </section>
+        <div id="careStepHelpModal" class="overlay care-step-help-modal" role="dialog" aria-modal="true" aria-labelledby="careStepHelpModalTitle">
+            <div class="overlay-content care-step-help-modal-panel">
+                <button type="button" class="close-btn care-step-help-modal-close" aria-label="Close step guidance">&times;</button>
+                <h2 id="careStepHelpModalTitle" class="care-step-help-modal-title"></h2>
+                <div id="careStepHelpModalBody"></div>
+            </div>
+        </div>
+        <div id="careAiModal" class="overlay care-ai-modal" role="dialog" aria-modal="true" aria-labelledby="careAiModalTitle">
+            <div class="overlay-content care-ai-modal-panel">
+                <button type="button" class="close-btn care-ai-modal-close" aria-label="Close">&times;</button>
+                <div class="preAI">
+                    <h2 id="careAiModalTitle"></h2>
+                    <p id="careAiModalDescription"></p>
+                    <div id="aiMessageContainer" class="ai-message-container">
+                        <div class="ai-message-header">
+                            <button type="button" class="expandButton">+</button>
+                            <h3 class="expandToggle">View the query and data sent to the AI</h3>
+                        </div>
+                        <div id="aiMessage" class="aiMessage"></div>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="runAI">Run AI</button>
+                </div>
+            </div>
+        </div>

@@ -30,12 +30,18 @@ const {
 const {
   SCAN_CONTEXT_STAGE_LABELS,
   SCAN_CONTEXT_STAGE_KEYS,
+  SCAN_CONTEXT_AI_STAGE_KEYS,
+  SCAN_CONTEXT_HUMAN_STAGE_KEYS,
   validateAndNormalizeGuidanceItems,
   resolveGuidanceItems,
   scanContextPresenceByStageForSubscription,
+  humanGuidancePresenceByStageForSubscription,
   getScanContextTextForSubscription,
+  getHumanGuidanceHtmlForSubscription,
   uncoveredScanStages,
+  uncoveredHumanGuidanceStages,
 } = require('../lib/organisationScanContext');
+const { getCareHumanTemplatesMap } = require('../lib/careStepHelpDefaults');
 const { chatCompletion } = require('../services/aiChat');
 const { parseModelJsonResponse } = require('../services/parseAIJson');
 const {
@@ -474,6 +480,25 @@ const SMOKE_STRUCTURE_SCHEMA_TEST = {
 const STEP2_USER_PROMPT_TEST =
   'Set ok to true. In reply, write exactly: Structured output test passed.';
 
+async function getStepHumanGuidanceForUser(userId, stepId) {
+  const id = stepId != null ? String(stepId).trim() : '';
+  let tenant = null;
+  const user = await User.findById(userId);
+  if (user && user.email) {
+    const m = await findMembershipForEmail(user.email);
+    if (m && m.tenantId) {
+      tenant = m.tenantId._id ? m.tenantId : await Tenant.findById(m.tenantId);
+    }
+  }
+  const html = getHumanGuidanceHtmlForSubscription(tenant, id);
+  if (!html) {
+    const err = new Error('Step guidance not available for this step');
+    err.status = 404;
+    throw err;
+  }
+  return { step: id, html };
+}
+
 async function getAiEligibilityForUser(userId, forMessageId) {
   const user = await User.findById(userId);
   if (!user || !user.email) {
@@ -647,7 +672,13 @@ async function getScanContextAdmin(requesterUserId) {
     items: resolveGuidanceItems(tenant),
     labels: SCAN_CONTEXT_STAGE_LABELS,
     stageKeys: SCAN_CONTEXT_STAGE_KEYS,
+    aiStageKeys: SCAN_CONTEXT_AI_STAGE_KEYS,
+    humanStageKeys: SCAN_CONTEXT_HUMAN_STAGE_KEYS,
+    careHumanTemplates: getCareHumanTemplatesMap(),
     uncoveredStages: uncoveredScanStages(tenant),
+    uncoveredHumanStages: uncoveredHumanGuidanceStages(tenant),
+    aiPresenceByStage: scanContextPresenceByStageForSubscription(tenant),
+    humanPresenceByStage: humanGuidancePresenceByStageForSubscription(tenant),
   };
 }
 
@@ -683,7 +714,13 @@ async function updateScanContextAdmin(requesterUserId, body) {
     items: resolveGuidanceItems(synthetic),
     labels: SCAN_CONTEXT_STAGE_LABELS,
     stageKeys: SCAN_CONTEXT_STAGE_KEYS,
+    aiStageKeys: SCAN_CONTEXT_AI_STAGE_KEYS,
+    humanStageKeys: SCAN_CONTEXT_HUMAN_STAGE_KEYS,
+    careHumanTemplates: getCareHumanTemplatesMap(),
     uncoveredStages: uncoveredScanStages(synthetic),
+    uncoveredHumanStages: uncoveredHumanGuidanceStages(synthetic),
+    aiPresenceByStage: scanContextPresenceByStageForSubscription(synthetic),
+    humanPresenceByStage: humanGuidancePresenceByStageForSubscription(synthetic),
   };
 }
 
@@ -1034,6 +1071,7 @@ module.exports = {
   emailMatchesDomain,
   isSubscriptionActive,
   getAiEligibilityForUser,
+  getStepHumanGuidanceForUser,
   getAiConfigAdmin,
   updateAiConfigAdmin,
   testAiConfigAdmin,

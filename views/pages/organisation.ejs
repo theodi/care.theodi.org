@@ -318,9 +318,11 @@
   <% } %>
 
   <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManagePromptScanContext) { %>
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
   <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %> org-scan-context-section">
-    <h2>Extra guidance for scan steps</h2>
-    <p class="small">Separate from the model settings above. Define a <strong>title</strong> and <strong>guidance text</strong>, then choose which AI-assisted steps it applies to. You can reuse the same text on several steps. Licensed users choose whether to include organisation guidance in the prompt. Works with <strong>CARE built-in</strong> or <strong>organisation</strong> AI. Only organisation admins and prompt admins can edit this.</p>
+    <h2>Scan step guidance</h2>
+    <p class="small">Define guidance blocks with a <strong>title</strong> and choose whether each block is used for the <strong>AI assistant</strong> (plain text in prompts), <strong>Step guidance</strong> (rich text in the scan help modal), or both. Pick which scan steps each block applies to. Licensed users choose whether to include AI guidance in prompts. Only organisation admins and prompt admins can edit this.</p>
     <div id="orgScanContextMessage" class="alert" style="display:none;"></div>
 
     <h3 class="org-scan-guidance__subhead">Guidance blocks</h3>
@@ -329,6 +331,7 @@
       <thead>
         <tr>
           <th>Title</th>
+          <th>Audiences</th>
           <th>Applied to steps</th>
           <th></th>
         </tr>
@@ -342,12 +345,13 @@
     </p>
 
     <h3 class="org-scan-guidance__subhead">Step coverage</h3>
-    <p class="small">The table below shows which scan steps currently have at least one guidance block applied.</p>
+    <p class="small">AI coverage is for assistant prompts. Step guidance coverage is for organisation blocks; when set, org content replaces the CARE default for that step.</p>
     <table class="display org-scan-guidance-coverage" style="width:100%" id="orgScanGuidanceCoverageTable">
       <thead>
         <tr>
           <th>Step</th>
-          <th>Status</th>
+          <th>AI guidance</th>
+          <th>Step guidance</th>
         </tr>
       </thead>
       <tbody id="orgScanGuidanceCoverageBody"></tbody>
@@ -366,9 +370,24 @@
           </div>
         </div>
         <div class="sub-form__row">
-          <label class="sub-form__label" for="orgScanGuidanceContent">Guidance text</label>
+          <span class="sub-form__label">Use for</span>
+          <div class="sub-form__control org-scan-guidance-audiences">
+            <label class="org-scan-guidance-audiences__chk"><input type="checkbox" id="orgScanGuidanceUseForAi" checked /> AI assistant prompts</label>
+            <label class="org-scan-guidance-audiences__chk"><input type="checkbox" id="orgScanGuidanceUseForHuman" /> Step guidance (human)</label>
+          </div>
+        </div>
+        <div class="sub-form__row" id="orgScanGuidanceAiField">
+          <label class="sub-form__label" for="orgScanGuidanceContent">AI guidance text</label>
           <div class="sub-form__control">
             <textarea id="orgScanGuidanceContent" class="input inputText org-scan-context-form__textarea" rows="6" maxlength="12000" placeholder="Policies, definitions, or instructions to inject into the prompt…"></textarea>
+          </div>
+        </div>
+        <div class="sub-form__row" id="orgScanGuidanceHumanField" hidden>
+          <span class="sub-form__label">Step guidance content</span>
+          <div class="sub-form__control">
+            <div id="orgScanGuidanceHumanEditor" class="org-scan-guidance-wysiwyg" aria-label="Step guidance content editor"></div>
+            <p class="small org-scan-guidance-wysiwyg__hint">Headings, links, and lists are supported. Content is sanitised on save.</p>
+            <button type="button" class="transparent" id="orgScanGuidanceLoadTemplate">Load CARE template for first selected step</button>
           </div>
         </div>
         <div class="sub-form__row">
@@ -514,9 +533,9 @@
       if (tbl.id === 'orgScanGuidanceTable') {
         var g = window.__orgGuidanceStepsFilters;
         if (!g || g.length === 0) return true;
-        var cell1 = data[1] != null ? String(data[1]) : '';
+        var cellSteps = data[2] != null ? String(data[2]) : '';
         for (var j = 0; j < g.length; j++) {
-          if (g[j] && cell1.indexOf(g[j]) !== -1) return true;
+          if (g[j] && cellSteps.indexOf(g[j]) !== -1) return true;
         }
         return false;
       }
@@ -677,7 +696,7 @@
   window.__orgDtBaseConfig = orgDataTableBaseConfig;
   window.__orgGuidanceStageOptionsForFilter = [];
   window.__orgAttachGuidanceColumnFilter = function (dtApi) {
-    orgAttachColumnFilterBtn(dtApi, 1, 'guidance');
+    orgAttachColumnFilterBtn(dtApi, 2, 'guidance');
     orgUpdateColFilterBtnActive(
       'guidance',
       (window.__orgGuidanceStepsFilters || []).length > 0
@@ -709,7 +728,7 @@
         orgUpdateColFilterBtnActive('licensedUsers', picked.length > 0);
       } else if (which === 'guidance' && window.__orgDtGuidance) {
         window.__orgGuidanceStepsFilters = picked;
-        window.__orgDtGuidance.column(1).search('', false, true);
+        window.__orgDtGuidance.column(2).search('', false, true);
         window.__orgDtGuidance.draw();
         orgUpdateColFilterBtnActive('guidance', picked.length > 0);
       }
@@ -725,7 +744,7 @@
           orgUpdateColFilterBtnActive('licensedUsers', false);
         } else if (which === 'guidance' && window.__orgDtGuidance) {
           window.__orgGuidanceStepsFilters = [];
-          window.__orgDtGuidance.column(1).search('', false, true);
+          window.__orgDtGuidance.column(2).search('', false, true);
           window.__orgDtGuidance.draw();
           orgUpdateColFilterBtnActive('guidance', false);
         }
@@ -1350,8 +1369,12 @@
 
   var labels = {};
   var stageKeys = [];
+  var aiStageKeys = [];
+  var humanStageKeys = [];
+  var careHumanTemplates = {};
   var items = [];
   var editIndex = null;
+  var quillEditor = null;
 
   function showScanCtxMsg(text, isError) {
     var el = document.getElementById('orgScanContextMessage');
@@ -1403,7 +1426,7 @@
     if (!base) return;
     var dt = $t.DataTable(
       base({
-        columnDefs: [{ targets: 2, orderable: false, searchable: false }],
+        columnDefs: [{ targets: 3, orderable: false, searchable: false }],
         initComplete: function () {
           if (typeof window.__orgAttachGuidanceColumnFilter === 'function') {
             window.__orgAttachGuidanceColumnFilter(this.api());
@@ -1412,7 +1435,7 @@
       })
     );
     window.__orgDtGuidance = dt;
-    dt.column(1).search('', false, true);
+    dt.column(2).search('', false, true);
     dt.draw();
   }
 
@@ -1452,23 +1475,86 @@
     });
   }
 
-  function stageCoverageMapFor(list) {
-    var m = {};
-    stageKeys.forEach(function (k) {
-      m[k] = false;
+  function ensureQuillEditor() {
+    if (quillEditor) return quillEditor;
+    var host = document.getElementById('orgScanGuidanceHumanEditor');
+    if (!host || typeof Quill === 'undefined') return null;
+    quillEditor = new Quill(host, {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ['bold', 'italic'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['link'],
+          ['clean'],
+        ],
+      },
     });
-    (list || []).forEach(function (it) {
-      var c = (it.content || '').trim();
-      if (!c) return;
-      (it.stages || []).forEach(function (s) {
-        if (m.hasOwnProperty(s)) m[s] = true;
-      });
-    });
-    return m;
+    return quillEditor;
   }
 
-  function stageCoverageMap() {
-    return stageCoverageMapFor(items);
+  function setQuillHtml(html) {
+    var q = ensureQuillEditor();
+    if (!q) return;
+    if (!html) {
+      q.setText('');
+      return;
+    }
+    q.clipboard.dangerouslyPasteHTML(html);
+  }
+
+  function getQuillHtml() {
+    var q = ensureQuillEditor();
+    if (!q) return '';
+    var html = q.root.innerHTML;
+    if (html === '<p><br></p>') return '';
+    return html;
+  }
+
+  function syncAudienceFields() {
+    var useAi = document.getElementById('orgScanGuidanceUseForAi');
+    var useHuman = document.getElementById('orgScanGuidanceUseForHuman');
+    var aiField = document.getElementById('orgScanGuidanceAiField');
+    var humanField = document.getElementById('orgScanGuidanceHumanField');
+    var aiOn = !!(useAi && useAi.checked);
+    var humanOn = !!(useHuman && useHuman.checked);
+    if (aiField) aiField.hidden = !aiOn;
+    if (humanField) {
+      humanField.hidden = !humanOn;
+      if (humanOn) ensureQuillEditor();
+    }
+  }
+
+  function audienceLabel(it) {
+    var parts = [];
+    if (it.useForAi !== false) parts.push('AI');
+    if (it.useForHuman) parts.push('Step guidance');
+    return parts.length ? parts.join(', ') : '—';
+  }
+
+  function stageCoverageMapsFor(list) {
+    var ai = {};
+    var human = {};
+    aiStageKeys.forEach(function (k) {
+      ai[k] = false;
+    });
+    humanStageKeys.forEach(function (k) {
+      human[k] = false;
+    });
+    (list || []).forEach(function (it) {
+      var aiContent = it.useForAi !== false && (it.content || '').trim();
+      var humanContent = it.useForHuman && (it.humanContent || '').trim();
+      (it.stages || []).forEach(function (s) {
+        if (aiContent && ai.hasOwnProperty(s)) ai[s] = true;
+        if (humanContent && human.hasOwnProperty(s)) human[s] = true;
+      });
+    });
+    return { ai: ai, human: human };
+  }
+
+  function stageCoverageMaps() {
+    return stageCoverageMapsFor(items);
   }
 
   function cloneItems() {
@@ -1476,27 +1562,47 @@
       return {
         title: it.title,
         content: it.content,
+        humanContent: it.humanContent || '',
+        useForAi: it.useForAi !== false,
+        useForHuman: !!it.useForHuman,
         stages: (it.stages || []).slice(),
       };
     });
   }
 
   function applyRowToClone(baseList, row, editIdx) {
-    var next = baseList.map(function (it) {
-      return {
-        title: it.title,
-        content: it.content,
-        stages: (it.stages || []).slice(),
-      };
-    });
+    var next = cloneItems();
     if (editIdx !== null && editIdx >= 0) next[editIdx] = row;
     else next.push(row);
     return next;
   }
 
+  function loadCareTemplateIntoEditor() {
+    var stages = selectedStagesFromEditor();
+    if (stages.length === 0) {
+      showModalMsg('Select at least one step first.', true);
+      return;
+    }
+    var tpl = careHumanTemplates[stages[0]] || '';
+    if (!tpl) {
+      showModalMsg('No CARE template for the selected step.', true);
+      return;
+    }
+    var useHuman = document.getElementById('orgScanGuidanceUseForHuman');
+    if (useHuman) useHuman.checked = true;
+    syncAudienceFields();
+    setQuillHtml(tpl);
+  }
+
   function mergeServerGuidanceResponse(data) {
     labels = (data && data.labels) || labels;
     stageKeys = Array.isArray(data && data.stageKeys) ? data.stageKeys.slice() : stageKeys;
+    aiStageKeys = Array.isArray(data && data.aiStageKeys) ? data.aiStageKeys.slice() : aiStageKeys;
+    humanStageKeys = Array.isArray(data && data.humanStageKeys) ? data.humanStageKeys.slice() : humanStageKeys;
+    careHumanTemplates =
+      data && data.careHumanTemplates && typeof data.careHumanTemplates === 'object'
+        ? Object.assign({}, data.careHumanTemplates)
+        : careHumanTemplates;
     items = Array.isArray(data && data.items) ? JSON.parse(JSON.stringify(data.items)) : [];
     renderStageCheckboxes();
     syncGuidanceStepsFilterOptions();
@@ -1507,15 +1613,32 @@
     var body = document.getElementById('orgScanGuidanceCoverageBody');
     if (!body) return;
     body.innerHTML = '';
-    var cov = stageCoverageMap();
-    stageKeys.forEach(function (key) {
+    var cov = stageCoverageMaps();
+    var rows = humanStageKeys.slice();
+    aiStageKeys.forEach(function (k) {
+      if (rows.indexOf(k) === -1) rows.push(k);
+    });
+    stageKeys.forEach(function (k) {
+      if (rows.indexOf(k) === -1) rows.push(k);
+    });
+    rows.forEach(function (key) {
       var tr = document.createElement('tr');
-      var ok = cov[key];
+      var aiOk = cov.ai[key];
+      var humanOk = cov.human[key];
+      var aiCell = aiStageKeys.indexOf(key) === -1 ? '—' : aiOk ? 'Has guidance' : '<span class="org-scan-guidance-coverage--gap">No guidance yet</span>';
+      var humanCell =
+        humanStageKeys.indexOf(key) === -1
+          ? '—'
+          : humanOk
+            ? 'Has org guidance'
+            : '<span class="org-scan-guidance-coverage--gap">CARE default only</span>';
       tr.innerHTML =
         '<td>' +
         labelFor(key).replace(/</g, '&lt;') +
         '</td><td>' +
-        (ok ? 'Has guidance' : '<span class="org-scan-guidance-coverage--gap">No guidance yet</span>') +
+        aiCell +
+        '</td><td>' +
+        humanCell +
         '</td>';
       body.appendChild(tr);
     });
@@ -1542,10 +1665,13 @@
       items.forEach(function (it, idx) {
         var title = (it.title || '').trim() || '—';
         var stageLabels = (it.stages || []).map(labelFor).join(', ');
+        var audiences = audienceLabel(it);
         var tr = document.createElement('tr');
         tr.innerHTML =
           '<td>' +
           title.replace(/</g, '&lt;') +
+          '</td><td>' +
+          audiences.replace(/</g, '&lt;') +
           '</td><td>' +
           stageLabels.replace(/</g, '&lt;') +
           '</td><td class="org-scan-guidance__row-actions"></td>';
@@ -1610,6 +1736,12 @@
   function resetEditor() {
     document.getElementById('orgScanGuidanceTitle').value = '';
     document.getElementById('orgScanGuidanceContent').value = '';
+    var useAi = document.getElementById('orgScanGuidanceUseForAi');
+    var useHuman = document.getElementById('orgScanGuidanceUseForHuman');
+    if (useAi) useAi.checked = true;
+    if (useHuman) useHuman.checked = false;
+    setQuillHtml('');
+    syncAudienceFields();
     setEditorStages([]);
     editIndex = null;
     var titleEl = document.getElementById('orgScanGuidanceDialogTitle');
@@ -1631,6 +1763,12 @@
     editIndex = idx;
     document.getElementById('orgScanGuidanceTitle').value = it.title || '';
     document.getElementById('orgScanGuidanceContent').value = it.content || '';
+    var useAi = document.getElementById('orgScanGuidanceUseForAi');
+    var useHuman = document.getElementById('orgScanGuidanceUseForHuman');
+    if (useAi) useAi.checked = it.useForAi !== false;
+    if (useHuman) useHuman.checked = !!it.useForHuman;
+    syncAudienceFields();
+    setQuillHtml(it.humanContent || '');
     setEditorStages(it.stages || []);
     var titleEl = document.getElementById('orgScanGuidanceDialogTitle');
     var submitBtn = document.getElementById('orgScanGuidanceDialogSubmit');
@@ -1646,17 +1784,37 @@
   function commitGuidanceModal(ev) {
     ev.preventDefault();
     var title = document.getElementById('orgScanGuidanceTitle').value.trim();
-    var content = document.getElementById('orgScanGuidanceContent').value.trim();
+    var useAi = document.getElementById('orgScanGuidanceUseForAi');
+    var useHuman = document.getElementById('orgScanGuidanceUseForHuman');
+    var useForAi = !!(useAi && useAi.checked);
+    var useForHuman = !!(useHuman && useHuman.checked);
+    var content = useForAi ? document.getElementById('orgScanGuidanceContent').value.trim() : '';
+    var humanContent = useForHuman ? getQuillHtml().trim() : '';
     var stages = selectedStagesFromEditor();
-    if (!content) {
-      showModalMsg('Guidance text is required.', true);
+    if (!useForAi && !useForHuman) {
+      showModalMsg('Select at least one audience (AI assistant or Step guidance).', true);
+      return;
+    }
+    if (useForAi && !content) {
+      showModalMsg('AI guidance text is required when AI assistant is selected.', true);
+      return;
+    }
+    if (useForHuman && !humanContent) {
+      showModalMsg('Step guidance content is required when Step guidance is selected.', true);
       return;
     }
     if (stages.length === 0) {
       showModalMsg('Select at least one step.', true);
       return;
     }
-    var row = { title: title, content: content, stages: stages };
+    var row = {
+      title: title,
+      content: content,
+      humanContent: humanContent,
+      useForAi: useForAi,
+      useForHuman: useForHuman,
+      stages: stages,
+    };
     var nextItems = applyRowToClone(cloneItems(), row, editIndex);
 
     var submitBtn = document.getElementById('orgScanGuidanceDialogSubmit');
@@ -1701,6 +1859,12 @@
     if (dialog.open) dialog.close();
     labels = (d && d.labels) || {};
     stageKeys = Array.isArray(d && d.stageKeys) ? d.stageKeys.slice() : [];
+    aiStageKeys = Array.isArray(d && d.aiStageKeys) ? d.aiStageKeys.slice() : [];
+    humanStageKeys = Array.isArray(d && d.humanStageKeys) ? d.humanStageKeys.slice() : [];
+    careHumanTemplates =
+      d && d.careHumanTemplates && typeof d.careHumanTemplates === 'object'
+        ? Object.assign({}, d.careHumanTemplates)
+        : {};
     items = Array.isArray(d && d.items) ? JSON.parse(JSON.stringify(d.items)) : [];
     renderStageCheckboxes();
     syncGuidanceStepsFilterOptions();
@@ -1709,6 +1873,13 @@
 
   var addBtn = document.getElementById('orgAddScanGuidanceBtn');
   if (addBtn) addBtn.addEventListener('click', openAddModal);
+
+  var useAiEl = document.getElementById('orgScanGuidanceUseForAi');
+  var useHumanEl = document.getElementById('orgScanGuidanceUseForHuman');
+  if (useAiEl) useAiEl.addEventListener('change', syncAudienceFields);
+  if (useHumanEl) useHumanEl.addEventListener('change', syncAudienceFields);
+  var loadTplBtn = document.getElementById('orgScanGuidanceLoadTemplate');
+  if (loadTplBtn) loadTplBtn.addEventListener('click', loadCareTemplateIntoEditor);
 
   modalForm.addEventListener('submit', commitGuidanceModal);
 

@@ -44,6 +44,9 @@ async function loadPage(formName, projectId) {
     await renderForm(projectData, generation);
     if (generation !== scanRenderGeneration) return;
     extractDisabledFieldValues("dataForm");
+    if (typeof window.setupCareStepHelp === 'function') {
+        await window.setupCareStepHelp();
+    }
     try {
         await loadAI();
     } catch (aiErr) {
@@ -55,10 +58,19 @@ async function loadPage(formName, projectId) {
 }
 
 async function reloadPage() {
+    if (typeof window.cleanupCareAiCompactUi === 'function') {
+        window.cleanupCareAiCompactUi();
+    }
+    if (typeof window.careCloseStepHelpModal === 'function') {
+        window.careCloseStepHelpModal();
+    }
     const generation = ++scanRenderGeneration;
     await renderForm(projectData, generation);
     if (generation !== scanRenderGeneration) return;
     extractDisabledFieldValues("dataForm");
+    if (typeof window.setupCareStepHelp === 'function') {
+        await window.setupCareStepHelp();
+    }
     try {
         await loadAI();
     } catch (aiErr) {
@@ -139,6 +151,12 @@ async function updatePageTitle(pageLink) {
     const pageTitleElement = document.querySelector('.page-title h1');
     if (pageTitleElement && page) {
         pageTitleElement.textContent = page.title;
+    }
+
+    if (typeof window.setCareAiTitleSlotVisible === 'function') {
+        window.setCareAiTitleSlotVisible(
+            ['intendedConsequences', 'unintendedConsequences', 'stakeholders'].indexOf(pageLink) !== -1
+        );
     }
 
     // Update the HTML <title> attribute
@@ -226,12 +244,13 @@ async function renderForm(data, generation) {
             }
         });
 
-         // Only hide positive consequences on certain pages
-        const formName = window.location.pathname.split('/')[3];
+         const formName = window.location.pathname.split('/')[3];
         if (formName === "riskEvaluation" || formName === "actionPlanning" || formName === "actionCompletion") {
+            lockUnintendedConsequencesArray();
             const gen = generation;
             setTimeout(function () {
                 if (gen !== scanRenderGeneration) return;
+                lockUnintendedConsequencesArray();
                 hideIrrelevantConsequencesForCurrentStep();
                 moveSubmitButton(0, gen);
             }, 200);
@@ -578,6 +597,9 @@ function extractDisabledFieldValues(formId) {
     }
 
     disabledFields.forEach(field => {
+        if (field.dataset.readonlyDisplayed === '1') {
+            return;
+        }
         const fieldValue = field.value;
 
         // Hide the original field
@@ -585,39 +607,124 @@ function extractDisabledFieldValues(formId) {
 
         // Create a new paragraph element to display the field value
         const paragraphElement = document.createElement('p');
-        paragraphElement.textContent = fieldValue;
+        paragraphElement.className = 'scan-readonly-value';
+        const text = fieldValue == null ? '' : String(fieldValue).trim();
+        paragraphElement.textContent = text !== '' ? fieldValue : '—';
 
         // Insert the new paragraph element after the original field
         field.parentNode.insertBefore(paragraphElement, field.nextSibling);
+        field.dataset.readonlyDisplayed = '1';
     });
 }
+function lockUnintendedConsequencesArray() {
+    var formName = window.location.pathname.split('/')[3];
+    if (formName !== 'riskEvaluation' && formName !== 'actionPlanning' && formName !== 'actionCompletion') {
+        return;
+    }
+    var form = document.getElementById('dataForm');
+    if (!form) return;
+
+    form.querySelectorAll(
+        '._jsonform-array-addmore, ._jsonform-array-deletelast, ._jsonform-array-deletecurrent, ._jsonform-array-deleteitem'
+    ).forEach(function (btn) {
+        btn.style.display = 'none';
+        btn.setAttribute('aria-hidden', 'true');
+        btn.tabIndex = -1;
+    });
+
+    form.querySelectorAll('._jsonform-array-buttons').forEach(function (wrap) {
+        wrap.style.display = 'none';
+    });
+
+    form.querySelectorAll('span.draggable.line').forEach(function (handle) {
+        handle.style.display = 'none';
+    });
+
+    if (window.jQuery) {
+        window.jQuery('#dataForm ul._jsonform-array-ul').each(function () {
+            var $ul = window.jQuery(this);
+            if (!$ul.sortable) return;
+            try {
+                if ($ul.sortable('instance')) {
+                    $ul.sortable('destroy');
+                }
+            } catch (e) {
+                /* ignore */
+            }
+        });
+    }
+}
+
+function hasPlannedActionForCompletion(uc) {
+    if (!uc || !uc.action) return false;
+    function hasValue(v) {
+        return v != null && String(v).trim() !== '';
+    }
+    return (
+        hasValue(uc.impact) &&
+        hasValue(uc.likelihood) &&
+        hasValue(uc.role) &&
+        hasValue(uc.action.description) &&
+        hasValue(uc.action.stakeholder) &&
+        hasValue(uc.action.date) &&
+        hasValue(uc.action.KPI)
+    );
+}
+
+function applyActionCompletionUI() {
+    if (!Array.isArray(projectData.unintendedConsequences)) return;
+
+    projectData.unintendedConsequences.forEach(function (uc, index) {
+        var consequenceField = document.querySelector('[name="unintendedConsequences[' + index + '].consequence"]');
+        if (!consequenceField) return;
+        var itemContainer = consequenceField.closest('li[data-idx]') || consequenceField.closest('li');
+        if (!itemContainer) return;
+
+        var recordBlock = itemContainer.querySelector('fieldset.action-completion-record');
+        var existingMsg = itemContainer.querySelector('.action-completion-no-action-msg');
+        if (existingMsg) existingMsg.remove();
+
+        if (hasPlannedActionForCompletion(uc)) {
+            if (recordBlock) recordBlock.style.display = '';
+            return;
+        }
+
+        if (recordBlock) recordBlock.style.display = 'none';
+
+        var msg = document.createElement('div');
+        msg.className = 'action-completion-no-action-msg infobox small';
+        msg.setAttribute('role', 'status');
+        msg.innerHTML =
+            '<p><strong>No action to complete.</strong> No mitigation action was defined for this consequence during action planning. ' +
+            'Return to the action planning step if you still need to add one.</p>';
+
+        if (recordBlock && recordBlock.parentNode) {
+            recordBlock.parentNode.insertBefore(msg, recordBlock);
+        } else {
+            itemContainer.appendChild(msg);
+        }
+    });
+}
+
 function hideIrrelevantConsequencesForCurrentStep() {
     if (!Array.isArray(projectData.unintendedConsequences)) return;
     const formName = window.location.pathname.split('/')[3];
 
     projectData.unintendedConsequences.forEach((uc, index) => {
-        const hidePositive = uc.outcome === "Positive";
-        const hideIncompleteActionStep =
-            formName === "actionCompletion" &&
-            (
-                !uc.action ||
-                !String(uc.action.description || '').trim() ||
-                !String(uc.action.stakeholder || '').trim() ||
-                !String(uc.action.date || '').trim() ||
-                !String(uc.action.KPI || '').trim() ||
-                !String(uc.role || '').trim()
-            );
-        if (hidePositive || hideIncompleteActionStep) {
-            // Try to locate a field rendered for this item
+        if (uc.outcome === "Positive") {
             const field = document.querySelector(`[name="unintendedConsequences[${index}].consequence"]`);
             if (field) {
-                const container = field ? field.closest('li') : null;
+                const container = field.closest('li[data-idx]') || field.closest('li');
                 if (container) {
                     container.style.display = 'none';
                 }
             }
         }
     });
+
+    if (formName === 'actionCompletion') {
+        applyActionCompletionUI();
+    }
 }
 
 

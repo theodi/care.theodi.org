@@ -42,6 +42,7 @@
     "openai": "^4.29.0",
     "passport": "^0.6.0",
     "passport-google-oauth": "^2.0.0",
+    "sanitize-html": "^2.17.5",
     "tmp-promise": "^3.0.3"
   }
 }
