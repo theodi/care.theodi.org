@@ -1710,6 +1710,18 @@ body.care-ai-modal-open {
 /*
  * Buttons
 */
+/* Undo water.css zebra-row button fill inside tables (lines 695–703). */
+table tbody tr:nth-child(even) button,
+table tbody tr:nth-child(odd) button {
+  background-color: var(--button-base);
+}
+table tbody tr:nth-child(even) button:hover,
+table tbody tr:nth-child(odd) button:hover {
+  background: var(--button-hover);
+}
+.transferOwnerOpenBtn {
+  background-color: transparent !important;
+}
 .btn, button, .submitButton {
   border-radius: 0px;
   font-weight: 500;

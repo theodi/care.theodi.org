@@ -145,14 +145,13 @@
   <% if (organisation.subscription.subscriptionActive && organisation.myMembership.canManageReportTemplate) { %>
     <div class="content-block <%= (orgMainStripe++ % 2 === 0) ? 'white' : 'light-blue' %> org-report-template-section">
       <h2>Report template (Word export)</h2>
-      <p class="small">Upload a <code>.docx</code> that includes every CARE placeholder <code>{{…}}</code> (copy the default template from the codebase or export). The key <code>unintendedConsequneces</code> must be spelled exactly. Generated table headers and AI/glossary labels use the accent colour taken from your template (Heading&nbsp;1 colour, or theme accent if Heading&nbsp;1 has no colour). Organisation admins and report managers can change this template.</p>
+      <p class="small">Upload a <code>.docx</code> that includes every <strong>required</strong> CARE placeholder <code>{{…}}</code> (see the <a href="/docs/report-template" target="_blank">report template guide</a> for the full list and optional keys). The key <code>unintendedConsequneces</code> must be spelled exactly. Generated table headers and AI/glossary labels use the accent colour taken from your template (Heading&nbsp;1 colour, or theme accent if Heading&nbsp;1 has no colour). Organisation admins and report managers can change this template.</p>
       <p class="small">
         Need help creating one?
         <a href="/docs/report-template" target="_blank">Report template guide</a>
       </p>
       <div id="orgReportTemplateMessage" class="alert" style="display:none;"></div>
       <p id="orgReportTemplateStatus" class="small"></p>
-      <div id="orgReportTemplateMissingKeys" class="small" style="display:none;color:#c00;"></div>
       <div id="orgReportTemplateVersionsWrap" class="org-dt-wrap" style="margin-top:1rem;">
         <table class="display org-dt-table" style="width:100%" id="orgReportTemplateVersionsTable">
           <thead>
@@ -174,6 +173,8 @@
       <div class="content-block white">
         <h2 style="margin-top:0;">Add report template</h2>
         <p class="small">Choose a <code>.docx</code> file or drag it into the drop area.</p>
+        <div id="orgReportTemplateUploadModalMsg" class="alert" style="display:none;"></div>
+        <div id="orgReportTemplateUploadMissingKeys" class="small" style="display:none;color:#c00;"></div>
         <form id="orgReportTemplateUploadForm" novalidate>
           <input
             type="file"
@@ -1127,6 +1128,40 @@
     el.textContent = text;
     el.style.color = isError ? '#c00' : '';
   }
+  function showUploadModalMsg(text, isError) {
+    var el = document.getElementById('orgReportTemplateUploadModalMsg');
+    if (!el) return;
+    if (!text) {
+      el.style.display = 'none';
+      el.textContent = '';
+      el.style.color = '';
+      return;
+    }
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#c00' : '';
+  }
+  function hideUploadModalMsg() {
+    showUploadModalMsg('', false);
+  }
+  function showUploadMissingKeys(keys) {
+    var missEl = document.getElementById('orgReportTemplateUploadMissingKeys');
+    if (!missEl) return;
+    if (Array.isArray(keys) && keys.length) {
+      missEl.style.display = 'block';
+      missEl.textContent = 'Missing: {{' + keys.join('}}, {{') + '}}';
+    } else {
+      missEl.style.display = 'none';
+      missEl.textContent = '';
+    }
+  }
+  function hideUploadMissingKeys() {
+    showUploadMissingKeys([]);
+  }
+  function clearUploadModalFeedback() {
+    hideUploadModalMsg();
+    hideUploadMissingKeys();
+  }
   function setDropZoneActive(on) {
     if (!dropZone) return;
     dropZone.style.borderColor = on ? '#003057' : '#9aa8b6';
@@ -1144,6 +1179,7 @@
     setSelectedFile(null);
     if (fileInput) fileInput.value = '';
     setDropZoneActive(false);
+    clearUploadModalFeedback();
     if (uploadDialog && typeof uploadDialog.showModal === 'function') uploadDialog.showModal();
   }
   function closeUploadDialog() {
@@ -1151,13 +1187,11 @@
   }
   function renderRtStatus() {
     var el = document.getElementById('orgReportTemplateStatus');
-    var missEl = document.getElementById('orgReportTemplateMissingKeys');
     var versions = rtState.versions || [];
     if (!el) return;
     if (versions.length) {
       el.textContent =
         'Custom templates: showing up to the 5 most recent versions. Exports use the most recent version.';
-      if (missEl) missEl.style.display = 'none';
       if (tableWrap) tableWrap.style.display = '';
     } else {
       el.textContent =
@@ -1291,30 +1325,26 @@
 
   uploadForm.addEventListener('submit', function (ev) {
     ev.preventDefault();
+    clearUploadModalFeedback();
     var file = selectedFile || (fileInput && fileInput.files && fileInput.files[0]);
     if (!file) {
-      showRtMsg('Choose a .docx file first.', true);
+      showUploadModalMsg('Choose a .docx file first.', true);
       return;
     }
     if (!/\.docx$/i.test(file.name || '')) {
-      showRtMsg('Only .docx files are allowed.', true);
+      showUploadModalMsg('Only .docx files are allowed.', true);
       return;
     }
     var fd = new FormData();
     fd.append('reportTemplate', file);
     var btn = document.getElementById('orgReportTemplateUploadBtn');
     if (btn) btn.disabled = true;
-    showRtMsg('Uploading…', false);
+    showUploadModalMsg('Uploading…', false);
     fetch('/organisation/report-template', { method: 'POST', body: fd })
       .then(function (res) {
         return res.json().then(function (data) {
           if (!res.ok) {
-            var mk = data.missingKeys;
-            var missEl = document.getElementById('orgReportTemplateMissingKeys');
-            if (missEl && Array.isArray(mk) && mk.length) {
-              missEl.style.display = 'block';
-              missEl.textContent = 'Missing: {{' + mk.join('}}, {{') + '}}';
-            } else if (missEl) missEl.style.display = 'none';
+            showUploadMissingKeys(data.missingKeys);
             throw new Error(data.message || res.statusText);
           }
           if (data.warnings && data.warnings.length) {
@@ -1322,6 +1352,7 @@
           }
           if (fileInput) fileInput.value = '';
           setSelectedFile(null);
+          clearUploadModalFeedback();
           closeUploadDialog();
           return refreshRtState();
         })
@@ -1330,7 +1361,7 @@
         });
       })
       .catch(function (e) {
-        showRtMsg(e.message || String(e), true);
+        showUploadModalMsg(e.message || String(e), true);
       })
       .finally(function () {
         if (btn) btn.disabled = false;

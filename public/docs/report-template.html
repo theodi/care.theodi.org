@@ -37,6 +37,33 @@
     li { margin: 0.35rem 0; }
     code { font-size: 0.9em; background: #f0eeea; padding: 0.12em 0.34em; border-radius: 3px; }
     a { color: var(--accent); }
+    .placeholder-ref { list-style: none; padding-left: 0; margin: 0.75rem 0 0; }
+    .placeholder-ref > li { margin: 0.55rem 0; padding: 0.55rem 0.65rem; border: 1px solid var(--border); border-radius: 4px; background: #faf9f7; }
+    .placeholder-ref__step {
+      list-style: none;
+      margin: 1.1rem 0 0.35rem;
+      padding: 0;
+      border: none;
+      background: transparent;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .placeholder-ref__step:first-child { margin-top: 0; }
+    .placeholder-tag {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.14em 0.5em;
+      border-radius: 999px;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+    .placeholder-tag--required { background: #e8f2ff; color: #003057; border: 1px solid #b9d3f7; }
+    .placeholder-tag--optional { background: #f0eeea; color: #5c6478; border: 1px solid #e2e0dc; }
   </style>
 </head>
 <body>
@@ -51,7 +78,7 @@
       </ul>
 
       <h2>How the template works</h2>
-      <p>CARE replaces placeholders in braces, for example <code>{{projectTitle}}</code>. Keep every required placeholder in the document so exports can patch all sections.</p>
+      <p>CARE replaces placeholders in braces, for example <code>{{title}}</code>. Include every <strong>required</strong> placeholder so exports can patch all core sections. <strong>Optional</strong> placeholders may be omitted or added when you want extra content (charts, footers, summaries).</p>
       <ul>
         <li>Use a Word <code>.docx</code> file only.</li>
         <li>Keep placeholder names exact, including case.</li>
@@ -73,29 +100,42 @@
         <li>Run a Word export from an evaluation to verify the output.</li>
       </ol>
 
-      <h2>Placeholder reference (all required keys)</h2>
-      <p>Include every placeholder below in your template (exact spelling inside double braces, for example <code>{{title}}</code>).</p>
-      <ul>
-        <li><code>{{doctitle}}</code> — Large report title text on the cover.</li>
-        <li><code>{{title}}</code> — Project title in the report body.</li>
-        <li><code>{{author}}</code> — Project owner name and email.</li>
-        <li><code>{{footertitle}}</code> — Project title in the footer/header area.</li>
-        <li><code>{{date}}</code> — Full publication date.</li>
-        <li><code>{{footerdate}}</code> — Publication year for footer usage.</li>
-        <li><code>{{objectives}}</code> — Project objectives text.</li>
-        <li><code>{{aiAssistedNotice}}</code> — AI-assisted disclosure/notice section.</li>
-        <li><code>{{intendedConsequences}}</code> — Bullet list of intended consequences.</li>
-        <li><code>{{positiveUnintendedConsequences}}</code> — Bullet list of positive unintended consequences.</li>
-        <li><code>{{dataUsed}}</code> — Data used summary text.</li>
-        <li><code>{{stakeholders}}</code> — Bullet list of stakeholders.</li>
-        <li><code>{{riskBandSplitChart}}</code> — Embedded risk-band split chart image (High/Medium/Low/Unclassified).</li>
-        <li><code>{{riskMatrixChart}}</code> — Count matrix for likelihood vs impact.</li>
-        <li><code>{{riskCountsSummary}}</code> — Summary counts for High, Medium, Low and Unclassified risks.</li>
-        <li><code>{{riskEntryMatrix}}</code> — Static risk matrix listing risks inside each cell.</li>
-        <li><code>{{topRisks}}</code> — Table of top risks and risk levels.</li>
-        <li><code>{{aiProvenance}}</code> — AI provenance appendix (when included).</li>
-        <li><code>{{glossaryAppendix}}</code> — Glossary appendix section (when included).</li>
-        <li><code>{{unintendedConsequneces}}</code> — Main unintended consequences table (legacy spelling required).</li>
+      <h2>Placeholder reference</h2>
+      <p>Ordered to follow a CARE evaluation. Use exact spelling inside double braces. Tags show whether each key is required for upload validation.</p>
+      <ul class="placeholder-ref">
+        <li class="placeholder-ref__step">Report metadata</li>
+        <li><code>{{doctitle}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Large report title on the cover.</li>
+        <li><code>{{title}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Project title in the report body.</li>
+        <li><code>{{author}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Project owner name and email.</li>
+        <li><code>{{date}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Full publication date.</li>
+        <li><code>{{footertitle}}</code><span class="placeholder-tag placeholder-tag--optional">Optional</span> — Project title in the footer or header area.</li>
+        <li><code>{{footerdate}}</code><span class="placeholder-tag placeholder-tag--optional">Optional</span> — Publication year for footer usage.</li>
+
+        <li class="placeholder-ref__step">Project details</li>
+        <li><code>{{objectives}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Project objectives text.</li>
+        <li><code>{{dataUsed}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Data used summary text.</li>
+        <li><code>{{aiAssistedNotice}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — AI-assisted disclosure and notice section.</li>
+
+        <li class="placeholder-ref__step">Intended consequences</li>
+        <li><code>{{intendedConsequences}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Bullet list of intended consequences.</li>
+
+        <li class="placeholder-ref__step">Unintended consequences</li>
+        <li><code>{{positiveUnintendedConsequences}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Bullet list of positive unintended consequences.</li>
+        <li><code>{{unintendedConsequneces}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Main unintended consequences table (legacy spelling required).</li>
+
+        <li class="placeholder-ref__step">Stakeholders</li>
+        <li><code>{{stakeholders}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Bullet list of stakeholders.</li>
+
+        <li class="placeholder-ref__step">Risk evaluation and reporting</li>
+        <li><code>{{riskBandSplitChart}}</code><span class="placeholder-tag placeholder-tag--optional">Optional</span> — Embedded risk-band split chart (High / Medium / Low / Unclassified).</li>
+        <li><code>{{riskMatrixChart}}</code><span class="placeholder-tag placeholder-tag--optional">Optional</span> — Count matrix for likelihood vs impact.</li>
+        <li><code>{{riskCountsSummary}}</code><span class="placeholder-tag placeholder-tag--optional">Optional</span> — Summary counts for High, Medium, Low and Unclassified risks.</li>
+        <li><code>{{riskEntryMatrix}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Static risk matrix listing risks inside each cell.</li>
+        <li><code>{{topRisks}}</code><span class="placeholder-tag placeholder-tag--optional">Optional</span> — Table of top risks and risk levels.</li>
+
+        <li class="placeholder-ref__step">Appendices</li>
+        <li><code>{{aiProvenance}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — AI provenance appendix (when included in export).</li>
+        <li><code>{{glossaryAppendix}}</code><span class="placeholder-tag placeholder-tag--required">Required</span> — Glossary appendix section (when included in export).</li>
       </ul>
     </article>
   </div>
