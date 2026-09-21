@@ -492,4 +492,13 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(port , () => console.log('App listening on port ' + port));
+app.listen(port , () => {
+  console.log('App listening on port ' + port);
+  // Optional push of connection/audit checks to a central service-status collector
+  try {
+    const { startStatusReporter } = require('./lib/statusReporter');
+    startStatusReporter();
+  } catch (err) {
+    console.warn('[statusReporter] failed to start:', err.message || err);
+  }
+});
