@@ -6,6 +6,7 @@ const { findActiveMembershipsForEmail } = require('../lib/organisationEntitlemen
 const { buildTenantSharedProjectsFilter } = require('../lib/integrationApiQuery');
 const { canManageOrganisationProjectIntegrations } = require('../lib/organisationPermissions');
 const { normalizeIntegrationExternalId } = require('../lib/integrationExternalId');
+const { findUserByEmail } = require('../lib/sessionUserId');
 
 /**
  * Load dashboard projects for a user identified by email (OAuth-stable identity).
@@ -13,21 +14,15 @@ const { normalizeIntegrationExternalId } = require('../lib/integrationExternalId
  */
 async function getUserProjects(email) {
     try {
-        const normalizedEmail =
-          typeof email === 'string' ? email.trim() : '';
-        if (!normalizedEmail || !normalizedEmail.includes('@')) {
-            const err = new Error('Authenticated user email is required');
-            err.status = 401;
-            throw err;
-        }
-        // Match case-insensitively — OAuth emails and DB records can differ in case
-        const emailLower = normalizedEmail.toLowerCase();
-        const user = await User.findOne({
-          email: { $regex: new RegExp(`^${emailLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
-        });
+        const user = await findUserByEmail(email);
         if (!user) {
-            const err = new Error('User not found');
-            err.status = 404;
+            const err = new Error(
+              email && typeof email === 'string' && email.includes('@')
+                ? 'User not found'
+                : 'Authenticated user email is required'
+            );
+            err.status =
+              email && typeof email === 'string' && email.includes('@') ? 404 : 401;
             throw err;
         }
         const userEmail = user.email;

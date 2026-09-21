@@ -134,7 +134,7 @@ app.use(function(req, res, next) {
 app.use(async function(req, res, next) {
   const u = res.locals.user;
   res.locals.isCareStaff = isCareStaffEmail(u && u.email);
-  if (u && u.id && req.isAuthenticated()) {
+  if (u && u.email && req.isAuthenticated()) {
     try {
       res.locals.hasOrganisationMembership = await userHasActiveOrgEntitlementByEmail(u.email);
     } catch (e) {

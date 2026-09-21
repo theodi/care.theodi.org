@@ -4,7 +4,6 @@ const path = require('path');
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/project');
-const User = require('../models/user');
 const Tenant = require('../models/tenant');
 
 const { chatCompletion, loadConfig } = require('../services/aiChat');
@@ -22,6 +21,7 @@ const {
 
 const { loadProject, checkProjectAccess, checkProjectOwner } = require('../middleware/project');
 const { requireAiEntitlement } = require('../middleware/hubspot');
+const { getSessionEmail } = require('../lib/sessionUserId');
 const {
     buildAiInteractionRecord,
     appendAiInteractionRun,
@@ -892,12 +892,9 @@ function includeOrgContextRequested(req) {
 
 async function resolveOrganisationScanContextAppend(req, messageId) {
   if (!includeOrgContextRequested(req)) return '';
-  const passportUser = req.session.passport && req.session.passport.user;
-  const userId = passportUser && passportUser.id;
-  if (!userId) return '';
-  const user = await User.findById(userId);
-  if (!user || !user.email) return '';
-  const m = await findMembershipForEmail(user.email);
+  const email = getSessionEmail(req);
+  if (!email) return '';
+  const m = await findMembershipForEmail(email);
   if (!m || !m.tenantId) return '';
   const tenant = m.tenantId._id ? m.tenantId : await Tenant.findById(m.tenantId);
   return getScanContextTextForSubscription(tenant, messageId);
@@ -909,12 +906,9 @@ async function resolveOrganisationAiOverrides(req) {
     if (src === 'built_in' || src === 'builtin' || src === 'default_env') {
         return {};
     }
-    const passportUser = req.session.passport && req.session.passport.user;
-    const userId = passportUser && passportUser.id;
-    if (!userId) return {};
-    const user = await User.findById(userId);
-    if (!user || !user.email) return {};
-  const m = await findMembershipForEmail(user.email);
+    const email = getSessionEmail(req);
+    if (!email) return {};
+  const m = await findMembershipForEmail(email);
   if (!m || !m.tenantId) return {};
   const tenant = m.tenantId._id ? m.tenantId : await Tenant.findById(m.tenantId);
   const ov = orgAiToRuntimeOverrides(tenant && tenant.organisationAi);

@@ -4,6 +4,7 @@ const { ensureCareStaff } = require('../middleware/careStaff');
 const careAdminController = require('../controllers/careAdmin');
 const Tenant = require('../models/tenant');
 const { ensureAuthenticated } = require('../middleware/auth');
+const { attachCareUser } = require('../lib/sessionUserId');
 
 router.get('/new', ensureAuthenticated, ensureCareStaff, async (req, res, next) => {
   try {
@@ -80,10 +81,9 @@ router.get('/:id', ensureAuthenticated, ensureCareStaff, async (req, res, next) 
   }
 });
 
-router.post('/', ensureAuthenticated, ensureCareStaff, async (req, res, next) => {
+router.post('/', ensureAuthenticated, ensureCareStaff, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const sub = await careAdminController.createSubscription(req.body, userId);
+    const sub = await careAdminController.createSubscription(req.body, req.careUser._id);
     const full = await careAdminController.getSubscription(sub._id);
     res.status(201).json({
       id: sub._id,
@@ -101,10 +101,13 @@ router.post('/', ensureAuthenticated, ensureCareStaff, async (req, res, next) =>
   }
 });
 
-router.patch('/:id', ensureAuthenticated, ensureCareStaff, async (req, res, next) => {
+router.patch('/:id', ensureAuthenticated, ensureCareStaff, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const sub = await careAdminController.updateSubscription(req.params.id, req.body, userId);
+    const sub = await careAdminController.updateSubscription(
+      req.params.id,
+      req.body,
+      req.careUser._id
+    );
     const full = await careAdminController.getSubscription(sub._id);
     const adminEmails = full
       ? full.adminEmails

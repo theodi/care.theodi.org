@@ -165,7 +165,7 @@
 
     <!-- add disclaimer -->
     <p>Please note: Suggestions from the AI assistant are provided for consideration and should be evaluated carefully before the outputs are finalised.</p>
-      <% if (user && user.id) { %>
+      <% if (user && user.email) { %>
         <!-- Show the "Begin" button if user is logged in -->
         <button class="transparent" onclick="window.location.href='/evaluations'">Begin</button>
     <% } else { %>

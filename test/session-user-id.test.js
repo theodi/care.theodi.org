@@ -1,7 +1,11 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
-const { normalizeMongoUserId, requireMongoUserId } = require('../lib/sessionUserId');
+const {
+  normalizeMongoUserId,
+  requireMongoUserId,
+  getSessionEmail,
+} = require('../lib/sessionUserId');
 
 describe('sessionUserId', () => {
   it('accepts a 24-char hex string', () => {
@@ -23,5 +27,16 @@ describe('sessionUserId', () => {
       () => requireMongoUserId('not-an-objectid'),
       (err) => err.status === 401 && err.code === 'INVALID_SESSION_USER_ID'
     );
+  });
+
+  it('getSessionEmail reads passport user email', () => {
+    const req = {
+      session: { passport: { user: { id: '117234567890123456789', email: 'Person@Example.com' } } },
+    };
+    assert.equal(getSessionEmail(req), 'Person@Example.com');
+  });
+
+  it('getSessionEmail returns null without email', () => {
+    assert.equal(getSessionEmail({ session: { passport: { user: { id: '1' } } } }), null);
   });
 });

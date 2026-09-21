@@ -1,37 +1,33 @@
 const Hubspot = require('../models/hubspot');
 const Project = require('../models/project');
 const { userHasActiveOrgEntitlementByEmail } = require('../lib/organisationEntitlements');
+const { requireUserFromSession } = require('../lib/sessionUserId');
 
 const checkLimit = async (req, res, next) => {
     try {
-        const user = req.session.passport.user;
-        const userId = user.id; // Assuming user ID is available in req.user after authentication
+        const dbUser = await requireUserFromSession(req);
+        const userId = dbUser._id;
+        const userEmail = dbUser.email;
 
-        // 1. Look up the user in the HubSpot table to find if membershipStatus is "Active"
         const hubspotUser = await Hubspot.findOne({ userId });
         if (hubspotUser && hubspotUser.membershipStatus === "Active") {
-            // If membershipStatus is active, proceed to the next middleware or route handler
             return next();
         }
 
-        if (user.email && (await userHasActiveOrgEntitlementByEmail(user.email))) {
+        if (userEmail && (await userHasActiveOrgEntitlementByEmail(userEmail))) {
             return next();
         }
 
         require("dotenv").config({ path: "./config.env" });
-        // 2. Read FREE_PROJECT_LIMIT from the config.env
         const freeLimit = parseInt(process.env.FREE_PROJECT_LIMIT);
 
-        // 3. Look up how many existing projects the user has to ensure it is below the limit
         const projectCount = await Project.countDocuments({ owner: userId });
-        //console.log(projectCount);
         if (projectCount >= freeLimit) {
             const error = new Error(`You have reached the limit of ${freeLimit} free projects.`);
             error.status = 403;
             throw error;
         }
 
-        // If the user does not have an active membership and has not reached the project limit, proceed to the next middleware or route handler
         next();
     } catch (error) {
         return next(error);
@@ -44,17 +40,12 @@ const checkLimit = async (req, res, next) => {
  */
 const requireAiEntitlement = async (req, res, next) => {
     try {
-        const user = req.session.passport.user;
-        if (!user || !user.id) {
-            const err = new Error('Unauthorized');
-            err.status = 401;
-            throw err;
-        }
-        const hubspotUser = await Hubspot.findOne({ userId: user.id });
+        const dbUser = await requireUserFromSession(req);
+        const hubspotUser = await Hubspot.findOne({ userId: dbUser._id });
         if (hubspotUser && hubspotUser.membershipStatus === 'Active') {
             return next();
         }
-        if (user.email && (await userHasActiveOrgEntitlementByEmail(user.email))) {
+        if (dbUser.email && (await userHasActiveOrgEntitlementByEmail(dbUser.email))) {
             return next();
         }
         return res.status(403).json({

@@ -39,11 +39,9 @@ async function processLogin(req, res) {
     // Save the user
     await user.save();
 
-    // Keep OAuth provider `id` as-is; identity for app data is email.
-    // Optionally stash mongoUserId for callers that still need it.
+    // App identity is email → CARE User._id. OAuth provider ids (Google/Django) are ignored.
     if (req.session.passport && req.session.passport.user) {
       req.session.passport.user.email = user.email;
-      req.session.passport.user.mongoUserId = String(user._id);
       if (user.name) {
         req.session.passport.user.name = user.name;
       }

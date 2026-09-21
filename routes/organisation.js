@@ -3,6 +3,7 @@ const multer = require('multer');
 const router = express.Router();
 const organisationController = require('../controllers/organisation');
 const { ensureAuthenticated } = require('../middleware/auth');
+const { attachCareUser } = require('../lib/sessionUserId');
 
 const reportTemplateUpload = multer({
   storage: multer.memoryStorage(),
@@ -23,9 +24,9 @@ const reportTemplateUpload = multer({
   },
 });
 
-router.get('/', ensureAuthenticated, async (req, res, next) => {
+router.get('/', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
+    const userId = req.careUser._id;
     const ctx = await organisationController.getOrganisationContext(userId);
     const accept = req.get('Accept') || '';
     if (accept.includes('application/json')) {
@@ -48,17 +49,8 @@ router.get('/', ensureAuthenticated, async (req, res, next) => {
   }
 });
 
-router.post('/members', ensureAuthenticated, async (req, res, next) => {
+router.post('/members', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const passportUser = req.session.passport && req.session.passport.user;
-    const userId = passportUser && passportUser.id;
-    if (userId == null || userId === '') {
-      const e = new Error(
-        'Your session has no user id (try signing out and signing in again).'
-      );
-      e.status = 401;
-      throw e;
-    }
     if (!req.body || typeof req.body !== 'object') {
       const e = new Error(
         'Expected a JSON body — set Content-Type: application/json and send at least { "email" }; optional: membershipRole, licenseAdmin, aiModelAdmin, promptAdmin, reportAdmin (organisation admins only).'
@@ -66,18 +58,17 @@ router.post('/members', ensureAuthenticated, async (req, res, next) => {
       e.status = 400;
       throw e;
     }
-    const result = await organisationController.addMember(userId, req.body || {});
+    const result = await organisationController.addMember(req.careUser._id, req.body || {});
     res.status(201).json(result);
   } catch (e) {
     next(e);
   }
 });
 
-router.patch('/members/:membershipId', ensureAuthenticated, async (req, res, next) => {
+router.patch('/members/:membershipId', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const requesterId = req.session.passport.user.id;
     const result = await organisationController.updateMembership(
-      requesterId,
+      req.careUser._id,
       req.params.membershipId,
       req.body || {}
     );
@@ -87,83 +78,93 @@ router.patch('/members/:membershipId', ensureAuthenticated, async (req, res, nex
   }
 });
 
-router.delete('/members/:membershipId', ensureAuthenticated, async (req, res, next) => {
+router.delete('/members/:membershipId', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const requesterId = req.session.passport.user.id;
-    const result = await organisationController.removeMember(requesterId, req.params.membershipId);
+    const result = await organisationController.removeMember(
+      req.careUser._id,
+      req.params.membershipId
+    );
     res.json(result);
   } catch (e) {
     next(e);
   }
 });
 
-router.get('/ai-eligibility', ensureAuthenticated, async (req, res, next) => {
+router.get('/ai-eligibility', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
     const forMessageId =
       typeof req.query.forMessageId === 'string' ? req.query.forMessageId : '';
-    const data = await organisationController.getAiEligibilityForUser(userId, forMessageId);
+    const data = await organisationController.getAiEligibilityForUser(
+      req.careUser._id,
+      forMessageId
+    );
     res.json(data);
   } catch (e) {
     next(e);
   }
 });
 
-router.get('/ai-config', ensureAuthenticated, async (req, res, next) => {
+router.get('/ai-config', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const config = await organisationController.getAiConfigAdmin(userId);
+    const config = await organisationController.getAiConfigAdmin(req.careUser._id);
     res.json(config);
   } catch (e) {
     next(e);
   }
 });
 
-router.put('/ai-config', ensureAuthenticated, async (req, res, next) => {
+router.put('/ai-config', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.updateAiConfigAdmin(userId, req.body);
+    const result = await organisationController.updateAiConfigAdmin(
+      req.careUser._id,
+      req.body
+    );
     res.json(result);
   } catch (e) {
     next(e);
   }
 });
 
-router.post('/ai-config/test', ensureAuthenticated, async (req, res, next) => {
+router.post('/ai-config/test', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.testAiConfigAdmin(userId, req.body || {});
+    const result = await organisationController.testAiConfigAdmin(
+      req.careUser._id,
+      req.body || {}
+    );
     res.json(result);
   } catch (e) {
     next(e);
   }
 });
 
-router.get('/step-human-guidance', ensureAuthenticated, async (req, res, next) => {
+router.get('/step-human-guidance', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
     const step = req.query.step;
-    const data = await organisationController.getStepHumanGuidanceForUser(userId, step);
+    const data = await organisationController.getStepHumanGuidanceForUser(
+      req.careUser._id,
+      step
+    );
     res.json(data);
   } catch (e) {
     next(e);
   }
 });
 
-router.get('/scan-context', ensureAuthenticated, async (req, res, next) => {
+router.get('/scan-context', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const data = await organisationController.getScanContextAdmin(userId);
+    const data = await organisationController.getScanContextAdmin(req.careUser._id);
     res.json(data);
   } catch (e) {
     next(e);
   }
 });
 
-router.put('/scan-context', ensureAuthenticated, async (req, res, next) => {
+router.put('/scan-context', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.updateScanContextAdmin(userId, req.body);
+    const result = await organisationController.updateScanContextAdmin(
+      req.careUser._id,
+      req.body
+    );
     res.json(result);
   } catch (e) {
     next(e);
@@ -173,15 +174,15 @@ router.put('/scan-context', ensureAuthenticated, async (req, res, next) => {
 router.post(
   '/report-template',
   ensureAuthenticated,
+  attachCareUser,
   reportTemplateUpload.single('reportTemplate'),
   async (req, res, next) => {
     try {
-      const userId = req.session.passport.user.id;
       if (!req.file || !req.file.buffer) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       const result = await organisationController.uploadReportTemplateAdmin(
-        userId,
+        req.careUser._id,
         req.file.buffer,
         req.file.originalname
       );
@@ -208,10 +209,9 @@ router.post(
   }
 );
 
-router.get('/report-template', ensureAuthenticated, async (req, res, next) => {
+router.get('/report-template', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.getReportTemplateAdmin(userId);
+    const result = await organisationController.getReportTemplateAdmin(req.careUser._id);
     const accept = req.get('Accept') || '';
     if (accept.includes('application/json')) {
       return res.json({
@@ -236,68 +236,81 @@ router.get('/report-template', ensureAuthenticated, async (req, res, next) => {
   }
 });
 
-router.get('/report-template/:versionId', ensureAuthenticated, async (req, res, next) => {
-  try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.getReportTemplateAdmin(userId, {
-      versionId: req.params.versionId,
-    });
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    );
-    res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
-    res.send(result.buffer);
-  } catch (e) {
-    next(e);
+router.get(
+  '/report-template/:versionId',
+  ensureAuthenticated,
+  attachCareUser,
+  async (req, res, next) => {
+    try {
+      const result = await organisationController.getReportTemplateAdmin(req.careUser._id, {
+        versionId: req.params.versionId,
+      });
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
+      res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+      res.send(result.buffer);
+    } catch (e) {
+      next(e);
+    }
   }
-});
+);
 
-router.delete('/report-template', ensureAuthenticated, async (req, res, next) => {
+router.delete('/report-template', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.deleteReportTemplateAdmin(userId);
+    const result = await organisationController.deleteReportTemplateAdmin(req.careUser._id);
     res.json(result);
   } catch (e) {
     next(e);
   }
 });
 
-router.delete('/report-template/:versionId', ensureAuthenticated, async (req, res, next) => {
-  try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.deleteReportTemplateVersionAdmin(
-      userId,
-      req.params.versionId
-    );
-    res.json(result);
-  } catch (e) {
-    next(e);
+router.delete(
+  '/report-template/:versionId',
+  ensureAuthenticated,
+  attachCareUser,
+  async (req, res, next) => {
+    try {
+      const result = await organisationController.deleteReportTemplateVersionAdmin(
+        req.careUser._id,
+        req.params.versionId
+      );
+      res.json(result);
+    } catch (e) {
+      next(e);
+    }
   }
-});
+);
 
-router.post('/integration-api-keys', ensureAuthenticated, async (req, res, next) => {
+router.post('/integration-api-keys', ensureAuthenticated, attachCareUser, async (req, res, next) => {
   try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.createTenantIntegrationApiKey(userId, req.body || {});
+    const result = await organisationController.createTenantIntegrationApiKey(
+      req.careUser._id,
+      req.body || {}
+    );
     res.status(201).json(result);
   } catch (e) {
     next(e);
   }
 });
 
-router.delete('/integration-api-keys/:keyId', ensureAuthenticated, async (req, res, next) => {
-  try {
-    const userId = req.session.passport.user.id;
-    const result = await organisationController.deleteTenantIntegrationApiKey(
-      userId,
-      req.params.keyId
-    );
-    res.json(result);
-  } catch (e) {
-    next(e);
+router.delete(
+  '/integration-api-keys/:keyId',
+  ensureAuthenticated,
+  attachCareUser,
+  async (req, res, next) => {
+    try {
+      const result = await organisationController.deleteTenantIntegrationApiKey(
+        req.careUser._id,
+        req.params.keyId
+      );
+      res.json(result);
+    } catch (e) {
+      next(e);
+    }
   }
-});
+);
 
 const tenantIntegrationApiRoutes = require('./tenantIntegrationApi');
 router.use(tenantIntegrationApiRoutes);

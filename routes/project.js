@@ -25,6 +25,7 @@ const {
 } = require('../middleware/project');
 const { checkLimit } = require('../middleware/hubspot');
 const { updateToolStatistics } = require('../controllers/hubspot');
+const { requireUserFromSession } = require('../lib/sessionUserId');
 const {
     buildProjectJsonForClient,
     wantsFullAiInteractionHistory,
@@ -492,10 +493,9 @@ router.get('/:id', ensureAuthenticated, checkProjectAccess, loadProject, async (
 // POST route to create a new project
 router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
     try {
-        // Set owner field to the ID of the authenticated user
-        const user = req.session.passport.user;
+        const dbUser = await requireUserFromSession(req);
         const now = new Date();
-        req.body.owner = user.id;
+        req.body.owner = dbUser._id;
 
         const createPayload = { ...req.body };
         delete createPayload.aiInteractionHistory;
@@ -504,13 +504,13 @@ router.post('/', ensureAuthenticated, checkLimit, async (req, res, next) => {
         delete createPayload.integrationExternalId;
 
         // Project-level provenance
-        createPayload.createdBy = user.email;
+        createPayload.createdBy = dbUser.email;
         createPayload.createdAt = now;
-        createPayload.lastModifiedBy = user.email;
+        createPayload.lastModifiedBy = dbUser.email;
 
         const project = new Project(createPayload);
         const savedProject = await project.save();
-        updateToolStatistics(user.id);
+        updateToolStatistics(dbUser._id);
         res.status(201).json(savedProject);
     } catch (error) {
         next(error);
@@ -593,7 +593,8 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, nex
         delete payload.aiInteractionHistoryCount;
         delete payload.aiInteractionHistoryStepCounts;
 
-        const actorEmail = req.session.passport.user && req.session.passport.user.email;
+        const dbUser = await requireUserFromSession(req);
+        const actorEmail = dbUser.email;
 
         // Apply provenance for risks/actions in the incoming payload based on previous state.
         applyActionCompletionProvenance(existing, payload, actorEmail);
@@ -614,7 +615,7 @@ router.put('/:id', ensureAuthenticated, checkProjectAccess, async (req, res, nex
         if (!updatedProject) {
             return res.status(404).json({ message: "Project not found" });
         }
-        updateToolStatistics(req.session.passport.user.id);
+        updateToolStatistics(dbUser._id);
         res.json(updatedProject);
     } catch (error) {
         res.status(400).json({ message: error.message });
