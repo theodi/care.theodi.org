@@ -59,9 +59,11 @@ describe('checkMongo', () => {
   });
 
   it('pings after connect', async () => {
+    let disconnected = false;
     const mongoose = {
       async connect() {},
       connection: {
+        readyState: 0,
         name: 'care',
         db: {
           admin() {
@@ -73,11 +75,49 @@ describe('checkMongo', () => {
           },
         },
       },
-      async disconnect() {},
+      async disconnect() {
+        disconnected = true;
+      },
     };
     const row = await checkMongo({ uri: 'mongodb://localhost:27017/care', dbName: 'care', mongoose });
     assert.equal(row.status, 'ok');
     assert.match(row.message, /care/);
+    assert.equal(disconnected, true);
+  });
+
+  it('does not disconnect a shared already-open connection', async () => {
+    let disconnected = false;
+    let connected = false;
+    const mongoose = {
+      async connect() {
+        connected = true;
+      },
+      connection: {
+        readyState: 1,
+        name: 'care',
+        db: {
+          admin() {
+            return {
+              async command() {
+                return { ok: 1 };
+              },
+            };
+          },
+        },
+      },
+      async disconnect() {
+        disconnected = true;
+      },
+    };
+    const row = await checkMongo({
+      uri: 'mongodb://localhost:27017/care',
+      dbName: 'care',
+      mongoose,
+      disconnect: false,
+    });
+    assert.equal(row.status, 'ok');
+    assert.equal(connected, false);
+    assert.equal(disconnected, false);
   });
 
   it('reports auth failures', async () => {
@@ -86,6 +126,7 @@ describe('checkMongo', () => {
         const err = new Error('Authentication failed');
         throw err;
       },
+      connection: { readyState: 0 },
       async disconnect() {},
     };
     const row = await checkMongo({ uri: 'mongodb://user:bad@localhost:27017/care', mongoose });
@@ -184,6 +225,7 @@ describe('runConnectionChecks', () => {
     const mongoose = {
       async connect() {},
       connection: {
+        readyState: 0,
         name: 'care',
         db: {
           admin() {

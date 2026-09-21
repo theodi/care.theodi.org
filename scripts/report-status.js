@@ -56,6 +56,7 @@ async function main() {
     mongoose,
     fetchImpl: globalThis.fetch,
     loadAiConfig: loadConfig,
+    disconnectMongo: true,
   });
 
   try {
