@@ -137,7 +137,7 @@ async function updateToolStatistics(userId) {
         hubSpotId = hubspotProfile ? hubspotProfile.hubSpotId : null;
 
         // Get the projects data
-        const userProjects = await projectController.getUserProjects(userId);
+        const userProjects = await projectController.getUserProjects(user.email);
         const projects = userProjects.ownedProjects.projects;
         // Calculate statistics
         const totalAssessments = projects.length;

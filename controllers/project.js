@@ -7,15 +7,31 @@ const { buildTenantSharedProjectsFilter } = require('../lib/integrationApiQuery'
 const { canManageOrganisationProjectIntegrations } = require('../lib/organisationPermissions');
 const { normalizeIntegrationExternalId } = require('../lib/integrationExternalId');
 
-async function getUserProjects(userId) {
+/**
+ * Load dashboard projects for a user identified by email (OAuth-stable identity).
+ * @param {string} email
+ */
+async function getUserProjects(email) {
     try {
-        // Convert userId string to ObjectId
-        const userIdObjectId = new mongoose.Types.ObjectId(userId);
-        const user = await User.findById(userId);
+        const normalizedEmail =
+          typeof email === 'string' ? email.trim() : '';
+        if (!normalizedEmail || !normalizedEmail.includes('@')) {
+            const err = new Error('Authenticated user email is required');
+            err.status = 401;
+            throw err;
+        }
+        // Match case-insensitively — OAuth emails and DB records can differ in case
+        const emailLower = normalizedEmail.toLowerCase();
+        const user = await User.findOne({
+          email: { $regex: new RegExp(`^${emailLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+        });
         if (!user) {
-            throw new Error("User not found");
+            const err = new Error('User not found');
+            err.status = 404;
+            throw err;
         }
         const userEmail = user.email;
+        const userIdObjectId = user._id;
 
         // Find all projects where the user is the owner
         const ownedProjects = await Project.find({ owner: userIdObjectId });

@@ -345,20 +345,22 @@ app.get('/profile', ensureAuthenticated, async (req, res, next) => {
 
 app.delete('/profile', ensureAuthenticated, async (req, res, next) => {
   try {
-      // Get the user ID from the authenticated user
-      const userId = req.session.passport.user.id;
-
-      // Check if the user has any projects
-      const userProjects = await projectController.getUserProjects(userId);
+      const userEmail =
+        (req.session.passport && req.session.passport.user && req.session.passport.user.email) ||
+        (res.locals.user && res.locals.user.email);
+      const userProjects = await projectController.getUserProjects(userEmail);
       const ownedProjects = userProjects.ownedProjects.projects;
 
       if (ownedProjects.length === 0) {
-          await updateCareAccountStatus(userId, 'deleted');
-          // If the user has no projects, delete the user
-          await deleteUser(userId)
+          const User = require('./models/user');
+          const dbUser = await User.findOne({ email: userEmail });
+          if (!dbUser) {
+            return res.status(404).json({ error: 'User not found' });
+          }
+          await updateCareAccountStatus(dbUser._id, 'deleted');
+          await deleteUser(dbUser._id);
           res.status(200).json({ message: "User deleted successfully." });
       } else {
-          // If the user has projects, send a message indicating deletion is not allowed
           res.status(403).json({ error: "User cannot be deleted because they have projects. Please delete all owned projects first." });
       }
   } catch (error) {
@@ -371,17 +373,30 @@ const projectController = require('./controllers/project');
 
 app.get('/projects', ensureAuthenticated, async (req, res, next) => {
     try {
-        // Check if the request accepts JSON
-        const acceptHeader = req.get('Accept');
-        const userId = req.session.passport.user.id;
-        if (acceptHeader === 'application/json') {
-            // Fetch user projects and send JSON response
-            const userProjects = await projectController.getUserProjects(userId);
-            const userEmail = req.session.passport.user.email;
+        const acceptHeader = req.get('Accept') || '';
+        const userEmail =
+          (req.session.passport && req.session.passport.user && req.session.passport.user.email) ||
+          (res.locals.user && res.locals.user.email);
+        if (!userEmail) {
+          const err = new Error('Authenticated user email is required');
+          err.status = 401;
+          return next(err);
+        }
+        if (acceptHeader.includes('application/json')) {
+            const userProjects = await projectController.getUserProjects(userEmail);
             const organisationMeta = await getUserOrganisationMetaByEmail(userEmail);
             res.json({ ...userProjects, organisationMeta });
         } else {
-            updateToolStatistics(req.session.passport.user.id);
+            // HubSpot stats still keyed by Mongo user id once resolved by email
+            try {
+              const User = require('./models/user');
+              const dbUser = await User.findOne({ email: userEmail }).select('_id');
+              if (dbUser) {
+                updateToolStatistics(dbUser._id);
+              }
+            } catch (statsErr) {
+              console.warn('updateToolStatistics skipped:', statsErr.message || statsErr);
+            }
             const page = {
               title: "Dashboard",
               link: "/projects"

@@ -39,13 +39,22 @@ async function processLogin(req, res) {
     // Save the user
     await user.save();
 
-    req.session.passport.user.id = user._id;
+    // Keep OAuth provider `id` as-is; identity for app data is email.
+    // Optionally stash mongoUserId for callers that still need it.
+    if (req.session.passport && req.session.passport.user) {
+      req.session.passport.user.email = user.email;
+      req.session.passport.user.mongoUserId = String(user._id);
+      if (user.name) {
+        req.session.passport.user.name = user.name;
+      }
+    }
 
     await getHubspotUser(user._id, user.email);
     await updateCareAccountStatus(user._id, 'active');
 
   } catch (error) {
     console.log(error);
+    // Do not fail the login redirect — HubSpot/sync errors should not block sign-in
   }
 }
 
@@ -62,27 +71,34 @@ router.get('/django',
 // Callback endpoint for Google authentication
 router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/error' }),
-  async (req, res) => {
-    const authenticatedUser = req.user;
-    await regenerateSession(req);
-    await loginWithPassport(req, authenticatedUser);
-    req.session.authMethod = 'google';
-    // Successful authentication, redirect to profile page or wherever needed
-    await processLogin(req);
-    res.redirect('/projects');
+  async (req, res, next) => {
+    try {
+      const authenticatedUser = req.user;
+      await regenerateSession(req);
+      await loginWithPassport(req, authenticatedUser);
+      req.session.authMethod = 'google';
+      await processLogin(req);
+      res.redirect('/projects');
+    } catch (err) {
+      next(err);
+    }
   }
 );
 
 // Callback endpoint for Django authentication
 router.get('/django/callback',
   passport.authenticate('django', { failureRedirect: '/error' }),
-  async (req, res) => {
-    const authenticatedUser = req.user;
-    await regenerateSession(req);
-    await loginWithPassport(req, authenticatedUser);
-    req.session.authMethod = 'django';
-    await processLogin(req);
-    res.redirect('/projects');
+  async (req, res, next) => {
+    try {
+      const authenticatedUser = req.user;
+      await regenerateSession(req);
+      await loginWithPassport(req, authenticatedUser);
+      req.session.authMethod = 'django';
+      await processLogin(req);
+      res.redirect('/projects');
+    } catch (err) {
+      next(err);
+    }
   }
 );
 
