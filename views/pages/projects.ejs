@@ -1,34 +1,138 @@
 <!-- views/sources.ejs -->
-<%- include('../partials/header') %>
 <script src="/lib/chart.js"></script>
 <script src="/js/dashboard.js"></script>
 <link href="/lib/DataTables/datatables.min.css" rel="stylesheet">
 <script src="/lib/DataTables/datatables.min.js"></script>
 
-<!-- Share Overlay -->
-<div id="shareOverlay" class="overlay">
-    <div class="overlay-content">
-        <span class="close-btn" onclick="closeShareOverlay()">&times;</span>
-        <div class="share-section">
-            <h2>New share</h2>
-            <form id="shareForm">
-                <label for="email">Please enter the email you wish to share this project with</label>
-                <input type="email" id="email" name="email" class="input inputText">
-                <button type="submit">Share</button>
-            </form>
-        </div>
-        <div class="share-section">
-            <h2>Current shares</h2>
-            <table id="sharedEmailsTable" class="display" style="width:100%">
-                <thead>
-                    <th>Email</th>
-                    <th>Action</th>
-                </thead>
-                <tbody id="sharedEmailsBody"></tbody>
-            </table>
+<!-- Share Overlay (Drive-style: org access first, then people, then add row) -->
+<div id="shareOverlay" class="overlay"<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %> data-has-org="1"<% } %>>
+    <div class="overlay-content share-overlay-panel">
+        <span class="close-btn" onclick="closeShareOverlay()" aria-label="Close">&times;</span>
+        <h2 class="share-overlay-title">Share evaluation</h2>
+        <p class="share-overlay-lead small">Invite people by email or share with your whole organisation. Everyone with access can edit this evaluation.</p>
+        <div id="shareOverlayMessage" class="alert share-overlay-message" style="display:none;" role="status"></div>
+        <table class="share-access-table">
+            <thead>
+                <tr>
+                    <th scope="col">Who has access</th>
+                    <th scope="col" class="share-access-col-action" aria-label="Actions"></th>
+                </tr>
+            </thead>
+            <% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
+            <tbody id="shareAccessOrgTbody">
+                <tr class="share-access-row share-access-row--org">
+                    <td>
+                        <div class="share-access-who">
+                            <span class="share-access-avatar share-access-avatar--org" aria-hidden="true">Org</span>
+                            <div>
+                                <div class="share-access-primary">Everyone in your organisation</div>
+                                <p id="shareOrgOrganisationName" class="share-access-hint small share-access-org-name">&nbsp;</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="share-access-col-action share-access-col-action--toggle">
+                        <label class="share-access-toggle" for="orgShareCheckbox">
+                            <input type="checkbox" id="orgShareCheckbox" class="visually-hidden" aria-describedby="orgShareHint"/>
+                            <span class="share-access-toggle-ui" aria-hidden="true"></span>
+                            <span class="share-access-toggle-text" id="orgShareToggleText">Off</span>
+                        </label>
+                        <span id="orgShareHint" class="visually-hidden">Toggle sharing with all organisation members</span>
+                    </td>
+                </tr>
+            </tbody>
+            <% } %>
+            <tbody id="shareAccessPeopleTbody">
+                <tr class="share-access-subhead-row" id="shareAccessPeopleSubhead">
+                    <td colspan="2">People you’ve shared with</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="share-access-add">
+            <input type="email" id="shareInviteEmail" class="input inputText" placeholder="Add people by email…" autocomplete="email" aria-label="Email address to invite"/>
+            <button type="button" class="btn btn-primary" id="shareAddPersonBtn">Add</button>
         </div>
     </div>
 </div>
+<% if (typeof hasOrganisationMembership !== 'undefined' && hasOrganisationMembership) { %>
+<div id="transferOwnerOverlay" class="overlay">
+    <div class="overlay-content share-overlay-panel">
+        <span class="close-btn" onclick="closeTransferOwnerOverlay()" aria-label="Close">&times;</span>
+        <h2 class="share-overlay-title">Transfer ownership</h2>
+        <p class="share-overlay-lead small">The new owner must be listed on your organisation and must already have a CARE account. Evaluations are always owned by a user account in CARE.</p>
+        <div id="transferOwnerMessage" class="alert share-overlay-message" style="display:none;" role="alert"></div>
+        <input type="hidden" id="transferProjectId" value=""/>
+        <div class="transfer-owner-body">
+            <label class="transfer-owner-label" for="transferOwnerSelect">New owner</label>
+            <select id="transferOwnerSelect" class="input inputText transfer-owner-select" aria-describedby="transferOwnerHelp"></select>
+            <p id="transferOwnerHelp" class="small transfer-owner-hint">Members without a CARE account cannot be selected until they have signed in at least once.</p>
+        </div>
+        <div class="transfer-owner-actions">
+            <button type="button" class="btn btn-primary" id="transferOwnerSubmit">Transfer ownership</button>
+            <button type="button" class="transparent transfer-owner-cancel" onclick="closeTransferOwnerOverlay()">Cancel</button>
+        </div>
+    </div>
+</div>
+<dialog id="orgIntegrationIdDialog" class="org-access-edit-dialog org-integration-id-dialog">
+    <div class="content-block white">
+        <h2 id="orgIntegrationIdDialogTitle" style="margin-top:0;">Your project ID</h2>
+        <p class="small" id="orgIntegrationIdDialogEvalTitle" style="display:none;margin-top:0;"></p>
+        <p class="small org-integration-id-dialog__lead">
+            Use this field to store your organisation’s own reference for this evaluation—for example the ID from Jira, Asana, Notion, or an internal project register. It is returned by the tenant integrations API as <code>integrationExternalId</code> so Zapier, Make, n8n, or custom scripts can match CARE to your other systems. It does not replace the CARE project ID shown under the evaluation title.
+        </p>
+        <div id="orgIntegrationIdModalMsg" class="alert" style="display:none;" role="alert"></div>
+        <input type="hidden" id="orgIntegrationIdProjectId" value=""/>
+        <div class="sub-form__row">
+            <label class="sub-form__label" for="orgIntegrationIdInput">Reference</label>
+            <div class="sub-form__control">
+                <input type="text" id="orgIntegrationIdInput" class="input inputText" maxlength="256" autocomplete="off" placeholder="e.g. PROJ-4421 or internal code"/>
+            </div>
+        </div>
+        <div class="sub-form__actions org-integration-id-dialog__actions">
+            <button type="button" class="btn btn-primary" id="orgIntegrationIdSave">Save</button>
+            <button type="button" class="transparent" id="orgIntegrationIdClear" style="display:none;">Remove reference</button>
+            <button type="button" class="transparent" id="orgIntegrationIdCancel">Cancel</button>
+        </div>
+    </div>
+</dialog>
+<% } %>
+<dialog id="dashboardStatsHelpDialog" class="org-access-edit-dialog dashboard-stats-help-dialog" aria-labelledby="dashboardStatsHelpDialogTitle">
+    <div class="content-block white">
+        <h2 id="dashboardStatsHelpDialogTitle" style="margin-top:0;">How the risk matrix and colours work</h2>
+        <p class="small">
+            The dashboard only includes <strong>negative</strong> unintended consequences. Positive outcomes are excluded from these calculations.
+        </p>
+        <h3 style="margin-bottom:0.25rem;">How each risk score is calculated</h3>
+        <p class="small" style="margin-top:0;">
+            Likelihood and impact are converted to numbers:
+            <strong>Low = 1</strong>,
+            <strong>Medium = 2</strong>,
+            <strong>High = 3</strong>.
+            The risk score for a consequence is <strong>likelihood × impact</strong> (range <strong>1 to 9</strong>).
+        </p>
+        <h3 style="margin-bottom:0.25rem;">How the 3x3 matrix works</h3>
+        <p class="small" style="margin-top:0;">
+            Each negative risk is placed into one matrix cell using its likelihood and impact (Low, Medium, High).
+            Click one or more cells to cross-filter both the assessments table and the all-risks table.
+        </p>
+        <h3 style="margin-bottom:0.25rem;">How colours are categorised</h3>
+        <p class="small" style="margin-top:0;">
+            Colours use three bands:
+            <strong>Green = Low</strong>,
+            <strong>Yellow = Medium</strong>,
+            <strong>Red = High</strong>.
+            For numeric scores (used internally for sorting), this maps to:
+            <strong>Low 1-2</strong>,
+            <strong>Medium 3-6</strong>,
+            <strong>High 7-9</strong>.
+        </p>
+        <p class="small" style="margin-top:0;">
+            In the risk distribution chart, <strong>Unclassified</strong> means likelihood or impact is missing, so no risk score can be calculated yet.
+        </p>
+        <div class="sub-form__actions org-integration-id-dialog__actions">
+            <button type="button" class="btn btn-primary" id="dashboardStatsHelpClose">Close</button>
+        </div>
+    </div>
+</dialog>
 <div class="main-content">
     <section class="page-title container white">
         <h1 style="text-align: center;"><%= page.title %></h1>
@@ -36,73 +140,1088 @@
     </section>
 
 <div class="content-block white">
-    <div style="text-align: center; width: 100%;">
-        <button class="transparent" onclick="window.location.href='/new'">Start a new evaluation</button>
-        <button class="transparent" onclick="window.location.href='/examples'">Select from example case studies</button>
+    <div class="dashboard-global-actions">
+        <button type="button" class="transparent" id="clearAllDashboardFilters">Clear all filters</button>
     </div>
-</div>
-<div class="content-block white">
-    <h2>My evaluations</h2>
     <div id="res" class="alert"></div>
+    <p id="activeFilterSummary" class="small" style="display: none;"></p>
     <section class="dashboard">
-        <subsection class="dashboard-box">
+        <subsection class="dashboard-box dashboard-box--heatmap">
             <div class="dashboard-header">
-                <h2>Risks</h2>
+                <h2 class="dashboard-card-title">
+                    <span>Risk heat map <span class="small">(Likelihood × Impact)</span></span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearMatrixFilters" hidden>Reset</button>
+                </h2>
             </div>
             <div class="dashboard-chart">
-                <canvas id="riskChart" width="200" height="100"></canvas> <!-- Add canvas for the donut chart -->
-            </div>
-        </subsection>
-        <subsection class="dashboard-box">
-            <div class="dashboard-header">
-                <h2>Stats <span class="small">(average)</span></h2>
-            </div>
-            <div class="dashboard-chart">
-                <h3>Likelihood</h3>
-                <div class="progress-bar">
-                    <div id="likelihood-bar" class="bar"></div>
-                </div>
-                <h3>Impact</h3>
-                <div class="progress-bar">
-                    <div id="impact-bar" class="bar"></div>
-                </div>
-                <h3>Risk</h3>
-                <div class="progress-bar">
-                    <div id="risk-bar" class="bar"></div>
-                </div>
-            </div>
-        </subsection>
-        <subsection class="dashboard-box top-risks">
-            <div class="dashboard-header">
-                <h2>Priority <span class="small">(top 5)</span></h2>
-            </div>
-            <div class="dashboard-chart">
-                <table id="topRisksTable">
+                <table id="riskMatrixTable" class="riskHeatmap riskHeatmap--compact">
                     <thead>
                         <tr>
-                            <th>Risk</th>
-                            <th style="width: 60px;">Level</th>
-                            <th style="width: 50px;">Action</th>
+                            <th>Likelihood →<br>Impact ↓</th>
+                            <th>High</th>
+                            <th>Medium</th>
+                            <th>Low</th>
                         </tr>
                     </thead>
-                    <tbody id="topRisksTableBody">
-                        <!-- Table rows will be dynamically added here -->
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </subsection>
+        <subsection class="dashboard-box dashboard-box--distribution">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>
+                        Risk distribution
+                        <a href="#" class="dashboard-stats-help-open dashboard-stats-help-open--sup" aria-haspopup="dialog" aria-controls="dashboardStatsHelpDialog" aria-label="How risk distribution is calculated" title="How calculated">
+                            <sup>?</sup>
+                        </a>
+                    </span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearRiskBandFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="riskChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--total">
+            <div class="dashboard-header">
+                <h2>Total risks</h2>
+            </div>
+            <div class="dashboard-chart">
+                <div id="totalRisksPanel" class="dashboard-kpi"></div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--scope">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Scope filters</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearScopeFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <div class="dashboard-filters-row dashboard-filters-row--scope">
+                    <label class="scope-filter-option">
+                        <input type="checkbox" class="scope-filter" value="Mine" checked/>
+                        <svg class="eval-share-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>Mine</span>
+                    </label>
+                    <label class="scope-filter-option">
+                        <input type="checkbox" class="scope-filter" value="Organisation" checked/>
+                        <svg class="eval-share-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12h12"/><path d="M6 16h12"/><path d="M10 6h4"/><path d="M10 22v-4h4v4"/></svg>
+                        <span>Organisation</span>
+                    </label>
+                    <label class="scope-filter-option">
+                        <input type="checkbox" class="scope-filter" value="Shared with me" checked/>
+                        <svg class="eval-share-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>Shared with me</span>
+                    </label>
+                </div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box top-risks dashboard-box--trend">
+            <div class="dashboard-header">
+                <h2>Trend</h2>
+            </div>
+            <div class="dashboard-chart">
+                <div id="trendPanel" class="small"></div>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--owner">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Owner assignment</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearOwnerFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="ownerChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--target-date">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Target date</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearTargetDateFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="targetDateChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--overdue">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Overdue status</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearOverdueFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="overdueChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
+        <subsection class="dashboard-box dashboard-box--completion">
+            <div class="dashboard-header">
+                <h2 class="dashboard-card-title">
+                    <span>Completion status</span>
+                    <button type="button" class="transparent filter-reset-btn" id="clearCompletionFilters" hidden>Reset</button>
+                </h2>
+            </div>
+            <div class="dashboard-chart">
+                <canvas id="completionChart" width="200" height="100"></canvas>
+            </div>
+        </subsection>
     </section>
-    <table id="myProjectsTable" class="display" style="width:100%"></table>
 </div>
 <div class="content-block light-blue">
-    <h2>Evaluations shared with me</h2>
-    <table id="sharedProjectsTable" class="display" style="width:100%"></table>
+    <h2>All risks</h2>
+    <table id="allRisksTable" class="display" style="width:100%"></table>
+</div>
+<div class="content-block white">
+    <h2>Assessments table</h2>
+    <table id="assessmentsTable" class="display" style="width:100%"></table>
 </div>
 </div>
 
 <script>
 
+var organisationMetaGlobal = {};
+var unifiedDashboardPayload = null;
+var organisationProjectsCachedPayload = null;
+var selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
+var selectedMatrixCells = new Set();
+var selectedRiskBands = new Set();
+var selectedOwnerStates = new Set();
+var selectedTargetDateStates = new Set();
+var selectedOverdueStates = new Set();
+var selectedCompletionStates = new Set();
+var assessmentsTableApi = null;
+var allRisksTableApi = null;
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function truncateIntegrationIdDisplay(str, maxLen) {
+    var t = String(str || '');
+    var n = maxLen != null ? maxLen : 48;
+    if (t.length <= n) return t;
+    return t.slice(0, n) + '…';
+}
+
+function openDashboardStatsHelpDialog() {
+    var dlg = document.getElementById('dashboardStatsHelpDialog');
+    if (!dlg) return;
+    if (typeof dlg.showModal === 'function') {
+        dlg.showModal();
+    } else {
+        dlg.setAttribute('open', 'open');
+    }
+}
+
+function closeDashboardStatsHelpDialog() {
+    var dlg = document.getElementById('dashboardStatsHelpDialog');
+    if (!dlg) return;
+    if (typeof dlg.close === 'function') {
+        dlg.close();
+    } else {
+        dlg.removeAttribute('open');
+    }
+}
+
+function organisationProjectsRows(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    return payload.projects || [];
+}
+
+function organisationTableRowsForDisplay(allRows, includeMine) {
+    if (includeMine) return allRows.slice();
+    return allRows.filter(function (r) {
+        return !r.ownedByCurrentUser;
+    });
+}
+
+function refreshOrganisationDashboard(orgPayload) {
+    if (!document.getElementById('orgRiskChart')) return;
+    var p = orgPayload || {};
+    var counts = p.riskCounts || { unclassified: 0, high: 0, medium: 0, low: 0 };
+    var averages = p.averages || { likelihood: '0.00', impact: '0.00', riskScore: '0.00' };
+    var topRisks = p.topRisks || [];
+    addRiskDonut(counts, { chartId: 'orgRiskChart' });
+    addAverages(averages, {
+        likelihoodBarId: 'org-likelihood-bar',
+        impactBarId: 'org-impact-bar',
+        riskBarId: 'org-risk-bar'
+    });
+    addTopRisks(topRisks, { tableBodyId: 'org-topRisksTableBody' });
+}
+
+/** Open completed output vs project details for in-progress / todo. */
+function evalProjectAssessmentHref(row) {
+    var id = String(row.id != null ? row.id : '');
+    if (!id) return '#';
+    if (row.status === 'done') {
+        return '/project/' + id + '/';
+    }
+    return '/project/' + id + '/projectDetails';
+}
+
+function renderEvalTitleCell(data, type, row) {
+    if (type === 'sort' || type === 'filter' || type === 'type') {
+        return data == null ? '' : String(data);
+    }
+    var label = data == null || String(data).trim() === '' ? 'Untitled evaluation' : String(data);
+    var href = evalProjectAssessmentHref(row);
+    var pid = String(row.id != null ? row.id : '');
+    var copySvg =
+        '<svg class="eval-copy-project-id__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    var idRow = '';
+    if (pid) {
+        idRow =
+            '<div class="eval-project-id-row">' +
+            '<span class="eval-project-id-label">Project ID</span> ' +
+            '<code class="eval-project-id-code">' +
+            escapeHtml(pid) +
+            '</code> ' +
+            '<button type="button" class="transparent eval-copy-project-id" data-id="' +
+            escapeHtml(pid) +
+            '" title="Copy project ID" aria-label="Copy project ID">' +
+            copySvg +
+            '</button></div>';
+    }
+    return (
+        '<div class="eval-title-stack">' +
+        '<a class="eval-title-link" href="' +
+        href +
+        '">' +
+        escapeHtml(label) +
+        '</a>' +
+        idRow +
+        '</div>'
+    );
+}
+
+function shareOverlayProjectId() {
+    return $('#shareOverlay').attr('data-projectid');
+}
+
+function showShareOverlayMessage(text, isError) {
+    var el = document.getElementById('shareOverlayMessage');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = text;
+    el.style.color = isError ? '#b00020' : '';
+}
+
+function clearShareOverlayMessage() {
+    var el = document.getElementById('shareOverlayMessage');
+    if (!el) return;
+    el.style.display = 'none';
+    el.textContent = '';
+}
+
+function updateOrgShareToggleLabel() {
+    var cb = document.getElementById('orgShareCheckbox');
+    var label = document.getElementById('orgShareToggleText');
+    if (!cb || !label) return;
+    label.textContent = cb.checked ? 'On' : 'Off';
+}
+
+function getSharedUsers(projectId) {
+    return fetch('/project/' + projectId + '/sharedUsers', { headers: { Accept: 'application/json' } })
+        .then(function (response) {
+            return response.json();
+        })
+        .catch(function (error) {
+            console.error('Error fetching shared users:', error);
+        });
+}
+
+function renderSharedUsers(sharedUsers) {
+    var $tb = $('#shareAccessPeopleTbody');
+    if (!$tb.length) return;
+    $tb.find('.share-access-person-row, .share-access-empty-row').remove();
+    var list = sharedUsers && sharedUsers.sharedUsers ? sharedUsers.sharedUsers : [];
+    if (list.length === 0) {
+        $tb.append(
+            $(
+                '<tr class="share-access-empty-row"><td colspan="2"><span class="small share-access-muted">No individual invites yet. Add an email below.</span></td></tr>'
+            )
+        );
+        return;
+    }
+    list.forEach(function (email) {
+        var initials = String(email)
+            .trim()
+            .charAt(0)
+            .toUpperCase();
+        if (!initials) initials = '?';
+        var $tr = $('<tr class="share-access-person-row"></tr>');
+        var $whoTd = $('<td></td>');
+        var $who = $('<div class="share-access-who"></div>');
+        $who.append(
+            $('<span class="share-access-avatar" aria-hidden="true"></span>').text(initials)
+        );
+        var $inner = $('<div></div>');
+        $inner.append($('<div class="share-access-primary"></div>').text(email));
+        $who.append($inner);
+        $whoTd.append($who);
+        var $btn = $('<button type="button" class="btn btn-primary share-access-remove"></button>')
+            .text('Remove')
+            .data('email', email);
+        var $actTd = $('<td class="share-access-col-action"></td>').append($btn);
+        $tr.append($whoTd, $actTd);
+        $tb.append($tr);
+    });
+}
+
+function toArrayScopeTags(tags) {
+    return Array.isArray(tags) ? tags : [];
+}
+
+function normalizeScopeTag(tag) {
+    var t = String(tag || '').trim();
+    if (t === 'My') return 'Mine';
+    return t;
+}
+
+function projectMatchesScopeFilters(project) {
+    var tags = toArrayScopeTags(project && project.scopeTags).map(normalizeScopeTag);
+    if (!selectedScopeFilters.size) return false;
+    return tags.some(function (t) {
+        return selectedScopeFilters.has(String(t));
+    });
+}
+
+function riskMatchesScopeFilters(risk) {
+    var tags = toArrayScopeTags(risk && risk.scopeTags).map(normalizeScopeTag);
+    if (!selectedScopeFilters.size) return false;
+    return tags.some(function (t) {
+        return selectedScopeFilters.has(String(t));
+    });
+}
+
+function riskMatchesMatrixFilters(risk) {
+    if (!selectedMatrixCells.size) return true;
+    var impact = risk && risk.impact ? String(risk.impact) : '';
+    var likelihood = risk && risk.likelihood ? String(risk.likelihood) : '';
+    if (!impact || !likelihood) return false;
+    return selectedMatrixCells.has(impact + '|' + likelihood);
+}
+
+function riskMatchesBandFilters(risk) {
+    if (!selectedRiskBands.size) return true;
+    var band = String((risk && risk.residualBand) || 'Unclassified');
+    return selectedRiskBands.has(band);
+}
+
+function riskMatchesOwnerFilters(risk) {
+    if (!selectedOwnerStates.size) return true;
+    var state = risk && risk.actionRole ? 'withOwner' : 'withoutOwner';
+    return selectedOwnerStates.has(state);
+}
+
+function riskMatchesTargetDateFilters(risk) {
+    if (!selectedTargetDateStates.size) return true;
+    var state = risk && risk.actionDueDate ? 'withTargetDate' : 'withoutTargetDate';
+    return selectedTargetDateStates.has(state);
+}
+
+function riskMatchesOverdueFilter(risk) {
+    if (!selectedOverdueStates.size) return true;
+    var state = risk && risk.actionOverdue ? 'overdue' : 'notOverdue';
+    return selectedOverdueStates.has(state);
+}
+
+function riskMatchesCompletionFilters(risk) {
+    if (!selectedCompletionStates.size) return true;
+    var state;
+    if (risk && risk.actionCompleted) state = 'completed';
+    else state = 'notCompleted';
+    return selectedCompletionStates.has(state);
+}
+
+function renderScopeTagPills(tags) {
+    var list = toArrayScopeTags(tags).map(normalizeScopeTag);
+    if (!list.length) return '<span class="small share-access-muted">—</span>';
+    return list
+        .map(function (t) {
+            return '<span class="scope-pill">' + escapeHtml(String(t)) + '</span>';
+        })
+        .join(' ');
+}
+
+function renderRiskCountsCell(counts) {
+    var c = counts || {};
+    return (
+        'High: ' + Number(c.high || 0) + '<br/>' +
+        'Medium: ' + Number(c.medium || 0) + '<br/>' +
+        'Low: ' + Number(c.low || 0) + '<br/>' +
+        'Unclassified: ' + Number(c.unclassified || 0)
+    );
+}
+
+function renderBandBadge(band) {
+    var b = String(band || 'Unclassified');
+    var cls =
+        b === 'High' ? 'risk-band-badge risk-band-badge--high'
+            : b === 'Medium' ? 'risk-band-badge risk-band-badge--medium'
+                : b === 'Low' ? 'risk-band-badge risk-band-badge--low'
+                    : 'risk-band-badge risk-band-badge--unclassified';
+    return '<span class="' + cls + '">' + escapeHtml(b) + '</span>';
+}
+
+function applyRiskFilters(list, options) {
+    var opts = options || {};
+    return (list || []).filter(function (r) {
+        if (!riskMatchesScopeFilters(r)) return false;
+        if (!opts.skipMatrix && !riskMatchesMatrixFilters(r)) return false;
+        if (!opts.skipBands && !riskMatchesBandFilters(r)) return false;
+        if (!opts.skipOwner && !riskMatchesOwnerFilters(r)) return false;
+        if (!opts.skipTargetDate && !riskMatchesTargetDateFilters(r)) return false;
+        if (!opts.skipOverdue && !riskMatchesOverdueFilter(r)) return false;
+        if (!opts.skipCompletion && !riskMatchesCompletionFilters(r)) return false;
+        return true;
+    });
+}
+
+function filteredRisksForScopeSelection() {
+    var list = (unifiedDashboardPayload && unifiedDashboardPayload.allRisks) || [];
+    return applyRiskFilters(list, {
+        skipMatrix: true,
+        skipBands: true,
+        skipOwner: true,
+        skipTargetDate: true,
+        skipOverdue: true,
+        skipCompletion: true,
+    });
+}
+
+function filteredRisksForCurrentSelection() {
+    var list = (unifiedDashboardPayload && unifiedDashboardPayload.allRisks) || [];
+    return applyRiskFilters(list, {});
+}
+
+function filteredAssessmentsForCurrentSelection() {
+    var assessments = (unifiedDashboardPayload && unifiedDashboardPayload.assessments) || [];
+    var risks = filteredRisksForCurrentSelection();
+    var matchingProjectIds = new Set(risks.map(function (r) { return String(r.projectId || ''); }));
+    return assessments.filter(function (a) {
+        if (!projectMatchesScopeFilters(a)) return false;
+        if (!selectedMatrixCells.size) return true;
+        return matchingProjectIds.has(String(a.id || ''));
+    });
+}
+
+function riskCountsFromRisks(risks) {
+    var out = { unclassified: 0, high: 0, medium: 0, low: 0 };
+    (risks || []).forEach(function (r) {
+        var band = String(r && r.residualBand ? r.residualBand : '');
+        if (band === 'High') out.high++;
+        else if (band === 'Medium') out.medium++;
+        else if (band === 'Low') out.low++;
+        else out.unclassified++;
+    });
+    return out;
+}
+
+function buildMatrixCountsFromRisks(risks) {
+    var counts = {
+        High: { High: 0, Medium: 0, Low: 0 },
+        Medium: { High: 0, Medium: 0, Low: 0 },
+        Low: { High: 0, Medium: 0, Low: 0 },
+    };
+    (risks || []).forEach(function (r) {
+        var i = r && r.impact ? String(r.impact) : '';
+        var l = r && r.likelihood ? String(r.likelihood) : '';
+        if (!counts[i] || typeof counts[i][l] === 'undefined') return;
+        counts[i][l] += 1;
+    });
+    return counts;
+}
+
+function computeTreatmentProgressFromRisks(risks) {
+    var total = (risks || []).length;
+    var withOwner = 0;
+    var withTargetDate = 0;
+    var overdueActions = 0;
+    (risks || []).forEach(function (r) {
+        if (r && r.actionRole) withOwner++;
+        if (r && r.actionDueDate) withTargetDate++;
+        if (r && r.actionOverdue) overdueActions++;
+    });
+    return {
+        totalRisks: total,
+        withOwner: withOwner,
+        withOwnerPct: total ? ((withOwner / total) * 100).toFixed(1) : '0.0',
+        withTargetDate: withTargetDate,
+        withTargetDatePct: total ? ((withTargetDate / total) * 100).toFixed(1) : '0.0',
+        overdueActions: overdueActions,
+        overdueActionsPct: total ? ((overdueActions / total) * 100).toFixed(1) : '0.0',
+    };
+}
+
+function renderDashboardPanelsFromFilteredData(scopeOnlyRisks, fullyFilteredRisks) {
+    var matrix = buildMatrixCountsFromRisks(fullyFilteredRisks);
+    renderRiskMatrix(matrix, { tableId: 'riskMatrixTable' });
+    updateSelectedMatrixCells(selectedMatrixCells, { tableId: 'riskMatrixTable' });
+    addRiskDonut(riskCountsFromRisks(fullyFilteredRisks), {
+        chartId: 'riskChart',
+        onBarClick: function (label) {
+            var key = String(label || 'Unclassified');
+            if (selectedRiskBands.has(key)) selectedRiskBands.delete(key);
+            else selectedRiskBands.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+        activeLabels: Array.from(selectedRiskBands),
+    });
+
+    var ownerWith = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionRole); }).length;
+    var ownerWithout = fullyFilteredRisks.length - ownerWith;
+    addBinaryBarChart({
+        chartId: 'ownerChart',
+        labels: ['With owner', 'Without owner'],
+        values: [ownerWith, ownerWithout],
+        activeLabels: Array.from(selectedOwnerStates).map(function (s) {
+            return s === 'withOwner' ? 'With owner' : 'Without owner';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'With owner' ? 'withOwner' : 'withoutOwner';
+            if (selectedOwnerStates.has(key)) selectedOwnerStates.delete(key);
+            else selectedOwnerStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
+    var dateWith = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionDueDate); }).length;
+    var dateWithout = fullyFilteredRisks.length - dateWith;
+    addBinaryBarChart({
+        chartId: 'targetDateChart',
+        labels: ['With target date', 'Without target date'],
+        values: [dateWith, dateWithout],
+        activeLabels: Array.from(selectedTargetDateStates).map(function (s) {
+            return s === 'withTargetDate' ? 'With target date' : 'Without target date';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'With target date' ? 'withTargetDate' : 'withoutTargetDate';
+            if (selectedTargetDateStates.has(key)) selectedTargetDateStates.delete(key);
+            else selectedTargetDateStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
+    var totalEl = document.getElementById('totalRisksPanel');
+    if (totalEl) {
+        totalEl.textContent = String((fullyFilteredRisks || []).length);
+    }
+    var overdueCount = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionOverdue); }).length;
+    var notOverdueCount = fullyFilteredRisks.length - overdueCount;
+    addBinaryBarChart({
+        chartId: 'overdueChart',
+        labels: ['Overdue', 'Not overdue'],
+        values: [overdueCount, notOverdueCount],
+        activeLabels: Array.from(selectedOverdueStates).map(function (s) {
+            return s === 'overdue' ? 'Overdue' : 'Not overdue';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'Overdue' ? 'overdue' : 'notOverdue';
+            if (selectedOverdueStates.has(key)) selectedOverdueStates.delete(key);
+            else selectedOverdueStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
+    var completedCount = fullyFilteredRisks.filter(function (r) { return !!(r && r.actionCompleted); }).length;
+    var notCompletedCount = fullyFilteredRisks.length - completedCount;
+    addBinaryBarChart({
+        chartId: 'completionChart',
+        labels: ['Completed', 'Not completed'],
+        values: [completedCount, notCompletedCount],
+        activeLabels: Array.from(selectedCompletionStates).map(function (s) {
+            return s === 'completed' ? 'Completed' : 'Not completed';
+        }),
+        onBarClick: function (label) {
+            var key = label === 'Completed' ? 'completed' : 'notCompleted';
+            if (selectedCompletionStates.has(key)) selectedCompletionStates.delete(key);
+            else selectedCompletionStates.add(key);
+            applyUnifiedFiltersAndRefresh();
+        },
+    });
+
+    var trendEl = document.getElementById('trendPanel');
+    if (trendEl) {
+        var t = unifiedDashboardPayload && unifiedDashboardPayload.dashboard && unifiedDashboardPayload.dashboard.trend
+            ? unifiedDashboardPayload.dashboard.trend
+            : { days30: {}, days90: {} };
+        trendEl.innerHTML =
+            '<p><strong>30-day high-risk delta:</strong> ' + (t.days30 && t.days30.highResidualDelta != null ? t.days30.highResidualDelta : '0') + '</p>' +
+            '<p><strong>30-day avg risk delta:</strong> ' + (t.days30 && t.days30.averageResidualDelta != null ? t.days30.averageResidualDelta : '0.00') + '</p>' +
+            '<p><strong>90-day high-risk delta:</strong> ' + (t.days90 && t.days90.highResidualDelta != null ? t.days90.highResidualDelta : '0') + '</p>' +
+            '<p><strong>90-day avg risk delta:</strong> ' + (t.days90 && t.days90.averageResidualDelta != null ? t.days90.averageResidualDelta : '0.00') + '</p>';
+    }
+}
+
+function renderActiveFilterSummary(filteredAssessments, filteredRisks) {
+    var scopeText = selectedScopeFilters.size
+        ? Array.from(selectedScopeFilters).join(', ')
+        : 'None';
+    var matrixText = selectedMatrixCells.size
+        ? Array.from(selectedMatrixCells).join(' | ')
+        : 'All matrix cells';
+    var bandText = selectedRiskBands.size ? Array.from(selectedRiskBands).join(', ') : 'All bands';
+    var ownerText = selectedOwnerStates.size ? Array.from(selectedOwnerStates).join(', ') : 'Any owner state';
+    var targetDateText = selectedTargetDateStates.size ? Array.from(selectedTargetDateStates).join(', ') : 'Any target-date state';
+    var overdueText = selectedOverdueStates.size ? Array.from(selectedOverdueStates).join(', ') : 'Any overdue state';
+    var completionText = selectedCompletionStates.size
+        ? Array.from(selectedCompletionStates).map(function (s) {
+            return s === 'completed' ? 'Completed' : 'Not completed';
+        }).join(', ')
+        : 'Any completion state';
+    var el = document.getElementById('activeFilterSummary');
+    if (!el) return;
+    el.textContent =
+        'Scopes: ' + scopeText +
+        ' | Matrix: ' + matrixText +
+        ' | Bands: ' + bandText +
+        ' | Owner: ' + ownerText +
+        ' | Target date: ' + targetDateText +
+        ' | Overdue: ' + overdueText +
+        ' | Completion: ' + completionText +
+        ' | Assessments: ' + filteredAssessments.length +
+        ' | Risks: ' + filteredRisks.length;
+}
+
+function syncScopeFilterCheckboxes() {
+    document.querySelectorAll('.scope-filter').forEach(function (cb) {
+        var scope = String(cb.value || '');
+        cb.checked = selectedScopeFilters.has(scope);
+    });
+}
+
+function setResetButtonState(resetBtnId, isApplied) {
+    var resetBtn = document.getElementById(resetBtnId);
+    if (resetBtn) resetBtn.hidden = !isApplied;
+}
+
+function updateDashboardFilterHeaderStates() {
+    var defaultScopes = ['Mine', 'Organisation', 'Shared with me'];
+    var scopeIsDefault =
+        selectedScopeFilters.size === defaultScopes.length &&
+        defaultScopes.every(function (s) { return selectedScopeFilters.has(s); });
+    setResetButtonState('clearScopeFilters', !scopeIsDefault);
+    setResetButtonState('clearMatrixFilters', selectedMatrixCells.size > 0);
+    setResetButtonState('clearRiskBandFilters', selectedRiskBands.size > 0);
+    setResetButtonState('clearOwnerFilters', selectedOwnerStates.size > 0);
+    setResetButtonState('clearTargetDateFilters', selectedTargetDateStates.size > 0);
+    setResetButtonState('clearOverdueFilters', selectedOverdueStates.size > 0);
+    setResetButtonState('clearCompletionFilters', selectedCompletionStates.size > 0);
+}
+
+function renderAssessmentsTableRows(rows) {
+    var data = rows || [];
+    if ($.fn.DataTable.isDataTable('#assessmentsTable')) {
+        $('#assessmentsTable').DataTable().clear().rows.add(data).draw();
+        return;
+    }
+    assessmentsTableApi = $('#assessmentsTable').DataTable({
+        data: data,
+        columns: [
+            {
+                data: 'title',
+                title: 'Title',
+                width: '16rem',
+                className: 'eval-title-col',
+                render: function (data, type, row) {
+                    return renderEvalTitleCell(data, type, row);
+                }
+            },
+            {
+                data: 'scopeTags',
+                title: 'Scopes',
+                width: '11rem',
+                render: function (data, type, row) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return (data || []).join(', ');
+                    return renderScopeTagPills(data);
+                }
+            },
+            {
+                data: 'status',
+                title: 'Status',
+                width: '7rem',
+                className: 'eval-status-col',
+                render: function (data) {
+                    if (data === 'done') return '<span class="eval-status-label">Complete</span>';
+                    if (data === 'inProgress') return '<span class="eval-status-label">In progress</span>';
+                    if (data === 'todo') return '<span class="eval-status-label">To do</span>';
+                    return '<span class="eval-status-label">Unknown</span>';
+                }
+            },
+            { data: 'owner', title: 'Owner', defaultContent: '', width: '10rem' },
+            {
+                data: 'riskCounts',
+                title: 'Risk counts',
+                width: '11rem',
+                render: function (data) {
+                    return renderRiskCountsCell(data);
+                }
+            },
+            {
+                data: 'lastModified',
+                title: 'Last modified',
+                width: '10rem',
+                render: function (data) {
+                    return data ? new Date(data).toLocaleString() : '';
+                }
+            }
+        ],
+        order: [[0, 'asc']],
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>",
+        buttons: []
+    });
+}
+
+function renderAllRisksTableRows(rows) {
+    var data = rows || [];
+    if ($.fn.DataTable.isDataTable('#allRisksTable')) {
+        $('#allRisksTable').DataTable().clear().rows.add(data).draw();
+        return;
+    }
+    allRisksTableApi = $('#allRisksTable').DataTable({
+        data: data,
+        columns: [
+            {
+                data: 'evaluationTitle',
+                title: 'Assessment',
+                width: '12rem',
+                className: 'risk-assessment-col',
+                render: function (data, type, row) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return data || '';
+                    var label = data == null || String(data).trim() === '' ? 'Untitled evaluation' : String(data);
+                    var href = '/project/' + encodeURIComponent(String(row.projectId || '')) + '/actionPlanning';
+                    return '<a class="eval-title-link" href="' + href + '">' + escapeHtml(label) + '</a>';
+                }
+            },
+            { data: 'consequence', title: 'Risk', width: '18rem', className: 'risk-consequence-col', defaultContent: '' },
+            {
+                data: 'scopeTags',
+                title: 'Scopes',
+                width: '11rem',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return (data || []).join(', ');
+                    return renderScopeTagPills(data);
+                }
+            },
+            { data: 'likelihood', title: 'Likelihood', width: '6rem', defaultContent: '—' },
+            { data: 'impact', title: 'Impact', width: '6rem', defaultContent: '—' },
+            {
+                data: 'residualBand',
+                title: 'Level',
+                width: '6rem',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'filter' || type === 'type') return data || '';
+                    return renderBandBadge(data);
+                }
+            },
+            {
+                data: 'residualScore',
+                title: 'Score',
+                width: '5rem',
+                render: function (data) {
+                    return data == null ? '—' : String(data);
+                }
+            }
+        ],
+        order: [[6, 'desc'], [0, 'asc']],
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>",
+        buttons: []
+    });
+}
+
+function applyUnifiedFiltersAndRefresh() {
+    if (!unifiedDashboardPayload) return;
+    var scopeOnlyRisks = filteredRisksForScopeSelection();
+    var filteredRisks = filteredRisksForCurrentSelection();
+    var filteredAssessments = filteredAssessmentsForCurrentSelection();
+    renderAssessmentsTableRows(filteredAssessments);
+    renderAllRisksTableRows(filteredRisks);
+    renderDashboardPanelsFromFilteredData(scopeOnlyRisks, filteredRisks);
+    renderActiveFilterSummary(filteredAssessments, filteredRisks);
+    updateDashboardFilterHeaderStates();
+}
+
 $(document).ready(function () {
+    $(document).on('click', '.dashboard-stats-help-open', function (e) {
+        e.preventDefault();
+        openDashboardStatsHelpDialog();
+    });
+
+    var dashboardHelpDlg = document.getElementById('dashboardStatsHelpDialog');
+    if (dashboardHelpDlg) {
+        dashboardHelpDlg.addEventListener('click', function (ev) {
+            if (ev.target === dashboardHelpDlg) closeDashboardStatsHelpDialog();
+        });
+    }
+    var dashboardHelpCloseBtn = document.getElementById('dashboardStatsHelpClose');
+    if (dashboardHelpCloseBtn) {
+        dashboardHelpCloseBtn.addEventListener('click', closeDashboardStatsHelpDialog);
+    }
+
+    $(document).on('click', '.eval-copy-project-id', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = String($(this).data('id') || '');
+        if (!id || !navigator.clipboard || !navigator.clipboard.writeText) return;
+        var btn = this;
+        navigator.clipboard.writeText(id).then(function () {
+            var t = btn.getAttribute('title');
+            btn.setAttribute('title', 'Copied');
+            setTimeout(function () {
+                btn.setAttribute('title', t || 'Copy project ID');
+            }, 2000);
+        });
+    });
+
+    function patchOrganisationProjectIntegrationId(projectId, value) {
+        return fetch('/project/' + encodeURIComponent(projectId) + '/integration-external-id', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ integrationExternalId: value })
+        }).then(function (res) {
+            return res.json().then(function (d) {
+                if (!res.ok) throw new Error(d.message || res.statusText);
+                return d;
+            });
+        }).then(function (d) {
+            var committed = d.integrationExternalId != null ? String(d.integrationExternalId) : '';
+            var list =
+                organisationProjectsCachedPayload && organisationProjectsCachedPayload.projects;
+            if (Array.isArray(list)) {
+                list.forEach(function (p) {
+                    if (String(p.id) === String(projectId)) {
+                        p.integrationExternalId = committed;
+                    }
+                });
+            }
+            if (typeof renderOrganisationProjects === 'function') {
+                renderOrganisationProjects(
+                    organisationProjectsCachedPayload,
+                    organisationMetaGlobal
+                );
+            }
+            return committed;
+        });
+    }
+
+    function showOrgIntegrationIdModalMsg(text, isErr) {
+        var el = document.getElementById('orgIntegrationIdModalMsg');
+        if (!el) return;
+        el.style.display = text ? 'block' : 'none';
+        el.textContent = text || '';
+        el.style.color = isErr ? '#c00' : '';
+    }
+
+    function openOrgIntegrationIdDialog(projectId, evalTitle, currentValue) {
+        var dlg = document.getElementById('orgIntegrationIdDialog');
+        if (!dlg) return;
+        var pidEl = document.getElementById('orgIntegrationIdProjectId');
+        var inp = document.getElementById('orgIntegrationIdInput');
+        var titleEl = document.getElementById('orgIntegrationIdDialogTitle');
+        var evalEl = document.getElementById('orgIntegrationIdDialogEvalTitle');
+        var clearBtn = document.getElementById('orgIntegrationIdClear');
+        if (pidEl) pidEl.value = projectId || '';
+        if (inp) {
+            inp.value = currentValue != null ? String(currentValue) : '';
+        }
+        var hasVal = !!(currentValue != null && String(currentValue).trim() !== '');
+        if (titleEl) {
+            titleEl.textContent = hasVal ? 'Edit your project ID' : 'Add your project ID';
+        }
+        if (evalEl) {
+            var t = evalTitle != null ? String(evalTitle).trim() : '';
+            if (t) {
+                evalEl.style.display = 'block';
+                evalEl.textContent = 'Evaluation: ' + t;
+            } else {
+                evalEl.style.display = 'none';
+                evalEl.textContent = '';
+            }
+        }
+        if (clearBtn) clearBtn.style.display = hasVal ? '' : 'none';
+        showOrgIntegrationIdModalMsg('', false);
+        if (typeof dlg.showModal === 'function') dlg.showModal();
+        if (inp) {
+            inp.focus();
+            inp.select();
+        }
+    }
+
+    function closeOrgIntegrationIdDialog() {
+        var dlg = document.getElementById('orgIntegrationIdDialog');
+        if (dlg && typeof dlg.close === 'function') dlg.close();
+    }
+
+    $(document).on('click', '.org-eval-integration-add', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $t = $(this);
+        openOrgIntegrationIdDialog(
+            String($t.attr('data-project-id') || ''),
+            $t.attr('data-eval-title'),
+            ''
+        );
+    });
+
+    $(document).on('click', '.org-eval-integration-edit', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $t = $(this);
+        openOrgIntegrationIdDialog(
+            String($t.attr('data-project-id') || ''),
+            $t.attr('data-eval-title'),
+            $t.attr('data-committed') || ''
+        );
+    });
+
+    (function bindOrgIntegrationIdDialog() {
+        var dlg = document.getElementById('orgIntegrationIdDialog');
+        if (!dlg) return;
+        dlg.addEventListener('click', function (ev) {
+            if (ev.target === dlg) closeOrgIntegrationIdDialog();
+        });
+        var cancel = document.getElementById('orgIntegrationIdCancel');
+        if (cancel) cancel.addEventListener('click', closeOrgIntegrationIdDialog);
+        var clearBtn = document.getElementById('orgIntegrationIdClear');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                var pidEl = document.getElementById('orgIntegrationIdProjectId');
+                var pid = pidEl ? pidEl.value.trim() : '';
+                if (!pid) return;
+                if (
+                    !confirm(
+                        'Remove this project reference? It will no longer appear in the integrations API for this evaluation.'
+                    )
+                ) {
+                    return;
+                }
+                showOrgIntegrationIdModalMsg('', false);
+                clearBtn.disabled = true;
+                patchOrganisationProjectIntegrationId(pid, '')
+                    .then(function () {
+                        closeOrgIntegrationIdDialog();
+                    })
+                    .catch(function (err) {
+                        showOrgIntegrationIdModalMsg(err.message || String(err), true);
+                    })
+                    .then(function () {
+                        clearBtn.disabled = false;
+                    });
+            });
+        }
+        var save = document.getElementById('orgIntegrationIdSave');
+        if (save) {
+            save.addEventListener('click', function () {
+                var pidEl = document.getElementById('orgIntegrationIdProjectId');
+                var inp = document.getElementById('orgIntegrationIdInput');
+                var pid = pidEl ? pidEl.value.trim() : '';
+                if (!pid) return;
+                var v = inp ? inp.value.trim() : '';
+                showOrgIntegrationIdModalMsg('', false);
+                save.disabled = true;
+                patchOrganisationProjectIntegrationId(pid, v)
+                    .then(function () {
+                        closeOrgIntegrationIdDialog();
+                    })
+                    .catch(function (err) {
+                        showOrgIntegrationIdModalMsg(err.message || String(err), true);
+                    })
+                    .then(function () {
+                        save.disabled = false;
+                    });
+            });
+        }
+        var inpEl = document.getElementById('orgIntegrationIdInput');
+        if (inpEl) {
+            inpEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('orgIntegrationIdSave').click();
+                }
+            });
+        }
+    })();
+
+    $(document).on('click', '.matrix-cell-btn', function () {
+        var cellId = String($(this).attr('data-cell-id') || '');
+        if (!cellId) return;
+        if (selectedMatrixCells.has(cellId)) selectedMatrixCells.delete(cellId);
+        else selectedMatrixCells.add(cellId);
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $(document).on('change', '.scope-filter', function () {
+        var scope = String($(this).val() || '');
+        if (!scope) return;
+        if (this.checked) selectedScopeFilters.add(scope);
+        else selectedScopeFilters.delete(scope);
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearMatrixFilters').on('click', function () {
+        selectedMatrixCells.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearScopeFilters').on('click', function () {
+        selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
+        syncScopeFilterCheckboxes();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearRiskBandFilters').on('click', function () {
+        selectedRiskBands.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearOwnerFilters').on('click', function () {
+        selectedOwnerStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearTargetDateFilters').on('click', function () {
+        selectedTargetDateStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearOverdueFilters').on('click', function () {
+        selectedOverdueStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearCompletionFilters').on('click', function () {
+        selectedCompletionStates.clear();
+        applyUnifiedFiltersAndRefresh();
+    });
+
+    $('#clearAllDashboardFilters').on('click', function () {
+        selectedScopeFilters = new Set(['Mine', 'Organisation', 'Shared with me']);
+        selectedMatrixCells.clear();
+        selectedRiskBands.clear();
+        selectedOwnerStates.clear();
+        selectedTargetDateStates.clear();
+        selectedOverdueStates.clear();
+        selectedCompletionStates.clear();
+        syncScopeFilterCheckboxes();
+        applyUnifiedFiltersAndRefresh();
+    });
+
     // Fetch projects data from server
     fetch('/projects', {
         headers: {
@@ -111,11 +1230,15 @@ $(document).ready(function () {
     })
     .then(response => response.json())
     .then(data => {
-        renderMyProjects(data.ownedProjects.projects);
-        renderSharedProjects(data.sharedProjects);
-        addRiskDonut(data.ownedProjects.riskCounts);
-        addAverages(data.ownedProjects.averages);
-        addTopRisks(data.ownedProjects.topRisks);
+        organisationMetaGlobal = data.organisationMeta || {};
+        var orgNameEl = document.getElementById('shareOrgOrganisationName');
+        if (orgNameEl) {
+            orgNameEl.textContent =
+                organisationMetaGlobal.organisationName ||
+                'Your organisation';
+        }
+        unifiedDashboardPayload = data || {};
+        applyUnifiedFiltersAndRefresh();
     });
 });
 
@@ -129,28 +1252,20 @@ function renderMyProjects(data) {
             }
         },
         columns: [
-            { data: 'title', title: 'Title', defaultContent: '' },
             {
-                data: 'status',
-                title: 'Status',
-                width: '12%',
-                render: function(data, type, row) {
-                    if (data == "done") {
-                        return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
-                    }
-                    if (data == "inProgress") {
-                        return "In progress";
-                    }
-                    if (data == "todo") {
-                        return "To do";
-                    }
-                    return "Unknown"
+                data: 'title',
+                title: 'Title',
+                defaultContent: '',
+                className: 'eval-title-col',
+                render: function (data, type, row) {
+                    return renderEvalTitleCell(data, type, row);
                 }
             },
             {
                 data: 'riskCounts',
                 title: 'Risk counts',
-                width: '12%',
+                width: '11rem',
+                className: 'eval-risk-col',
                 render: function(data, type, row) {
                     return "High: " + data["high"] + "<br/>" + "Medium: " + data["medium"] + "<br/>" + "Low: " + data["low"] + "<br/>" + "Unclassified: " + data["unclassified"] + "<br/>"
                 }
@@ -158,7 +1273,8 @@ function renderMyProjects(data) {
             {
                 data: 'lastModified',
                 title: 'Last modified',
-                width: '12%',
+                width: '9.5rem',
+                className: 'eval-modified-col',
                 render: function(data, type, row) {
                     // Parse the date string into a Date object
                     var date = new Date(data);
@@ -167,29 +1283,101 @@ function renderMyProjects(data) {
                 }
             },
             {
-                title: 'Actions',
+                data: 'status',
+                title: 'Status',
+                width: '6.5rem',
+                className: 'eval-status-col',
+                render: function(data, type, row) {
+                    if (data == "done") {
+                        return '<span class="eval-status-label">Complete</span>';
+                    }
+                    if (data == "inProgress") {
+                        return '<span class="eval-status-label">In progress</span>';
+                    }
+                    if (data == "todo") {
+                        return '<span class="eval-status-label">To do</span>';
+                    }
+                    return '<span class="eval-status-label">Unknown</span>';
+                }
+            },
+            {
+                data: null,
+                title: 'Sharing',
+                orderable: false,
+                searchable: false,
+                width: '6.75rem',
+                className: 'eval-shares-col',
                 render: function (data, type, row) {
-                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>' +
-                           '<button class="shareBtn" data-id="' + row.id + '">Share</button>' +
-                           '<button class="deleteBtn" data-id="' + row.id + '">Delete</button>'
+                    if (type === 'sort' || type === 'filter' || type === 'type') {
+                        return '';
+                    }
+                    var pid = String(row.id != null ? row.id : '');
+                    var n = parseInt(row.sharedWithCount, 10) || 0;
+                    var hasPeople = n > 0;
+                    var hasOrg = !!row.sharedWithOrganisation;
+                    var hasAny = hasOrg || hasPeople;
+                    var buildingSvg =
+                        '<svg class="eval-share-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12h12"/><path d="M6 16h12"/><path d="M10 6h4"/><path d="M10 22v-4h4v4"/></svg>';
+                    var personSvg =
+                        '<svg class="eval-share-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+                    if (!hasAny) {
+                        return (
+                            '<button type="button" class="btn btn-primary eval-share-open" data-id="' +
+                            pid +
+                            '">Share</button>'
+                        );
+                    }
+                    var parts = [];
+                    if (hasOrg) {
+                        parts.push(
+                            '<span class="eval-share-stack">' +
+                                '<span class="eval-share-icon-wrap">' +
+                                buildingSvg +
+                                '</span>' +
+                                '<span class="eval-share-below" aria-hidden="true">&#10003;</span>' +
+                                '</span>'
+                        );
+                    }
+                    if (hasPeople) {
+                        parts.push(
+                            '<span class="eval-share-stack">' +
+                                '<span class="eval-share-icon-wrap">' +
+                                personSvg +
+                                '</span>' +
+                                '<span class="eval-share-below" aria-hidden="true">' +
+                                n +
+                                '</span>' +
+                                '</span>'
+                        );
+                    }
+                    return (
+                        '<button type="button" class="eval-share-open eval-share-open--icons" data-id="' +
+                        pid +
+                        '" title="Edit sharing" aria-label="Edit sharing">' +
+                        '<span class="eval-share-icons">' +
+                        parts.join('') +
+                        '</span></button>'
+                    );
+                }
+            },
+            {
+                title: 'Actions',
+                width: '10rem',
+                className: 'eval-actions-col',
+                orderable: false,
+                searchable: false,
+                render: function (data, type, row) {
+                    return '<button type="button" class="deleteBtn" data-id="' + row.id + '">Delete</button>';
                 }
             }
         ],
-        order: [[0, 'asc']], // Sort by title ascending by default
-        dom: 'Bfrtip', // Show buttons for export
+        order: [[0, 'asc']], // Title
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>", // Layout controls
         buttons: [
             //'copy', 'csv', 'excel', 'pdf', 'print'
         ]
-    });
-
-    $('#myProjectsTable').on('click', '.editBtn', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/projectDetails";
-    });
-
-    $('#myProjectsTable').on('click', '.viewOutput', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/";
     });
 
     $('#myProjectsTable').on('click', '.deleteBtn', function () {
@@ -218,105 +1406,331 @@ function renderMyProjects(data) {
             });
         }
     });
-    $('#myProjectsTable').on('click', '.shareBtn', function () {
+    $('#myProjectsTable').on('click', '.eval-share-open', function () {
         var id = $(this).data('id');
-        console.log(id);
         openShareOverlay();
-        document.getElementById("shareOverlay").setAttribute('data-projectid',id);
+        $('#shareOverlay').attr('data-projectid', id);
+        $('#shareInviteEmail').val('');
+        clearShareOverlayMessage();
 
-        // Get shared users of the project
-        getSharedUsers(id)
-            .then(sharedUsers => {
+        getSharedUsers(id).then(function (sharedUsers) {
+            renderSharedUsers(sharedUsers);
+        });
+        var cb = document.getElementById('orgShareCheckbox');
+        if (cb) {
+            fetch('/project/' + id, { headers: { Accept: 'application/json' } })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (proj) {
+                    cb.checked = !!(proj && proj.sharedWithOrganisation);
+                    updateOrgShareToggleLabel();
+                })
+                .catch(function () {
+                    cb.checked = false;
+                    updateOrgShareToggleLabel();
+                });
+        }
+    });
+
+    $('#shareAddPersonBtn').on('click', function () {
+        var email = ($('#shareInviteEmail').val() || '').trim();
+        var projectId = shareOverlayProjectId();
+        clearShareOverlayMessage();
+        if (!projectId) return;
+        if (!email) {
+            showShareOverlayMessage('Enter an email address.', true);
+            return;
+        }
+        fetch('/project/' + projectId + '/sharedUsers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ email })
+        })
+            .then(function (response) {
+                if (response.ok) return response.json();
+                return response.json().then(function (d) {
+                    throw new Error(d.message || 'Could not add this person');
+                });
+            })
+            .then(function () {
+                $('#shareInviteEmail').val('');
+                return getSharedUsers(projectId);
+            })
+            .then(function (sharedUsers) {
                 renderSharedUsers(sharedUsers);
+                if ($.fn.DataTable.isDataTable('#myProjectsTable')) {
+                    $('#myProjectsTable').DataTable().ajax.reload(null, false);
+                }
+            })
+            .catch(function (e) {
+                showShareOverlayMessage(e.message || String(e), true);
             });
     });
 
-    $('#sharedEmailsTable').DataTable({
-        order: [[0, 'asc']], // Sort by title ascending by default
-        dom: 'Bfrtip', // Show buttons for export
-        buttons: [
-            //'copy', 'csv', 'excel', 'pdf', 'print'
-        ]
-    });
-    // Add event listener for share form submission
-    $('#shareForm').on('submit', function (event) {
-        event.preventDefault();
-        const email = $('#email').val();
-        const projectId = $(this).closest('.overlay').data('projectid');
-
-        // Call API to add share with email
-        fetch(`/project/${projectId}/sharedUsers`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email })
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Failed to add shared user');
-        })
-        .then(() => {
-            // Refresh shared users after adding
-            getSharedUsers(projectId)
-                .then(sharedUsers => {
-                    renderSharedUsers(sharedUsers);
+    $('#shareOverlay').on('click', '.share-access-remove', function () {
+        var email = $(this).data('email');
+        var projectId = shareOverlayProjectId();
+        clearShareOverlayMessage();
+        if (!projectId || !email) return;
+        fetch('/project/' + projectId + '/sharedUsers/' + encodeURIComponent(email), { method: 'DELETE' })
+            .then(function (response) {
+                if (response.ok) return response.json();
+                return response.json().then(function (d) {
+                    throw new Error(d.message || 'Could not remove access');
                 });
-        })
-        .catch(error => console.error("Error adding shared user:", error));
+            })
+            .then(function () {
+                return getSharedUsers(projectId);
+            })
+            .then(function (sharedUsers) {
+                renderSharedUsers(sharedUsers);
+                if ($.fn.DataTable.isDataTable('#myProjectsTable')) {
+                    $('#myProjectsTable').DataTable().ajax.reload(null, false);
+                }
+            })
+            .catch(function (e) {
+                showShareOverlayMessage(e.message || String(e), true);
+            });
     });
 
-    // Add event listener for deleting shared email
-    $('#sharedEmailsBody').on('click', 'button.deleteBtn', function () {
-        const email = $(this).data('email');
-        const projectId = $(this).closest('.overlay').data('projectid');
-
-        // Call API to delete share with email
-        fetch(`/project/${projectId}/sharedUsers/${email}`, {
-            method: 'DELETE'
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Failed to delete shared user');
-        })
-        .then(() => {
-            // Refresh shared users after deleting
-            getSharedUsers(projectId)
-                .then(sharedUsers => {
-                    renderSharedUsers(sharedUsers);
-                });
-        })
-        .catch(error => console.error("Error deleting shared user:", error));
+    $('#shareInviteEmail').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $('#shareAddPersonBtn').trigger('click');
+        }
     });
 }
+
+function renderOrganisationProjects(payload, organisationMeta) {
+    var orgTable = $('#organisationProjectsTable');
+    if (!orgTable.length) return;
+    var allRows = organisationProjectsRows(payload);
+    var includeMineEl = document.getElementById('includeMyOrgSharedEvaluations');
+    var includeMine = includeMineEl ? includeMineEl.checked : false;
+    var data = organisationTableRowsForDisplay(allRows, includeMine);
+    if ($.fn.DataTable.isDataTable('#organisationProjectsTable')) {
+        orgTable.DataTable().destroy();
+    }
+    var cols = [
+        {
+            data: 'title',
+            title: 'Title',
+            defaultContent: '',
+            render: function (data, type, row) {
+                return renderEvalTitleCell(data, type, row);
+            }
+        },
+        {
+            data: 'status',
+            title: 'Status',
+            width: '12%',
+            className: 'eval-status-col',
+            render: function(data, type, row) {
+                if (data == "done") return '<span class="eval-status-label">Complete</span>';
+                if (data == "inProgress") return '<span class="eval-status-label">In progress</span>';
+                if (data == "todo") return '<span class="eval-status-label">To do</span>';
+                return '<span class="eval-status-label">Unknown</span>';
+            }
+        },
+        { data: 'owner', title: 'Owner', defaultContent: '' ,width: '12%' },
+        {
+            data: 'integrationExternalId',
+            title: 'Your project ID',
+            width: '11rem',
+            className: 'eval-org-integration-id-col',
+            orderable: true,
+            defaultContent: '',
+            render: function (data, type, row) {
+                var v = data == null || data === undefined ? '' : String(data);
+                if (type === 'sort' || type === 'filter' || type === 'type') {
+                    return v;
+                }
+                var id = String(row.id != null ? row.id : '');
+                var evalTitle = row.title == null ? '' : String(row.title);
+                var canEdit =
+                    organisationMeta && organisationMeta.canManageOrganisationProjectIntegrations;
+                var etAttr = escapeHtml(evalTitle);
+                if (canEdit && id) {
+                    if (v.trim() !== '') {
+                        var shown = escapeHtml(truncateIntegrationIdDisplay(v, 44));
+                        return (
+                            '<button type="button" class="transparent org-eval-integration-edit" ' +
+                            'data-project-id="' +
+                            escapeHtml(id) +
+                            '" data-eval-title="' +
+                            etAttr +
+                            '" data-committed="' +
+                            escapeHtml(v) +
+                            '" title="Edit your project ID" aria-label="Edit your project ID">' +
+                            shown +
+                            '</button>'
+                        );
+                    }
+                    return (
+                        '<button type="button" class="btn btn-primary org-eval-integration-add" ' +
+                        'data-project-id="' +
+                        escapeHtml(id) +
+                        '" data-eval-title="' +
+                        etAttr +
+                        '" aria-label="Add your project ID">Add</button>'
+                    );
+                }
+                return v.trim() !== ''
+                    ? escapeHtml(truncateIntegrationIdDisplay(v, 56))
+                    : '<span class="small share-access-muted">—</span>';
+            }
+        },
+        {
+            data: 'lastModified',
+            title: 'Last modified',
+            width: '12%',
+            render: function(data, type, row) {
+                return new Date(data).toLocaleString();
+            }
+        }
+    ];
+    if (organisationMeta && organisationMeta.isAdmin) {
+        cols.push({
+            title: 'Actions',
+            width: '11rem',
+            className: 'eval-actions-col',
+            render: function (data, type, row) {
+                return '<button type="button" class="transferOwnerOpenBtn" data-id="' + row.id + '">Transfer ownership</button>';
+            }
+        });
+    }
+    orgTable.DataTable({
+        data: data,
+        columns: cols,
+        order: [[0, 'asc']],
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>",
+        buttons: []
+    });
+    orgTable.off('click', 'tbody .transferOwnerOpenBtn');
+    orgTable.on('click', 'tbody .transferOwnerOpenBtn', function () {
+        var pid = $(this).data('id');
+        var pidEl = document.getElementById('transferProjectId');
+        var overlayEl = document.getElementById('transferOwnerOverlay');
+        if (!pidEl || !overlayEl) return;
+        pidEl.value = pid;
+        var tmsg = document.getElementById('transferOwnerMessage');
+        if (tmsg) tmsg.style.display = 'none';
+        fetch('/organisation', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (ctx) {
+                var sel = document.getElementById('transferOwnerSelect');
+                if (!sel) return;
+                sel.innerHTML = '';
+                var ph = document.createElement('option');
+                ph.value = '';
+                ph.textContent = 'Choose new owner…';
+                ph.disabled = true;
+                ph.selected = true;
+                sel.appendChild(ph);
+                (ctx.members || []).forEach(function (m) {
+                    var opt = document.createElement('option');
+                    opt.value = m.email;
+                    opt.textContent = (m.name || m.email) + ' <' + m.email + '>' +
+                        (m.hasAccount ? '' : ' (needs CARE account to own)');
+                    opt.disabled = !m.hasAccount;
+                    sel.appendChild(opt);
+                });
+                overlayEl.style.display = 'block';
+            })
+            .catch(function (e) { alert(e.message || String(e)); });
+    });
+}
+
+$(document).on('change', '#includeMyOrgSharedEvaluations', function () {
+    if (!organisationProjectsCachedPayload) return;
+    renderOrganisationProjects(organisationProjectsCachedPayload, organisationMetaGlobal);
+});
+
+$(document).on('click', '#transferOwnerSubmit', function () {
+    var pidEl = document.getElementById('transferProjectId');
+    if (!pidEl) return;
+    var pid = pidEl.value;
+    var sel = document.getElementById('transferOwnerSelect');
+    var email = sel ? sel.value : '';
+    var msg = document.getElementById('transferOwnerMessage');
+    if (msg) msg.style.display = 'none';
+    if (!email) {
+        if (msg) {
+            msg.style.display = 'block';
+            msg.textContent = 'Choose a member who already has a CARE account.';
+            msg.style.color = '#c00';
+        }
+        return;
+    }
+    fetch('/project/' + pid + '/owner', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ ownerEmail: email })
+    }).then(function (res) {
+        return res.json().then(function (d) {
+            if (!res.ok) throw new Error(d.message || 'Transfer failed');
+            closeTransferOwnerOverlay();
+            return fetch('/projects', { headers: { 'Accept': 'application/json' } });
+        });
+    }).then(function (r) {
+        if (!r || !r.ok) return;
+        return r.json();
+    }).then(function (data) {
+        if (!data) return;
+        if ($.fn.DataTable.isDataTable('#organisationProjectsTable')) {
+            $('#organisationProjectsTable').DataTable().destroy();
+        }
+        organisationProjectsCachedPayload = data.organisationProjects || {};
+        refreshOrganisationDashboard(data.organisationProjects);
+        renderOrganisationProjects(organisationProjectsCachedPayload, data.organisationMeta || {});
+        if ($.fn.DataTable.isDataTable('#myProjectsTable')) {
+            $('#myProjectsTable').DataTable().ajax.reload(null, false);
+        }
+    }).catch(function (e) {
+        if (msg) {
+            msg.style.display = 'block';
+            msg.textContent = e.message;
+            msg.style.color = '#c00';
+        } else {
+            alert(e.message || String(e));
+        }
+    });
+});
 
 function renderSharedProjects(data) {
     $('#sharedProjectsTable').DataTable({
         data: data,
         columns: [
-            { data: 'title', title: 'Title', defaultContent: '' },
+            {
+                data: 'title',
+                title: 'Title',
+                defaultContent: '',
+                render: function (data, type, row) {
+                    return renderEvalTitleCell(data, type, row);
+                }
+            },
             {
                 data: 'status',
                 title: 'Status',
                 width: '12%',
+                className: 'eval-status-col',
                 render: function(data, type, row) {
                     if (data == "done") {
-                        return 'Complete<br/><button class="viewOutput" data-id="' + row.id + '">View</button>';
+                        return '<span class="eval-status-label">Complete</span>';
                     }
                     if (data == "inProgress") {
-                        return "In progress";
+                        return '<span class="eval-status-label">In progress</span>';
                     }
                     if (data == "todo") {
-                        return "To do";
+                        return '<span class="eval-status-label">To do</span>';
                     }
-                    return "Unknown"
+                    return '<span class="eval-status-label">Unknown</span>';
                 }
             },
-            { data: 'owner', title: 'Owner', defaultContent: '' },
+            { data: 'owner', title: 'Owner', defaultContent: '', width: '12%' },
             {
                 data: 'lastModified',
                 title: 'Last modified',
@@ -327,28 +1741,15 @@ function renderSharedProjects(data) {
                     // Format the date nicely (e.g., "April 18, 2024 14:36:41")
                     return date.toLocaleString();
                 }
-            },
-            {
-                title: 'Actions',
-                render: function (data, type, row) {
-                    return '<button class="editBtn" data-id="' + row.id + '">Edit</button>'
-                }
             }
         ],
         order: [[0, 'asc']], // Sort by title ascending by default
-        dom: 'Bfrtip', // Show buttons for export
+        dom: "<'dt-top'<'dt-top-left'l><'dt-top-right'f>>" +
+             "<'dt-middle't>" +
+             "<'dt-bottom'<'dt-bottom-left'i><'dt-bottom-right'p>>", // Layout controls
         buttons: [
             //'copy', 'csv', 'excel', 'pdf', 'print'
         ]
-    });
-
-    $('#sharedProjectsTable').on('click', '.editBtn', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/projectDetails";
-    });
-    $('#sharedProjectsTable').on('click', '.viewOutput', function () {
-        var id = $(this).data('id');
-        window.location.href = '/project/' + id + "/";
     });
 }
 // Function to open share overlay
@@ -361,26 +1762,42 @@ function closeShareOverlay() {
     document.getElementById("shareOverlay").style.display = "none";
 }
 
-// Function to get shared users of a project
-function getSharedUsers(projectId) {
-    return fetch(`/project/${projectId}/sharedUsers`)
-        .then(response => response.json())
-        .catch(error => console.error("Error fetching shared users:", error));
+function closeTransferOwnerOverlay() {
+    var o = document.getElementById('transferOwnerOverlay');
+    if (o) o.style.display = 'none';
 }
 
-function renderSharedUsers(sharedUsers) {
-    const sharedEmailsTable = $('#sharedEmailsTable').DataTable();
-
-    // Clear existing data
-    sharedEmailsTable.clear();
-
-    // Add new data
-    sharedUsers.sharedUsers.forEach(email => {
-        sharedEmailsTable.row.add([email, '<button class="deleteBtn" data-email="' + email + '">Remove share</button>']);
-    });
-
-    // Redraw the table
-    sharedEmailsTable.draw();
-}
+$(document).on('change', '#orgShareCheckbox', function () {
+    var checkboxEl = this;
+    updateOrgShareToggleLabel();
+    var overlay = document.getElementById('shareOverlay');
+    if (!overlay) return;
+    var projectId = overlay.getAttribute('data-projectid');
+    if (!projectId) return;
+    var checked = checkboxEl.checked;
+    fetch('/project/' + projectId + '/organisation-share', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ sharedWithOrganisation: checked })
+    })
+        .then(function (res) {
+            if (!res.ok) {
+                return res.json().then(function (d) {
+                    throw new Error(d.message || 'Update failed');
+                });
+            }
+            return res.json();
+        })
+        .then(function () {
+            if ($.fn.DataTable.isDataTable('#myProjectsTable')) {
+                $('#myProjectsTable').DataTable().ajax.reload(null, false);
+            }
+            clearShareOverlayMessage();
+        })
+        .catch(function (e) {
+            showShareOverlayMessage(e.message || String(e), true);
+            checkboxEl.checked = !checked;
+            updateOrgShareToggleLabel();
+        });
+});
 </script>
-<%- include('../partials/footer') %>

@@ -68,7 +68,11 @@ function loadConfig() {
     process.env.OPENAI_BASE_URL ||
     undefined;
 
-  const maxTokens = parseInt(process.env.AI_MAX_TOKENS || '8192', 10);
+  const maxTokens = parseInt(process.env.AI_MAX_TOKENS || '24000', 10);
+  const anthropicThinkingBudget = parseInt(
+    process.env.AI_ANTHROPIC_THINKING_BUDGET || '10000',
+    10
+  );
 
   return {
     provider,
@@ -87,7 +91,59 @@ function loadConfig() {
     openaiUseLegacyMaxTokens: process.env.AI_OPENAI_LEGACY_MAX_TOKENS === 'true',
     /** Skip json_schema / Anthropic tools and use plain completion + markdown JSON parse */
     disableStructuredOutput: process.env.AI_DISABLE_STRUCTURED_OUTPUT === 'true',
+    /** If true, throw on structured failure instead of auto-fallback */
+    disableStructuredFallback: process.env.AI_DISABLE_STRUCTURED_FALLBACK === 'true',
+    anthropicThinkingBudget: Number.isFinite(anthropicThinkingBudget)
+      ? Math.max(1024, anthropicThinkingBudget)
+      : 10000,
   };
+}
+
+function buildStructuredFailureError(provider, error) {
+  const err = new Error(
+    `[${provider}] structured output failed: ${
+      error && error.message ? error.message : String(error)
+    }`
+  );
+  err.code = 'STRUCTURED_OUTPUT_FAILED';
+  err.provider = provider;
+  err.cause = error;
+  return err;
+}
+
+/**
+ * One-line JSON for server logs (deployment debugging). Never logs API keys or full prompts.
+ * @param {string} toolName
+ * @param {object} detail
+ */
+function logAnthropicStructuredFailure(toolName, detail) {
+  try {
+    const line = JSON.stringify({
+      tag: 'aiChat:anthropic-structured',
+      toolName: toolName != null ? String(toolName) : 'unknown',
+      ts: new Date().toISOString(),
+      ...detail,
+    });
+    console.warn(line);
+  } catch (_) {
+    console.warn('[aiChat:anthropic-structured] log failed', toolName, detail);
+  }
+}
+
+function summarizeAnthropicContentBlocks(content) {
+  if (!Array.isArray(content)) return [];
+  return content.map((b) => ({
+    type: b && b.type,
+    name: b && b.name,
+    hasInput: b && b.input != null,
+    textLen: b && b.type === 'text' && typeof b.text === 'string' ? b.text.length : undefined,
+  }));
+}
+
+function trimForLog(s, max = 400) {
+  if (s == null || s === '') return '';
+  const str = String(s);
+  return str.length <= max ? str : str.slice(0, max) + '…';
 }
 
 function assertKey(cfg) {
@@ -127,6 +183,9 @@ async function chatCompletion(messages, runtimeOverrides = {}) {
       try {
         return await openaiStructuredChat(messages, cfg, prepared.openai, schemaName);
       } catch (e) {
+        if (cfg.disableStructuredFallback) {
+          throw buildStructuredFailureError('openai', e);
+        }
         console.warn('[aiChat] OpenAI structured output failed, using plain completion + JSON parse:', e.message || e);
         return openaiCompatibleChat(messages, cfg);
       }
@@ -136,6 +195,9 @@ async function chatCompletion(messages, runtimeOverrides = {}) {
       try {
         return await anthropicStructuredChat(messages, cfg, prepared.anthropic, schemaName);
       } catch (e) {
+        if (cfg.disableStructuredFallback) {
+          throw buildStructuredFailureError('anthropic', e);
+        }
         console.warn('[aiChat] Anthropic tool use failed, using plain completion + JSON parse:', e.message || e);
         return anthropicChat(messages, cfg);
       }
@@ -145,6 +207,9 @@ async function chatCompletion(messages, runtimeOverrides = {}) {
       try {
         return await googleGeminiStructuredChat(messages, cfg, prepared.anthropic);
       } catch (e) {
+        if (cfg.disableStructuredFallback) {
+          throw buildStructuredFailureError('google', e);
+        }
         console.warn('[aiChat] Gemini structured output failed, using plain completion + JSON parse:', e.message || e);
         return googleGeminiChat(messages, cfg);
       }
@@ -255,6 +320,37 @@ async function anthropicStructuredChat(messages, cfg, inputSchema, toolName) {
     throw new Error('Anthropic requires at least one user or assistant message');
   }
 
+  const streamObserver = typeof cfg.streamObserver === 'function' ? cfg.streamObserver : null;
+  const requestBody = {
+    model: cfg.model,
+    max_tokens: cfg.maxTokens,
+    messages: anthropicMessages,
+    tools: [
+      {
+        name: toolName,
+        description: DEFAULT_STRUCTURED_TOOL_DESCRIPTION,
+        input_schema: inputSchema,
+      },
+    ],
+    tool_choice: { type: 'tool', name: toolName },
+  };
+  if (streamObserver) {
+    requestBody.stream = true;
+    requestBody.thinking = {
+      type: 'enabled',
+      budget_tokens: Math.max(
+        1024,
+        Math.min(cfg.anthropicThinkingBudget || 10000, Math.max(1024, cfg.maxTokens - 1))
+      ),
+    };
+    // Extended thinking is not compatible with forced tool choice.
+    requestBody.tool_choice = { type: 'auto' };
+  }
+  const userChars =
+    anthropicMessages[0] && typeof anthropicMessages[0].content === 'string'
+      ? anthropicMessages[0].content.length
+      : 0;
+  const schemaSizeBytes = JSON.stringify(inputSchema).length;
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -262,23 +358,39 @@ async function anthropicStructuredChat(messages, cfg, inputSchema, toolName) {
       'x-api-key': cfg.apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({
-      model: cfg.model,
-      max_tokens: cfg.maxTokens,
-      messages: anthropicMessages,
-      tools: [
-        {
-          name: toolName,
-          description: DEFAULT_STRUCTURED_TOOL_DESCRIPTION,
-          input_schema: inputSchema,
-        },
-      ],
-      tool_choice: { type: 'tool', name: toolName },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
-  const data = await res.json().catch(() => ({}));
+  if (streamObserver) {
+    return anthropicParseStreamResponse(res, streamObserver, toolName, {
+      streaming: true,
+      structured: true,
+      userChars,
+      model: cfg.model,
+      schemaSizeBytes,
+      toolChoice: requestBody.tool_choice,
+    });
+  }
+
+  const rawBody = await res.text().catch(() => '');
+  let data = {};
+  try {
+    data = rawBody ? JSON.parse(rawBody) : {};
+  } catch (_) {
+    data = {};
+  }
   if (!res.ok) {
+    logAnthropicStructuredFailure(toolName, {
+      phase: 'http',
+      streaming: false,
+      model: cfg.model,
+      userChars,
+      schemaSizeBytes,
+      httpStatus: res.status,
+      error: data.error?.message || data.message || res.statusText,
+      errorType: data.error?.type,
+      bodySample: trimForLog(rawBody, 800),
+    });
     const msg = data.error?.message || data.message || res.statusText;
     throw new Error(`Anthropic API error (${res.status}): ${msg}`);
   }
@@ -290,9 +402,30 @@ async function anthropicStructuredChat(messages, cfg, inputSchema, toolName) {
 
   const textBlock = (data.content || []).find((b) => b.type === 'text');
   if (textBlock?.text) {
+    logAnthropicStructuredFailure(toolName, {
+      phase: 'non-stream',
+      outcome: 'no_tool_use_plain_text_instead',
+      model: data.model,
+      userChars,
+      schemaSizeBytes,
+      stopReason: data.stop_reason,
+      messageId: data.id,
+      contentSummary: summarizeAnthropicContentBlocks(data.content),
+      textSample: trimForLog(textBlock.text, 400),
+    });
     return textBlock.text;
   }
 
+  logAnthropicStructuredFailure(toolName, {
+    phase: 'non-stream',
+    outcome: 'no_tool_use_no_text',
+    model: data.model,
+    userChars,
+    schemaSizeBytes,
+    stopReason: data.stop_reason,
+    messageId: data.id,
+    contentSummary: summarizeAnthropicContentBlocks(data.content),
+  });
   throw new Error('Anthropic structured: no tool_use or text in response');
 }
 
@@ -309,6 +442,23 @@ async function anthropicChat(messages, cfg) {
     throw new Error('Anthropic requires at least one user or assistant message');
   }
 
+  const streamObserver = typeof cfg.streamObserver === 'function' ? cfg.streamObserver : null;
+  const requestBody = {
+    model: cfg.model,
+    max_tokens: cfg.maxTokens,
+    messages: anthropicMessages,
+  };
+  if (streamObserver) {
+    requestBody.stream = true;
+    requestBody.thinking = {
+      type: 'enabled',
+      budget_tokens: Math.max(
+        1024,
+        Math.min(cfg.anthropicThinkingBudget || 10000, Math.max(1024, cfg.maxTokens - 1))
+      ),
+    };
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -316,12 +466,16 @@ async function anthropicChat(messages, cfg) {
       'x-api-key': cfg.apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({
-      model: cfg.model,
-      max_tokens: cfg.maxTokens,
-      messages: anthropicMessages,
-    }),
+    body: JSON.stringify(requestBody),
   });
+
+  if (streamObserver) {
+    return anthropicParseStreamResponse(res, streamObserver, 'plain_chat', {
+      streaming: true,
+      structured: false,
+      model: cfg.model,
+    });
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -335,6 +489,214 @@ async function anthropicChat(messages, cfg) {
     throw new Error('Anthropic returned no text content');
   }
   return text;
+}
+
+async function anthropicParseStreamResponse(res, streamObserver, toolName, meta = {}) {
+  if (!res.ok) {
+    const rawBody = await res.text().catch(() => '');
+    let data = {};
+    try {
+      data = rawBody ? JSON.parse(rawBody) : {};
+    } catch (_) {
+      data = {};
+    }
+    logAnthropicStructuredFailure(toolName, {
+      phase: 'stream_http',
+      ...meta,
+      httpStatus: res.status,
+      error: data.error?.message || data.message || res.statusText,
+      errorType: data.error?.type,
+      bodySample: trimForLog(rawBody, 800),
+    });
+    const msg = data.error?.message || data.message || res.statusText;
+    throw new Error(`Anthropic API error (${res.status}): ${msg}`);
+  }
+  if (!res.body) {
+    throw new Error('Anthropic stream: missing response body');
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let textOut = '';
+  let toolInput = null;
+  let stopReason = null;
+  let toolUseStoppedWithoutInput = false;
+  const streamBlockTypes = [];
+  /** Streaming tool input is sent as partial_json deltas; final content_block_stop may omit `input`. */
+  const partialJsonByIndex = {};
+  const isStructured = meta.structured === true;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let sep = buffer.indexOf('\n\n');
+    while (sep !== -1) {
+      const rawEvent = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      sep = buffer.indexOf('\n\n');
+
+      const event = parseSseEvent(rawEvent);
+      if (!event || !event.data) continue;
+      if (event.data === '[DONE]') continue;
+
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data);
+      } catch {
+        continue;
+      }
+      const t = payload && payload.type;
+      if (t === 'content_block_start') {
+        const cb = payload.content_block;
+        if (cb && cb.type) {
+          streamBlockTypes.push({
+            index: payload.index,
+            type: cb.type,
+            name: cb.name,
+          });
+        }
+      } else if (t === 'content_block_delta') {
+        const d = payload.delta || {};
+        const blockIndex =
+          typeof payload.index === 'number' ? payload.index : undefined;
+        if (typeof d.text === 'string' && d.text) {
+          textOut += d.text;
+          streamObserver({ type: 'text_delta', text: d.text });
+        }
+        // Anthropic thinking deltas may vary by shape; handle common variants.
+        if (d.type === 'thinking_delta' && typeof d.thinking === 'string' && d.thinking) {
+          streamObserver({ type: 'thinking_delta', text: d.thinking });
+        } else if (typeof d.thinking === 'string' && d.thinking) {
+          streamObserver({ type: 'thinking_delta', text: d.thinking });
+        } else if (d.type === 'thinking_delta' && typeof d.text === 'string' && d.text) {
+          streamObserver({ type: 'thinking_delta', text: d.text });
+        }
+        const partialPiece = typeof d.partial_json === 'string' ? d.partial_json : '';
+        if (partialPiece) {
+          let accIdx = blockIndex;
+          if (accIdx === undefined) {
+            const tools = streamBlockTypes.filter((s) => s.type === 'tool_use');
+            const lastTool = tools[tools.length - 1];
+            if (lastTool && typeof lastTool.index === 'number') {
+              accIdx = lastTool.index;
+            }
+          }
+          if (accIdx !== undefined) {
+            partialJsonByIndex[accIdx] =
+              (partialJsonByIndex[accIdx] || '') + partialPiece;
+          }
+          streamObserver({ type: 'tool_json_delta', text: partialPiece });
+        }
+      } else if (t === 'content_block_stop') {
+        const b = payload.content_block || {};
+        const stopIdx = typeof payload.index === 'number' ? payload.index : undefined;
+        if (b.type === 'tool_use') {
+          if (b.input != null) {
+            toolInput = b.input;
+          } else if (stopIdx !== undefined && partialJsonByIndex[stopIdx]) {
+            const raw = partialJsonByIndex[stopIdx];
+            try {
+              toolInput = JSON.parse(raw);
+            } catch (parseErr) {
+              toolUseStoppedWithoutInput = true;
+              if (isStructured) {
+                logAnthropicStructuredFailure(toolName, {
+                  phase: 'stream',
+                  outcome: 'tool_use_partial_json_parse_failed',
+                  ...meta,
+                  stopReason,
+                  streamBlockTypes,
+                  parseError: parseErr && parseErr.message ? parseErr.message : String(parseErr),
+                  partialJsonSample: trimForLog(raw, 600),
+                });
+              }
+            }
+          } else {
+            toolUseStoppedWithoutInput = true;
+          }
+        }
+      } else if (t === 'message_delta') {
+        const sr = payload.delta && payload.delta.stop_reason;
+        if (sr) {
+          stopReason = sr;
+          streamObserver({ type: 'stop', stopReason: sr });
+        }
+      }
+    }
+  }
+
+  if (toolInput == null && isStructured) {
+    const toolEntry = streamBlockTypes.find((s) => s.type === 'tool_use');
+    const idx = toolEntry && typeof toolEntry.index === 'number' ? toolEntry.index : undefined;
+    if (idx !== undefined && partialJsonByIndex[idx]) {
+      const raw = partialJsonByIndex[idx];
+      try {
+        toolInput = JSON.parse(raw);
+      } catch (parseErr) {
+        logAnthropicStructuredFailure(toolName, {
+          phase: 'stream',
+          outcome: 'tool_use_partial_json_parse_failed_after_stream',
+          ...meta,
+          stopReason,
+          streamBlockTypes,
+          parseError: parseErr && parseErr.message ? parseErr.message : String(parseErr),
+          partialJsonSample: trimForLog(raw, 600),
+        });
+      }
+    }
+  }
+
+  if (toolInput != null) {
+    return JSON.stringify(toolInput);
+  }
+  if (textOut) {
+    if (isStructured) {
+      logAnthropicStructuredFailure(toolName, {
+        phase: 'stream',
+        outcome: 'no_tool_use_plain_text_instead',
+        ...meta,
+        stopReason,
+        streamBlockTypes,
+        textLen: textOut.length,
+        textSample: trimForLog(textOut, 400),
+      });
+    }
+    return textOut;
+  }
+  if (!isStructured) {
+    throw new Error('Anthropic stream: no text output');
+  }
+  logAnthropicStructuredFailure(toolName, {
+    phase: 'stream',
+    outcome: 'no_tool_use_no_text',
+    ...meta,
+    stopReason,
+    streamBlockTypes,
+    toolUseStoppedWithoutInput,
+  });
+  throw new Error(
+    `Anthropic stream: no tool_use or text output (stop_reason=${stopReason || 'n/a'}, blocks=${JSON.stringify(streamBlockTypes)})`
+  );
+}
+
+function parseSseEvent(rawEvent) {
+  const lines = rawEvent.split('\n');
+  let eventType = '';
+  const dataLines = [];
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      eventType = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trim());
+    }
+  }
+  return {
+    event: eventType,
+    data: dataLines.join('\n'),
+  };
 }
 
 function geminiUserText(messages) {

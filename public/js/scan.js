@@ -3,6 +3,7 @@ async function loadProject(projectId) {
 
     const urlParams = new URLSearchParams(window.location.search);
     const templateParam = urlParams.get('template');
+    const templateMode = urlParams.get('templateMode');
 
     if (projectId) {
         fetchURL = `/project/${projectId}`;
@@ -24,11 +25,25 @@ async function loadProject(projectId) {
         }
 
         const data = await response.json();
+        if (!projectId && templateParam && templateMode === 'blank') {
+            return stripAssessmentDataFromTemplate(data);
+        }
         return data;
     } catch (error) {
         console.error('There was a problem with the fetch operation:', error);
         return {}; // Return an empty object if there's an error
     }
+}
+
+function stripAssessmentDataFromTemplate(data) {
+    if (!data || typeof data !== 'object') {
+        return data;
+    }
+    const clone = JSON.parse(JSON.stringify(data));
+    clone.intendedConsequences = [];
+    clone.unintendedConsequences = [];
+    clone.stakeholders = [];
+    return clone;
 }
 
 /**

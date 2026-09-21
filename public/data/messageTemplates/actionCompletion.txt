@@ -1,0 +1,28 @@
+You are helping a user follow up on mitigation actions for a data project.
+
+Here is the project context:
+
+Title: {{title}}
+Objectives: {{objectives}}
+Data used: {{dataUsed}}
+
+Current unintended consequences with action-planning details:
+
+{{unintendedConsequences}}
+
+For each negative unintended consequence that already has an action plan, suggest and complete:
+- action.completed ("Completed" or "Not completed")
+- action.completedAt in YYYY-MM-DD format (or empty string if unknown)
+- action.completionComment
+
+Do not remove any existing unintended consequences. Keep existing values where sensible and only fill missing action-completion fields.
+
+{{orgContext}}
+
+Your response should be in the format of undeclared JSON conforming to the following schema:
+
+{{schema}}
+
+Return just the data, not the schema.
+
+Output only raw JSON: no markdown code blocks (no triple-backtick fences), and no text before or after the JSON.

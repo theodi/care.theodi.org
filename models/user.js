@@ -6,7 +6,9 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     name: String,
     email: { type: String, unique: true, required: true },
-    password: String,
+    // Password is unused with current OAuth-only auth; keep it out of query
+    // projections by default so it cannot be returned accidentally.
+    password: { type: String, select: false },
     firstLogin: Date,
     lastLogin: Date,
     loginCount: Number,

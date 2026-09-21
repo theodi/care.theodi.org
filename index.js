@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Load environment variables securely
 require("dotenv").config({ path: "./config.env" });
@@ -30,16 +31,38 @@ db.once('open', function() {
 
 const express = require('express');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const passport = require('./passport'); // Require the passport module
 const authRoutes = require('./routes/auth'); // Require the authentication routes module
+const subscriptionRoutes = require('./routes/subscriptions');
+const organisationRoutes = require('./routes/organisation');
 const projectRoutes = require('./routes/project'); // Require the project routes module
+const { isCareStaffEmail } = require('./middleware/careStaff');
+const { userHasActiveOrgEntitlementByEmail, getUserOrganisationMetaByEmail } = require('./lib/organisationEntitlements');
+const { formatApiError } = require('./lib/formatApiError');
 const assistantRoutes = require('./routes/assistant'); // Require the project routes module
 const { loadProject } = require('./middleware/project');
 const { deleteUser, retrieveOrCreateUser } = require('./controllers/user'); // Import necessary functions from controllers
-const { getHubspotProfile, updateToolStatistics } = require('./controllers/hubspot');
+const { getHubspotProfile, updateToolStatistics, updateCareAccountStatus } = require('./controllers/hubspot');
+const { ensureAuthenticated } = require('./middleware/auth');
+const { authLimiter, assistantLimiter } = require('./middleware/rateLimit');
 const app = express();
 const port = process.env.PORT || 3080;
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+const expressLayouts = require('express-ejs-layouts');
+app.use(expressLayouts);
+app.set('layout', 'layout');
+
+app.use(function(req, res, next) {
+  res.locals.layoutScanHeader = false;
+  next();
+});
 
 // Middleware for logging
 const logger = require('morgan');
@@ -51,12 +74,51 @@ app.use(express.urlencoded({ extended: false }));
 
 // Other middleware and setup code...
 
-// Session configuration
+// Session configuration — MongoDB store so restarts do not clear logins (see collection `sessions`)
+const mongoSessionStoreOpts = { mongoUrl: mongoURI };
+if (mongoDB) {
+  mongoSessionStoreOpts.dbName = mongoDB;
+}
 app.use(session({
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   secret: process.env.SESSION_SECRET,
+  store: MongoStore.create(mongoSessionStoreOpts),
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isProduction,
+    maxAge: 1000 * 60 * 60 * 12,
+  },
 }));
+
+function sameOrigin(urlString, req) {
+  if (!urlString) return false;
+  try {
+    const parsed = new URL(urlString);
+    const forwardedProto = req.get('x-forwarded-proto');
+    const proto = forwardedProto || req.protocol;
+    const expectedOrigin = `${proto}://${req.get('host')}`;
+    return parsed.origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    return next();
+  }
+  const origin = req.get('Origin');
+  const referer = req.get('Referer');
+  const valid = sameOrigin(origin, req) || sameOrigin(referer, req);
+  if (valid) {
+    return next();
+  }
+  const err = new Error('Cross-site request blocked');
+  err.status = 403;
+  return next(err);
+});
 
 // Middleware for user object
 
@@ -67,6 +129,54 @@ app.use(passport.session());
 app.use(function(req, res, next) {
   res.locals.user = req.session.passport ? req.session.passport.user : req.session.user;
   next();
+});
+
+app.use(async function(req, res, next) {
+  const u = res.locals.user;
+  res.locals.isCareStaff = isCareStaffEmail(u && u.email);
+  if (u && u.id && req.isAuthenticated()) {
+    try {
+      res.locals.hasOrganisationMembership = await userHasActiveOrgEntitlementByEmail(u.email);
+    } catch (e) {
+      res.locals.hasOrganisationMembership = false;
+    }
+  } else {
+    res.locals.hasOrganisationMembership = false;
+  }
+  next();
+});
+
+// CSRF tokens for browser-based, session-authenticated requests.
+app.use((req, res, next) => {
+  // Only enforce for users with an authenticated session.
+  if (!req.session || !req.session.passport || !req.isAuthenticated || !req.isAuthenticated()) {
+    return next();
+  }
+
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  res.locals.csrfToken = req.session.csrfToken;
+
+  // Safe / special-case routes that we intentionally exempt from CSRF checks.
+  // Logout is exempt because it is triggered from a simple form POST and is
+  // already protected by same-origin + session.
+  if (req.path === '/logout') {
+    return next();
+  }
+
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const headerToken = req.get('x-csrf-token') || req.get('X-CSRF-Token') || '';
+  if (headerToken && headerToken === req.session.csrfToken) {
+    return next();
+  }
+
+  const err = new Error('Invalid CSRF token');
+  err.status = 403;
+  return next(err);
 });
 
 app.use((req, res, next) => {
@@ -101,42 +211,38 @@ app.post('/logout', function(req, res, next){
   });
 });
 
-// Middleware to ensure authentication
-function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated())
-    return next();
-  else
-    unauthorised(res);
-}
-
-function unauthorised(res) {
-  const page = {
-    title: "Error"
-  };
-  res.locals.page = page;
-  const error = new Error("Unauthorized access");
-  error.status = 401;
-  throw error;
-}
-
 // Routes
+
+app.get('/docs/tenant-integration', (req, res) => {
+  res.redirect(301, '/docs/tenant-integration.html');
+});
+
+app.get('/docs/report-template', (req, res) => {
+  res.redirect(301, '/docs/report-template.html');
+});
 
 app.use(express.static(__dirname + '/public')); // Public directory
 
 // Use authentication routes
-app.use('/auth', authRoutes);
+app.use('/auth', authLimiter, authRoutes);
 
 app.get('/admin', function(req,res) {
   res.redirect('/auth/google');
 });
 
+app.use('/subscriptions', subscriptionRoutes);
+app.use('/organisation', organisationRoutes);
+
 app.use(loadProject);
 
 app.use('/project', projectRoutes);
 
-app.use('/assistant', assistantRoutes);
+app.use('/assistant', assistantLimiter, assistantRoutes);
 
 app.get('/', function(req, res) {
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return res.redirect('/evaluations');
+  }
   const page = {
     title: "Consequence and Risk Evaluation (CARE)",
     link: "/"
@@ -146,12 +252,17 @@ app.get('/', function(req, res) {
 });
 
 app.get('/new', ensureAuthenticated, checkLimit, function(req, res, next) {
+  // Always start a brand-new evaluation from /new (no existing id in session).
+  delete req.session.projectId;
+  res.locals.project = undefined;
   const page = {
     title: "Project details",
     link: "projectDetails"
   };
   res.locals.page = page;
-  res.render('pages/scan', { project: '' });
+  res.locals.layoutScanHeader = true;
+  // New evaluations do not have an id yet; render scan page without sidebar context.
+  res.render('pages/scan');
 });
 
 app.get('/examples', ensureAuthenticated, function(req, res) {
@@ -170,7 +281,7 @@ app.get('/about', function(req, res) {
   };
   res.locals.page = page;
   res.locals.aiPrivacy = getAiPrivacyDisclosure();
-  res.render('pages/about');
+  res.render('pages/about', { layout: false });
 });
 
 app.get('/glossary', function(req, res) {
@@ -208,7 +319,7 @@ app.get('/glossary', function(req, res) {
                   link: "/glossary"
                 };
                 res.locals.page = page;
-                res.render('pages/glossary', { data: glossaryData });
+                res.render('pages/glossary', { data: glossaryData, layout: false });
             }
         });
     }
@@ -218,6 +329,9 @@ app.get('/profile', ensureAuthenticated, async (req, res, next) => {
   try {
     res.locals.userProfile = await retrieveOrCreateUser(res.locals.user);
     res.locals.userProfile.hubspot = await getHubspotProfile(res.locals.userProfile.id);
+    res.locals.careOrganisationMembership = await getUserOrganisationMetaByEmail(
+      res.locals.userProfile.email
+    );
     const page = {
       title: "Profile page",
       link: "/profile"
@@ -239,6 +353,7 @@ app.delete('/profile', ensureAuthenticated, async (req, res, next) => {
       const ownedProjects = userProjects.ownedProjects.projects;
 
       if (ownedProjects.length === 0) {
+          await updateCareAccountStatus(userId, 'deleted');
           // If the user has no projects, delete the user
           await deleteUser(userId)
           res.status(200).json({ message: "User deleted successfully." });
@@ -262,13 +377,13 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
         if (acceptHeader === 'application/json') {
             // Fetch user projects and send JSON response
             const userProjects = await projectController.getUserProjects(userId);
-            res.json(userProjects);
+            const userEmail = req.session.passport.user.email;
+            const organisationMeta = await getUserOrganisationMetaByEmail(userEmail);
+            res.json({ ...userProjects, organisationMeta });
         } else {
-            if (req.session.authMethod !== 'local') {
-              updateToolStatistics(req.session.passport.user.id);
-            }
+            updateToolStatistics(req.session.passport.user.id);
             const page = {
-              title: "Evaluations",
+              title: "Dashboard",
               link: "/projects"
             };
             res.locals.page = page;
@@ -279,9 +394,34 @@ app.get('/projects', ensureAuthenticated, async (req, res, next) => {
     }
 });
 
+app.get('/evaluations', ensureAuthenticated, async (req, res, next) => {
+    try {
+        const page = {
+            title: 'Evaluations',
+            link: '/evaluations',
+        };
+        res.locals.page = page;
+        res.render('pages/evaluations');
+    } catch (error) {
+        next(error);
+    }
+});
+
 app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
   try {
       const schemaPath = req.params.schema;
+
+      // Basic hardening: reject traversal, absolute paths, and non-JSON.
+      if (
+        !schemaPath ||
+        schemaPath.includes('..') ||
+        schemaPath.startsWith('/') ||
+        schemaPath.includes('\\') ||
+        !schemaPath.endsWith('.json')
+      ) {
+          return res.status(400).json({ error: 'Invalid schema path' });
+      }
+
       const fullPath = path.join(__dirname, 'public/data/schemas', schemaPath);
       if (fs.existsSync(fullPath)) {
           var schema = require(fullPath);
@@ -289,7 +429,11 @@ app.get('/schemas/:schema(*)', ensureAuthenticated, async (req, res, next) => {
           /*
            * Hack to update the schema with defined data
            */
-          if (schemaPath === "partials/actionPlanning.json" && res.locals.project && res.locals.project.stakeholders) {
+          if (
+            (schemaPath === "partials/actionPlanning.json" || schemaPath === "partials/actionCompletion.json") &&
+            res.locals.project &&
+            res.locals.project.stakeholders
+          ) {
             const stakeholders = res.locals.project.stakeholders.map(stakeholder => stakeholder.stakeholder);
             // Update the enum for action.stakeholder in the schema
             const properties = schema.properties;
@@ -326,32 +470,25 @@ app.get('*', function(req, res, next){
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  // Default status code for unhandled errors
-  let statusCode = 500;
-  let errorMessage = "Internal Server Error";
-  // Check if the error has a specific status code and message
-  if (err.status) {
-      statusCode = err.status;
-      errorMessage = err.message;
+  const { statusCode, body } = formatApiError(err);
+  if (statusCode >= 500) {
+    console.error('[http error]', req.method, req.originalUrl, err.message);
+    if (err.stack) console.error(err.stack);
   }
   const page = {
     title: "Error"
   };
   res.locals.page = page;
 
-  // Log the error stack trace
-  //console.error(err.stack);
+  const acceptHeader = req.get('Accept') || '';
+  const wantsJson = acceptHeader.includes('application/json');
 
-  // Content negotiation based on request Accept header
-  const acceptHeader = req.get('Accept');
-
-  if (acceptHeader === 'application/json') {
-      // Respond with JSON
-      res.status(statusCode).json({ message: errorMessage });
-  } else {
-      // Respond with HTML (rendering an error page)
-      res.status(statusCode).render('errors/error', { statusCode, errorMessage });
+  if (wantsJson) {
+    return res.status(statusCode).json(body);
   }
+  const errorMessage =
+    typeof body.message === 'string' ? body.message : 'Internal Server Error';
+  return res.status(statusCode).render('errors/error', { statusCode, errorMessage });
 });
 
 // Start server

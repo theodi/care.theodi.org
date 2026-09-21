@@ -1,0 +1,109 @@
+<% const isEdit = typeof subscriptionEditId !== 'undefined' && subscriptionEditId; %>
+<% const renewalTenantData = typeof renewalTenant !== 'undefined' ? renewalTenant : null; %>
+<% const isRenewal = !isEdit && renewalTenantData && renewalTenantData._id; %>
+<div class="main-content">
+  <section class="page-title container white">
+    <h1 style="text-align: center;"><%= page.title %></h1>
+    <input type="hidden" value="<%= page.link %>" id="pageId"/>
+    <input type="hidden" id="subscriptionEditId" value="<%= isEdit ? subscriptionEditId : '' %>"/>
+    <input type="hidden" id="renewalTenantId" value="<%= isRenewal ? renewalTenantData._id : '' %>"/>
+  </section>
+
+  <div class="content-block white">
+    <div class="sub-form-wrap">
+    <p class="sub-form-wrap__back"><a href="/subscriptions">&larr; Back to all subscriptions</a></p>
+    <div id="subscriptionsNewMessage" class="alert" style="display:none;"></div>
+
+    <form id="newSubscriptionForm" class="sub-form" novalidate>
+      <div class="sub-form__row">
+        <label class="sub-form__label" for="sub-organisationName">Organisation name</label>
+        <div class="sub-form__control">
+          <input type="text" id="sub-organisationName" name="organisationName" required class="input inputText" placeholder="e.g. Example Ltd" autocomplete="organization"<% if (isRenewal) { %> value="<%= renewalTenantData.organisationName || '' %>" readonly<% } %>/>
+        </div>
+        <p class="sub-form__hint">Shown in the list so you can confirm you created the right customer. Not shown to organisation users.</p>
+      </div>
+
+      <div class="sub-form__row" id="subscriptionCreateDomainRow"<% if (isEdit || isRenewal) { %> style="display: none;"<% } %>>
+        <label class="sub-form__label" for="sub-emailDomain">Email domain</label>
+        <div class="sub-form__control">
+          <input type="text" id="sub-emailDomain" name="emailDomain" required class="input inputText" placeholder="example.com" autocapitalize="none" autocomplete="off" spellcheck="false"/>
+        </div>
+        <p class="sub-form__hint">Members you invite must sign in with an address on this domain (e.g. <kbd>name@example.com</kbd>). Enter the host only, without <kbd>@</kbd>.</p>
+      </div>
+
+      <div class="sub-form__row" id="subscriptionEditDomainRow"<% if (!(isEdit || isRenewal)) { %> style="display: none;"<% } %>>
+        <label class="sub-form__label">Email domain</label>
+        <div class="sub-form__control">
+          <strong>@<span id="sub-emailDomainDisplay"><%= isRenewal ? (renewalTenantData.emailDomain || '') : '' %></span></strong>
+          <p class="sub-form__hint">The domain cannot be changed; existing members are tied to it.</p>
+        </div>
+      </div>
+
+      <div class="sub-form__row" id="subscriptionCreateAdminRow"<% if (isEdit || isRenewal) { %> style="display: none;"<% } %>>
+        <label class="sub-form__label" for="sub-initialAdminEmail">Initial admin (email)</label>
+        <div class="sub-form__control">
+          <input type="email" id="sub-initialAdminEmail" name="initialAdminEmail" required class="input inputText" placeholder="admin@example.com" autocomplete="email"/>
+        </div>
+        <p class="sub-form__hint">Creates the first admin in the members list (not stored on the subscription record). Must match the domain above. More admins can be added later from the organisation page.</p>
+      </div>
+
+      <div class="sub-form__row" id="subscriptionEditAdminsRow"<% if (!isEdit) { %> style="display: none;"<% } %>>
+        <label class="sub-form__label" for="sub-adminEmails">Organisation admins</label>
+        <div class="sub-form__control">
+          <textarea id="sub-adminEmails" class="input inputText" rows="4" placeholder="admin@example.com&#10;other.admin@example.com"></textarea>
+        </div>
+        <p class="sub-form__hint">One email per line (or comma-separated). Each must be on the domain above. Anyone listed becomes an admin; other admins are demoted to members but stay on the subscription.</p>
+      </div>
+
+      <div class="sub-form__row">
+        <label class="sub-form__label" for="sub-planTier">Plan</label>
+        <div class="sub-form__control">
+          <select id="sub-planTier" name="planTier" required class="input inputText">
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+          </select>
+        </div>
+        <p class="sub-form__hint">Tier is stored for reporting; feature differences can be wired later.</p>
+      </div>
+
+      <div class="sub-form__row">
+        <label class="sub-form__label" for="sub-seatLimit">Seat limit</label>
+        <div class="sub-form__control">
+          <input type="number" id="sub-seatLimit" name="seatLimit" min="1" required class="input inputText" value="5"/>
+        </div>
+        <p class="sub-form__hint" id="sub-seatLimit-hint"><% if (isEdit) { %>Maximum users on the subscription (including admins). Cannot be below the current member count.<% } else { %>Maximum users in the organisation (including the primary admin). You can change this when editing the subscription.<% } %></p>
+      </div>
+
+      <div class="sub-form__row">
+        <label class="sub-form__label" for="sub-startDate">Start date</label>
+        <div class="sub-form__control">
+          <input type="date" id="sub-startDate" name="startDate" required class="input inputText"/>
+        </div>
+        <p class="sub-form__hint">First day the subscription is active (UTC midnight).</p>
+      </div>
+
+      <div class="sub-form__row">
+        <label class="sub-form__label" for="sub-endDate">End date</label>
+        <div class="sub-form__control">
+          <input type="date" id="sub-endDate" name="endDate" required class="input inputText"/>
+        </div>
+        <p class="sub-form__hint">Last day of access; after this, organisation sharing and seat benefits stop until renewed.</p>
+      </div>
+
+      <div class="sub-form__row">
+        <label class="sub-form__label" for="sub-amount">Amount</label>
+        <div class="sub-form__control">
+          <input type="number" id="sub-amount" name="amount" min="0" step="0.01" required class="input inputText" value="0"/>
+        </div>
+        <p class="sub-form__hint">Commercial value of the plan for your records (same currency you use internally).</p>
+      </div>
+
+      <div class="sub-form__actions">
+        <button type="submit" class="btn btn-primary" id="subscriptionFormSubmit"><%= isEdit ? 'Save changes' : (isRenewal ? 'Create period' : 'Create subscription') %></button>
+        <button type="button" class="transparent" onclick="window.location.href='/subscriptions'">Cancel</button>
+      </div>
+    </form>
+    </div>
+  </div>
+</div>
+<script src="/js/subscriptions-new.js"></script>

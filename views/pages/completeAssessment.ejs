@@ -1,10 +1,4 @@
-<%- include('../partials/header') %>
-<%- include('../partials/scan-header') %>
 <style>
-    .mergeOverwrite {
-        display: none;
-        text-align: center;
-    }
     table {
         width: auto;
         margin-left: auto;
@@ -31,23 +25,20 @@
     <subsection class="preAI">
         <h2>Do you want AI to run a complete risk assessment for your project?</h2>
         <p>
-            The AI will review the details of the project and make suggestions for what the possible intended and unintended consequences might be. The generated consequences should be treated as a guide that supports your project planning.
+            The AI will review the details of the project and work through each stage (intended and unintended consequences, stakeholders, risk evaluation, and action planning). Output from each stage is added directly to the assessment.
+        </p>
+        <p>
+            The generated content should be treated as a guide that supports your project planning.
         </p>
         <div id="aiMessageContainer" class="ai-message-container">
             <div class="ai-message-header">
                 <button class="expandButton">+</button>
-                <h3 class="expandToggle">Click here to view the query and data sent to the AI</h3>
+                <h3 class="expandToggle">How prompts are sent for this full run</h3>
             </div>
             <div id="aiMessage" class="aiMessage">
                 <!-- Your AI message content goes here -->
             </div>
         </div>
-    </subsection>
-    <subsection class="mergeOverwrite">
-        <h2>Existing data detected</h2>
-        <p>Your project already contains some data. Do you want to merge the new AI data with the existing data, or overwrite it?</p>
-        <button class="btn btn-primary mergeButton" id="merge">Merge</button>
-        <button class="btn btn-primary mergeButton" id="overwrite">Overwrite</button>
     </subsection>
 </section>
 <form id="dataForm" data-project-id="<%= project ? project._id : '' %>">
@@ -84,19 +75,8 @@ document.addEventListener("DOMContentLoaded", function () {
     yesButton.addEventListener("click", function(event) {
         event.preventDefault(); // Prevent default form submission
         if (projectId) {
-            checkExistingData(projectId);
+            getCompleteAIResponse(projectId);
         }
-    });
-
-    // Add event listeners to merge/overwrite buttons
-    document.getElementById("merge").addEventListener("click", function(event) {
-        event.preventDefault();
-        getCompleteAIResponse(projectId, true);
-    });
-
-    document.getElementById("overwrite").addEventListener("click", function(event) {
-        event.preventDefault();
-        getCompleteAIResponse(projectId, false);
     });
 });
 
@@ -105,5 +85,3 @@ async function loadPage(projectId) {
     loadAI();
 }
 </script>
-
-<%- include('../partials/footer') %>

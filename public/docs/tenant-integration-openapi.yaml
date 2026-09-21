@@ -1,0 +1,373 @@
+openapi: 3.0.3
+info:
+  title: CARE tenant integrations API
+  version: "1.0.0"
+  description: |
+    Read-only JSON API for organisation-shared evaluations (projects).
+
+    **Developer documentation:** `/docs/tenant-integration.html` — human-readable guide plus interactive reference generated from this OpenAPI file.
+
+    **Base path:** `/organisation/{tenantId}/api/v1/`
+
+    **Authentication:** `Authorization: Bearer <integration_api_key>`  
+    Keys are created on the Organisation page (organisation admins, active subscription).
+
+    **Clients must send** `Accept: application/json` (otherwise **406**).
+
+    **Visibility:** Only projects with `sharedWithOrganisation` for the tenant (including legacy subscription linkage) are returned.
+
+    **Zapier / Make cookbook:** `/docs/tenant-integration-zapier.md`
+
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: care.example.org
+        description: Your CARE deployment hostname
+
+tags:
+  - name: projects
+    description: Tenant-scoped project (evaluation) resources
+
+paths:
+  /organisation/{tenantId}/api/v1/projects:
+    get:
+      tags: [projects]
+      summary: List visible projects
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: updatedSince
+          in: query
+          description: ISO 8601 datetime; filter `lastModified >= updatedSince`
+          schema:
+            type: string
+            format: date-time
+        - name: cursor
+          in: query
+          description: Opaque pagination cursor from `nextCursor` on the previous page
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated project summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /organisation/{tenantId}/api/v1/projects/{projectId}:
+    get:
+      tags: [projects]
+      summary: Full project snapshot (integration DTO)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project document (no raw AI prompt history)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /organisation/{tenantId}/api/v1/projects/{projectId}/summary:
+    get:
+      tags: [projects]
+      summary: Compact metrics and completion (polling-friendly)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Summary payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSummary"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /organisation/{tenantId}/api/v1/projects/{projectId}/report:
+    get:
+      tags: [projects]
+      summary: Word report (current evaluation export)
+      description: |
+        Same `.docx` as the in-app report export (default or organisation Word template when configured).
+        **Accept** must include `application/vnd.openxmlformats-officedocument.wordprocessingml.document`.
+        Optional query: `appendGlossary` (`1`/`true`/`yes`), `includeAiProvenance` (`1`/`true`/`yes`) — same as the human UI.
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/ProjectId"
+        - name: appendGlossary
+          in: query
+          description: Append glossary appendix when truthy (1, true, yes)
+          schema:
+            type: string
+        - name: includeAiProvenance
+          in: query
+          description: Include AI provenance appendix when truthy
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Word document binary
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /organisation/{tenantId}/api/v1/projects/{projectId}/work-items:
+    get:
+      tags: [projects]
+      summary: Normalised work items (risks, actions, stakeholders, etc.)
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Stream of typed work items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItemsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+components:
+  securitySchemes:
+    TenantIntegrationBearer:
+      type: http
+      scheme: bearer
+      description: |
+        Integration key issued on the Organisation page (`careti_<keyId>_<secret>` format).
+
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      description: Stable tenant (organisation) id — 24 hex characters (MongoDB ObjectId)
+      schema:
+        type: string
+        pattern: "^[a-fA-F0-9]{24}$"
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      description: Project (evaluation) id from list response or evaluations UI
+      schema:
+        type: string
+        pattern: "^[a-fA-F0-9]{24}$"
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    ProjectListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        lastModified:
+          type: string
+          format: date-time
+          nullable: true
+        sharedWithOrganisation:
+          type: boolean
+        tenantId:
+          type: string
+          nullable: true
+        integrationExternalId:
+          type: string
+          nullable: true
+          description: Optional customer reference set by organisation admins or project managers (evaluations list “Your project ID”)
+        careWebUrl:
+          type: string
+          format: uri
+
+    ProjectListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectListItem"
+        nextCursor:
+          type: string
+          nullable: true
+        limit:
+          type: integer
+
+    ProjectSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        lastModified:
+          type: string
+          format: date-time
+          nullable: true
+        integrationExternalId:
+          type: string
+          nullable: true
+        completionStatus:
+          type: object
+          additionalProperties: true
+        riskCounts:
+          type: object
+          additionalProperties: true
+        averages:
+          type: object
+          additionalProperties: true
+        topRisks:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    WorkItem:
+      type: object
+      required: [type, sourceProjectId, sourceProjectTitle, careWebUrl, updatedAt]
+      properties:
+        type:
+          type: string
+          enum:
+            - project
+            - risk
+            - action
+            - stakeholder
+            - intended_outcome
+        sourceProjectId:
+          type: string
+        sourceProjectTitle:
+          type: string
+        careWebUrl:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+        integrationExternalId:
+          type: string
+          nullable: true
+          description: Same reference as list/detail when set
+        payload:
+          type: object
+          additionalProperties: true
+
+    WorkItemsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkItem"
+
+  responses:
+    BadRequest:
+      description: Invalid tenant id or query
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: Key tenant mismatch or no active subscription
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Project not found or not visible
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotAcceptable:
+      description: Accept header must include application/json
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+security:
+  - TenantIntegrationBearer: []

@@ -175,5 +175,55 @@ async function updateToolStatistics(userId) {
     }
 }
 
+async function updateCareAccountStatus(userId, status) {
+    let hubSpotId = null;
+    try {
+        const allowedStatuses = new Set(["active", "deleted"]);
+        if (!allowedStatuses.has(status)) {
+            console.warn("Invalid care account status for HubSpot update:", status);
+            return;
+        }
 
-module.exports = { getHubspotUser, getHubspotProfile, updateToolStatistics };
+        const hubspotProfile = await getHubspotProfile(userId);
+        hubSpotId = hubspotProfile ? hubspotProfile.hubSpotId : null;
+
+        if (!hubSpotId) {
+            // Recover when local Hubspot mapping is missing by syncing from user email.
+            const user = await User.findById(userId).select('email');
+            if (user && user.email) {
+                await getHubspotUser(userId, user.email);
+                const refreshedHubspotProfile = await getHubspotProfile(userId);
+                hubSpotId = refreshedHubspotProfile ? refreshedHubspotProfile.hubSpotId : null;
+            }
+        }
+
+        if (!hubSpotId) {
+            console.warn("Hubspot contact not found for care_account_status update, user ID:", userId);
+            return;
+        }
+
+        const patchData = {
+            properties: {
+                care_account_status: status
+            }
+        };
+
+        await hubspotClient.crm.contacts.basicApi.update(hubSpotId, patchData);
+    } catch (error) {
+        console.error("Error in updateCareAccountStatus:", error);
+        if (error.code === 404 && hubSpotId) {
+            try {
+                await Hubspot.findOneAndUpdate(
+                    { userId },
+                    { $unset: { hubSpotId: "" } }
+                );
+                console.warn("Cleared stale hubSpotId after HubSpot 404 for user:", userId);
+            } catch (clearErr) {
+                console.warn("Could not clear stale HubSpot id:", clearErr);
+            }
+        }
+    }
+}
+
+
+module.exports = { getHubspotUser, getHubspotProfile, updateToolStatistics, updateCareAccountStatus };
