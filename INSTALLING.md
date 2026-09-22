@@ -45,16 +45,16 @@ npm install
 
    Missing optional keys are warnings. Invalid or expired API keys, and a failed MongoDB ping, fail the script. Use `--strict` to also fail on warnings. For a full AI completion smoke test, use `npm run test-ai`.
 
-   To push the same checks (plus `runtime` versions and lockfiles) to a local [service-status](../service-status) collector — Node/OS LTS and `npm audit` are scored on the collector:
+   To monitor CARE (and other apps on the same host) use the **host agent** in
+   [service-status/agent](../service-status/agent) — not an in-app reporter.
+   Point the agent’s `SCAN_ROOTS` at this checkout (or its parent) and allowlist
+   the server egress IP on the collector Configure page.
+
+   Optional one-shot connection probes (no collector push):
 
    ```bash
-   # in service-status: npm start
-   # in CARE config.env: STATUS_REPORT_URL=http://localhost:3090/reports
-   #                     STATUS_REPORT_KEY=dev-shared-secret
-   npm run report-status -- --push
+   npm run test-connections
    ```
-
-   Integration docs: service-status `/docs` (sample client also under CARE `lib/odi-status/`).
 
 6. Start the app with `npm start`.
 7. Open `http://localhost:3080`.
